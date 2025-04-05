@@ -42,13 +42,14 @@ const ExpoSecureStoreAdapter = {
   },
 };
 
-// Add fallback values for development
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
-const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
+// Add fallback values for development and production
+const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || 'https://dummy-project.supabase.co';
+const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || 'dummy-key-for-demo-purposes-only';
 
-if (!supabaseUrl || !supabaseAnonKey) {
+// Log warning but don't block execution
+if (!process.env.EXPO_PUBLIC_SUPABASE_URL || !process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY) {
   console.warn(
-    'Supabase URL or Anonymous Key is missing. Please check your .env file.'
+    'Supabase URL or Anonymous Key is missing. Using dummy values for demo purposes.'
   );
 }
 

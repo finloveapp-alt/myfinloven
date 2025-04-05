@@ -4,7 +4,6 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
   <meta name="theme-color" content="#000000" />
-  <link rel="shortcut icon" href="/favicon.ico" />
   <title>My Finlove</title>
   <style>
     body {
@@ -13,22 +12,84 @@
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen,
         Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
       background-color: #f5f5f5;
-    }
-    #root {
+      color: #333;
       display: flex;
       flex-direction: column;
+      align-items: center;
+      justify-content: center;
       min-height: 100vh;
+      text-align: center;
+    }
+    .container {
+      max-width: 600px;
+      padding: 20px;
+      background-color: white;
+      border-radius: 10px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    h1 {
+      color: #6200ee;
+      margin-bottom: 20px;
+    }
+    .logo {
+      font-size: 48px;
+      margin-bottom: 20px;
+      color: #6200ee;
+    }
+    .button {
+      background-color: #6200ee;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 4px;
+      font-size: 16px;
+      cursor: pointer;
+      margin-top: 20px;
+      text-decoration: none;
+      display: inline-block;
+    }
+    .button:hover {
+      background-color: #3700b3;
+    }
+    .features {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-top: 30px;
+    }
+    .feature {
+      flex: 1 1 200px;
+      margin: 10px;
+      padding: 15px;
+      background-color: #f8f8f8;
+      border-radius: 8px;
     }
   </style>
 </head>
 <body>
-  <div id="root"></div>
-  <script>
-    // Redirecionar para o arquivo JavaScript correto
-    const script = document.createElement('script');
-    script.src = '/_expo/static/js/web/entry-78db9094de62717431b02ec90a734e86.js';
-    script.type = 'text/javascript';
-    document.body.appendChild(script);
-  </script>
+  <div class="container">
+    <div class="logo">💰</div>
+    <h1>My Finlove</h1>
+    <p>Bem-vindo ao My Finlove, seu aplicativo de gerenciamento financeiro pessoal.</p>
+    
+    <p>Este é um aplicativo móvel desenvolvido com React Native e Expo. Para a melhor experiência, recomendamos acessar através do aplicativo móvel.</p>
+    
+    <div class="features">
+      <div class="feature">
+        <h3>Gerenciamento de Transações</h3>
+        <p>Acompanhe suas receitas e despesas facilmente</p>
+      </div>
+      <div class="feature">
+        <h3>Orçamento Mensal</h3>
+        <p>Defina metas e acompanhe seu progresso</p>
+      </div>
+      <div class="feature">
+        <h3>Autenticação Segura</h3>
+        <p>Seus dados protegidos com Supabase</p>
+      </div>
+    </div>
+    
+    <a href="https://github.com/LumiaIA/Finlove" class="button">Ver no GitHub</a>
+  </div>
 </body>
 </html>

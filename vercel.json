@@ -3,7 +3,7 @@
   "builds": [
     {
       "src": "package.json",
-      "use": "@vercel/expo"
+      "use": "@vercel/static-build"
     }
   ],
   "routes": [
@@ -11,5 +11,7 @@
       "src": "/(.*)",
       "dest": "/"
     }
-  ]
+  ],
+  "buildCommand": "npx expo export:web",
+  "outputDirectory": "web-build"
 }

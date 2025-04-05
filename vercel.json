@@ -1,17 +1,11 @@
 {
   "version": 2,
-  "builds": [
-    {
-      "src": "package.json",
-      "use": "@vercel/static-build"
-    }
-  ],
+  "buildCommand": "npm run vercel-build",
+  "outputDirectory": "web-build",
   "routes": [
     {
       "src": "/(.*)",
       "dest": "/"
     }
-  ],
-  "buildCommand": "npx expo export:web",
-  "outputDirectory": "web-build"
+  ]
 }

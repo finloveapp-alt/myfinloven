@@ -38,4 +38,8 @@ npx expo start
 
 ## Deploy
 
-Este aplicativo está configurado para deploy na Vercel.
+Este aplicativo está configurado para deploy na Vercel usando integração contínua. Cada push para a branch main aciona automaticamente um novo deploy.
+
+### Configuração da Vercel
+
+O arquivo `vercel.json` na raiz do projeto configura o ambiente de deploy para garantir que as rotas funcionem corretamente na Vercel.

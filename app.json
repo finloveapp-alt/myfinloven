@@ -12,21 +12,41 @@
       "resizeMode": "contain",
       "backgroundColor": "#b687fe"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.myfinlove.app"
+      "bundleIdentifier": "com.myfinlove.app",
+      "runtimeVersion": "1.0.0"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#b687fe"
       },
-      "package": "com.myfinlove.app"
+      "package": "com.myfinlove.app",
+      "runtimeVersion": {
+        "policy": "appVersion"
+      }
     },
-    "plugins": ["expo-router"],
+    "plugins": [
+      "expo-router"
+    ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "353a1b05-09b7-4634-9a5c-b6404ebcdd9d"
+      }
+    },
+    "owner": "myfinlove",
+    "updates": {
+      "url": "https://u.expo.dev/353a1b05-09b7-4634-9a5c-b6404ebcdd9d"
     }
   }
 }

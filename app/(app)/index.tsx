@@ -1,6 +1,12 @@
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { User, Users, UserCircle } from 'lucide-react-native';
+import BottomNavigation from '@/components/BottomNavigation';
+
+const theme = {
+  primary: '#b687fe',
+  card: '#ffffff',
+};
 
 export default function Home() {
   const modes = [
@@ -28,40 +34,48 @@ export default function Home() {
   ];
 
   return (
-    <LinearGradient
-      colors={['#ffffff', '#f8f0ff']}
-      style={styles.container}
-    >
-      <View style={styles.header}>
-        <Text style={styles.title}>Escolha seu modo</Text>
-        <Text style={styles.subtitle}>Como você quer usar o MyFinlove?</Text>
-      </View>
+    <View style={styles.container}>
+      <LinearGradient
+        colors={['#ffffff', '#f8f0ff']}
+        style={styles.gradient}
+      >
+        <View style={styles.header}>
+          <Text style={styles.title}>Escolha seu modo</Text>
+          <Text style={styles.subtitle}>Como você quer usar o MyFinlove?</Text>
+        </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {modes.map((mode) => (
-          <TouchableOpacity key={mode.id} style={styles.card}>
-            <View style={[styles.iconContainer, { backgroundColor: mode.color }]}>
-              <mode.icon size={24} color="#fff" />
-            </View>
-            <View style={styles.cardContent}>
-              <Text style={styles.cardTitle}>{mode.title}</Text>
-              <Text style={styles.cardDescription}>{mode.description}</Text>
-            </View>
-            <TouchableOpacity
-              style={[styles.selectButton, { backgroundColor: mode.color }]}
-            >
-              <Text style={styles.selectButtonText}>Selecionar</Text>
+        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+          {modes.map((mode) => (
+            <TouchableOpacity key={mode.id} style={styles.card}>
+              <View style={[styles.iconContainer, { backgroundColor: mode.color }]}>
+                <mode.icon size={24} color="#fff" />
+              </View>
+              <View style={styles.cardContent}>
+                <Text style={styles.cardTitle}>{mode.title}</Text>
+                <Text style={styles.cardDescription}>{mode.description}</Text>
+              </View>
+              <TouchableOpacity
+                style={[styles.selectButton, { backgroundColor: mode.color }]}
+              >
+                <Text style={styles.selectButtonText}>Selecionar</Text>
+              </TouchableOpacity>
             </TouchableOpacity>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-    </LinearGradient>
+          ))}
+        </ScrollView>
+      </LinearGradient>
+      
+      <BottomNavigation theme={theme} />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  gradient: {
+    flex: 1,
+    marginBottom: 80,
   },
   header: {
     padding: 20,

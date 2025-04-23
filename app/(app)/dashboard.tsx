@@ -5,10 +5,13 @@ import {
   StyleSheet, 
   ScrollView, 
   Image, 
-  TouchableOpacity, 
+  TouchableOpacity,
+  Pressable,
   SafeAreaView,
   Platform,
-  Alert
+  Alert,
+  Modal,
+  Animated
 } from 'react-native';
 import { router } from 'expo-router';
 import { supabase } from '@/lib/supabase';
@@ -32,7 +35,15 @@ import {
   ArrowDownCircle,
   ArrowUpCircle,
   Users,
-  LogOut
+  LogOut,
+  Menu,
+  PieChart,
+  Clock,
+  Tag,
+  Wallet,
+  Info,
+  ExternalLink,
+  Bell
 } from 'lucide-react-native';
 
 // Definição de temas
@@ -68,6 +79,9 @@ const themes = {
 export default function Dashboard() {
   const [theme, setTheme] = useState(themes.feminine);
   const [currentTransactionIndex, setCurrentTransactionIndex] = useState(0);
+  const [menuModalVisible, setMenuModalVisible] = useState(false);
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [pressedCard, setPressedCard] = useState<string | null>(null);
   
   useEffect(() => {
     // Verifica se existe um tema definido globalmente
@@ -77,6 +91,33 @@ export default function Dashboard() {
       setTheme(themes.feminine);
     }
   }, []);
+
+  // Funções para navegar entre meses
+  const goToPreviousMonth = () => {
+    setCurrentMonth(prevMonth => {
+      const newMonth = new Date(prevMonth);
+      newMonth.setMonth(newMonth.getMonth() - 1);
+      return newMonth;
+    });
+  };
+
+  const goToNextMonth = () => {
+    setCurrentMonth(prevMonth => {
+      const newMonth = new Date(prevMonth);
+      newMonth.setMonth(newMonth.getMonth() + 1);
+      return newMonth;
+    });
+  };
+  
+  // Formatar nome do mês atual
+  const formatMonthName = (date: Date) => {
+    return date.toLocaleDateString('pt-BR', { month: 'long' });
+  };
+
+  // Capitalize primeira letra
+  const capitalizeFirstLetter = (string: string) => {
+    return string.charAt(0).toUpperCase() + string.slice(1);
+  };
 
   // Nomes baseados no tema
   const primaryPerson = theme === themes.masculine ? 'João' : 'Maria';
@@ -123,6 +164,26 @@ export default function Dashboard() {
     );
   };
 
+  // Gerar datas para a linha do tempo
+  const generateTimelineDates = (date: Date) => {
+    const firstDay = new Date(date.getFullYear(), date.getMonth(), 1);
+    const dates = [];
+    
+    // Gerar 7 datas começando do primeiro dia do mês
+    for (let i = 0; i < 7; i++) {
+      const currentDate = new Date(firstDay);
+      currentDate.setDate(firstDay.getDate() + i);
+      dates.push(currentDate);
+    }
+    
+    return dates;
+  };
+
+  // Formatar data para exibição
+  const formatDateForTimeline = (date: Date) => {
+    return `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <StatusBar style="light" />
@@ -141,15 +202,18 @@ export default function Dashboard() {
                     : 'https://randomuser.me/api/portraits/women/44.jpg' }}
                   style={styles.profileImage}
                 />
-                <View>
-                  <Text style={styles.budgetTitle}>Meu Orçamento</Text>
-                  <Text style={styles.budgetSubtitle}>Orçamento atual</Text>
+                <View style={styles.monthSelectorContainer}>
+                  <TouchableOpacity style={styles.monthNavButton} onPress={goToPreviousMonth}>
+                    <ArrowLeft size={22} color="#fff" />
+                  </TouchableOpacity>
+                  <Text style={styles.monthText}>{capitalizeFirstLetter(formatMonthName(currentMonth))}</Text>
+                  <TouchableOpacity style={styles.monthNavButton} onPress={goToNextMonth}>
+                    <ArrowRight size={22} color="#fff" />
+                  </TouchableOpacity>
                 </View>
                 <TouchableOpacity 
                   style={styles.logoutButton}
                   onPress={() => {
-                    // Navega diretamente para a tela de login sem tentar fazer logout no Supabase
-                    // Isso evita erros quando as credenciais do Supabase não estão configuradas
                     router.replace('/(auth)/login');
                   }}
                   accessibilityLabel="Botão de logout"
@@ -158,21 +222,55 @@ export default function Dashboard() {
                   <LogOut size={20} color="#fff" />
                 </TouchableOpacity>
               </View>
-
-              <View style={styles.monthSelector}>
-                <TouchableOpacity>
-                  <ArrowLeft size={20} color="#fff" />
-                </TouchableOpacity>
-                <Text style={styles.monthText}>Abr 2025</Text>
-                <TouchableOpacity>
-                  <ArrowRight size={20} color="#fff" />
-                </TouchableOpacity>
-              </View>
             </View>
-
+            
             <View style={styles.balanceSection}>
-              <Text style={styles.balanceAmount}>R$ 3.120</Text>
-              <Text style={styles.balanceLabel}>Saldo atual</Text>
+              <View style={styles.balanceHeaderRow}>
+                <View style={styles.balanceHeaderItem}>
+                  <View style={styles.balanceIconCircle}>
+                    <Check size={16} color="#fff" />
+                  </View>
+                  <Text style={styles.balanceHeaderText}>Inicial</Text>
+                </View>
+                
+                <View style={styles.balanceHeaderItem}>
+                  <View style={[styles.balanceIconCircle, { backgroundColor: 'rgba(255, 255, 255, 0.5)' }]}>
+                    <DollarSign size={16} color="#fff" />
+                  </View>
+                  <Text style={styles.balanceHeaderText}>Saldo</Text>
+                </View>
+                
+                <View style={styles.balanceHeaderItem}>
+                  <View style={styles.balanceIconCircle}>
+                    <Clock size={16} color="#fff" />
+                  </View>
+                  <Text style={styles.balanceHeaderText}>Previsto</Text>
+                </View>
+              </View>
+              
+              <View style={styles.balanceValueRow}>
+                <View style={styles.balanceValueItem}>
+                  <Text style={styles.balanceAmountSmall}>R$ 0,00</Text>
+                </View>
+                <View style={[styles.balanceValueItem, styles.balanceValueCenterItem]}>
+                  <Text style={styles.balanceAmountLarge}>R$ 0,00</Text>
+                </View>
+                <View style={styles.balanceValueItem}>
+                  <Text style={styles.balanceAmountSmall}>R$ 0,00</Text>
+                </View>
+              </View>
+              
+              <View style={styles.dateSelector}>
+                <View style={styles.dateTimeline}>
+                  <View style={styles.timelineLine} />
+                  {generateTimelineDates(currentMonth).map((date, index) => (
+                    <View key={index} style={styles.dateItem}>
+                      <View style={styles.dateDot} />
+                      <Text style={styles.dateText}>{formatDateForTimeline(date)}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
             </View>
 
             <View style={styles.usersRow}>
@@ -195,28 +293,62 @@ export default function Dashboard() {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.cardsScrollContainer}
         >
-          <View style={[styles.financialCard, { backgroundColor: theme.card }]}>
-            <Text style={styles.cardLabel}>Receitas</Text>
-            <Text style={styles.cardAmount}>R$ 5.000</Text>
-            <Text style={styles.cardChangePositive}>+10% desde Mar</Text>
-          </View>
+          <View style={{ flexDirection: 'row', gap: 16 }}>
+            <Pressable 
+              style={({pressed}) => [
+                styles.financialCard, 
+                { backgroundColor: theme.card },
+                pressed && styles.financialCardPressed
+              ]}
+              onPressIn={() => setPressedCard('receitas')}
+              onPressOut={() => setPressedCard(null)}
+            >
+              <Text style={styles.cardLabel}>Receitas</Text>
+              <Text style={styles.cardAmount}>R$ 5.000</Text>
+              <Text style={styles.cardChangePositive}>+10% desde Março</Text>
+            </Pressable>
 
-          <View style={[styles.financialCard, { backgroundColor: theme.card }]}>
-            <Text style={styles.cardLabel}>Despesas</Text>
-            <Text style={styles.cardAmount}>R$ 1.880</Text>
-            <Text style={styles.cardChangeNegative}>-3,2% desde Mar</Text>
-          </View>
-          
-          <View style={[styles.card, { backgroundColor: theme.card }]}>
-            <Text style={styles.cardLabel}>Débitos</Text>
-            <Text style={styles.cardAmount}>R$ 2.350</Text>
-            <Text style={styles.cardChangeNegative}>+5,7% desde Mar</Text>
-          </View>
-          
-          <View style={[styles.card, { backgroundColor: theme.card }]}>
-            <Text style={styles.cardLabel}>Créditos</Text>
-            <Text style={styles.cardAmount}>R$ 3.200</Text>
-            <Text style={styles.cardChangePositive}>+8,3% desde Mar</Text>
+            <Pressable 
+              style={({pressed}) => [
+                styles.financialCard, 
+                { backgroundColor: theme.card },
+                pressed && styles.financialCardPressed
+              ]}
+              onPressIn={() => setPressedCard('despesas')}
+              onPressOut={() => setPressedCard(null)}
+            >
+              <Text style={styles.cardLabel}>Despesas</Text>
+              <Text style={styles.cardAmount}>R$ 1.880</Text>
+              <Text style={styles.cardChangeNegative}>-3,2% desde Março</Text>
+            </Pressable>
+            
+            <Pressable 
+              style={({pressed}) => [
+                styles.card, 
+                { backgroundColor: theme.card },
+                pressed && styles.cardPressed
+              ]}
+              onPressIn={() => setPressedCard('debitos')}
+              onPressOut={() => setPressedCard(null)}
+            >
+              <Text style={styles.cardLabel}>Débitos</Text>
+              <Text style={styles.cardAmount}>R$ 2.350</Text>
+              <Text style={styles.cardChangeNegative}>+5,7% desde Março</Text>
+            </Pressable>
+            
+            <Pressable 
+              style={({pressed}) => [
+                styles.card, 
+                { backgroundColor: theme.card },
+                pressed && styles.cardPressed
+              ]}
+              onPressIn={() => setPressedCard('creditos')}
+              onPressOut={() => setPressedCard(null)}
+            >
+              <Text style={styles.cardLabel}>Créditos</Text>
+              <Text style={styles.cardAmount}>R$ 3.200</Text>
+              <Text style={styles.cardChangePositive}>+8,3% desde Março</Text>
+            </Pressable>
           </View>
         </ScrollView>
 
@@ -329,8 +461,6 @@ export default function Dashboard() {
           </View>
         </View>
 
-
-
         {/* Contas a Pagar & Cartões */}
         <View style={[styles.sectionContainer, { backgroundColor: theme.card }]}>
           <View style={styles.sectionHeader}>
@@ -373,10 +503,6 @@ export default function Dashboard() {
             <Text style={styles.billAmount}>R$ 120,00</Text>
           </View>
         </View>
-
-
-
-
 
         {/* Metas Financeiras */}
         <View style={[styles.sectionContainer, { backgroundColor: theme.card }]}>
@@ -472,29 +598,198 @@ export default function Dashboard() {
       {/* Bottom Navigation */}
       <View style={[styles.bottomNav, { backgroundColor: theme.card }]}>
         <TouchableOpacity style={styles.navItem}>
-          <Home size={24} color="#999" />
-          <Text style={styles.navText}>Início</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity style={styles.navItem}>
           <BarChart size={24} color={theme.primary} />
           <Text style={[styles.navText, { color: theme.primary }]}>Dashboard</Text>
         </TouchableOpacity>
         
-        <TouchableOpacity style={styles.addButton}>
-          <PlusCircle size={60} color="#2D3748" />
+        <TouchableOpacity 
+          style={styles.navItem}
+          onPress={() => setMenuModalVisible(true)}
+        >
+          <Menu size={24} color="#999" />
+          <Text style={styles.navText}>Menu</Text>
         </TouchableOpacity>
         
-        <TouchableOpacity style={styles.navItem}>
+        <TouchableOpacity 
+          style={styles.addButton}
+          onPress={() => router.push('/(app)/registers')}
+        >
+          <View style={styles.addButtonInner}>
+            <PlusCircle size={32} color="#fff" />
+          </View>
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={styles.navItem} 
+          onPress={() => router.push('/(app)/notifications')}
+        >
           <Receipt size={24} color="#999" />
-          <Text style={styles.navText}>Transações</Text>
+          <Text style={styles.navText}>Notificações</Text>
         </TouchableOpacity>
         
-        <TouchableOpacity style={styles.navItem}>
+        <TouchableOpacity 
+          style={styles.navItem} 
+          onPress={() => router.push('/(app)/cards')}
+        >
           <CreditCard size={24} color="#999" />
-          <Text style={styles.navText}>Contas</Text>
+          <Text style={styles.navText}>Cartões</Text>
         </TouchableOpacity>
       </View>
+
+      {/* Menu Modal */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={menuModalVisible}
+        onRequestClose={() => setMenuModalVisible(false)}
+      >
+        <View style={styles.menuModalContainer}>
+          <View style={[styles.menuModalContent, { backgroundColor: theme.card }]}>
+            <View style={styles.menuHeader}>
+              <TouchableOpacity 
+                style={styles.closeButton}
+                onPress={() => setMenuModalVisible(false)}
+              >
+                <Text style={[styles.closeButtonText, { color: theme.primary }]}>Fechar</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.menuGrid}>
+              {/* Primeira linha */}
+              <View style={styles.menuRow}>
+                <TouchableOpacity 
+                  style={styles.menuItem}
+                  onPress={() => {
+                    setMenuModalVisible(false);
+                    router.push('/(app)/dashboard');
+                  }}
+                >
+                  <View style={[styles.menuIconContainer, { backgroundColor: `rgba(${theme === themes.feminine ? '182, 135, 254' : '0, 115, 234'}, 0.15)` }]}>
+                    <Home size={28} color={theme.primary} />
+                  </View>
+                  <Text style={[styles.menuItemTitle, { color: '#333' }]}>Dashboard</Text>
+                  <Text style={[styles.menuItemSubtitle, { color: '#666' }]}>Visão geral</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={styles.menuItem}
+                  onPress={() => {
+                    setMenuModalVisible(false);
+                    router.push('/(app)/registers');
+                  }}
+                >
+                  <View style={[styles.menuIconContainer, { backgroundColor: `rgba(${theme === themes.feminine ? '182, 135, 254' : '0, 115, 234'}, 0.15)` }]}>
+                    <PlusCircle size={28} color={theme.primary} />
+                  </View>
+                  <Text style={[styles.menuItemTitle, { color: '#333' }]}>Novo Registro</Text>
+                  <Text style={[styles.menuItemSubtitle, { color: '#666' }]}>Adicionar transação</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={styles.menuItem}
+                  onPress={() => {
+                    setMenuModalVisible(false);
+                    router.push('/(app)/notifications');
+                  }}
+                >
+                  <View style={[styles.menuIconContainer, { backgroundColor: `rgba(${theme === themes.feminine ? '182, 135, 254' : '0, 115, 234'}, 0.15)` }]}>
+                    <Bell size={28} color={theme.primary} />
+                  </View>
+                  <Text style={[styles.menuItemTitle, { color: '#333' }]}>Notificações</Text>
+                  <Text style={[styles.menuItemSubtitle, { color: '#666' }]}>Alertas e avisos</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Segunda linha */}
+              <View style={styles.menuRow}>
+                <TouchableOpacity 
+                  style={styles.menuItem}
+                  onPress={() => {
+                    setMenuModalVisible(false);
+                    router.push('/(app)/planning' as any);
+                  }}
+                >
+                  <View style={[styles.menuIconContainer, { backgroundColor: `rgba(${theme === themes.feminine ? '182, 135, 254' : '0, 115, 234'}, 0.15)` }]}>
+                    <BarChart size={28} color={theme.primary} />
+                  </View>
+                  <Text style={[styles.menuItemTitle, { color: '#333' }]}>Planejamento</Text>
+                  <Text style={[styles.menuItemSubtitle, { color: '#666' }]}>Orçamentos e metas</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={styles.menuItem}
+                  onPress={() => {
+                    setMenuModalVisible(false);
+                    router.push('/(app)/cards');
+                  }}
+                >
+                  <View style={[styles.menuIconContainer, { backgroundColor: `rgba(${theme === themes.feminine ? '182, 135, 254' : '0, 115, 234'}, 0.15)` }]}>
+                    <CreditCard size={28} color={theme.primary} />
+                  </View>
+                  <Text style={[styles.menuItemTitle, { color: '#333' }]}>Cartões</Text>
+                  <Text style={[styles.menuItemSubtitle, { color: '#666' }]}>Cartões de crédito</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={styles.menuItem}
+                  onPress={() => {
+                    setMenuModalVisible(false);
+                    router.push('/(app)/accounts');
+                  }}
+                >
+                  <View style={[styles.menuIconContainer, { backgroundColor: `rgba(${theme === themes.feminine ? '182, 135, 254' : '0, 115, 234'}, 0.15)` }]}>
+                    <Wallet size={28} color={theme.primary} />
+                  </View>
+                  <Text style={[styles.menuItemTitle, { color: '#333' }]}>Contas</Text>
+                  <Text style={[styles.menuItemSubtitle, { color: '#666' }]}>Gerenciar contas</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Terceira linha */}
+              <View style={styles.menuRow}>
+                <TouchableOpacity 
+                  style={styles.menuItem}
+                  onPress={() => {
+                    setMenuModalVisible(false);
+                    // Navegação para sobre
+                  }}
+                >
+                  <View style={[styles.menuIconContainer, { backgroundColor: `rgba(${theme === themes.feminine ? '182, 135, 254' : '0, 115, 234'}, 0.15)` }]}>
+                    <Info size={28} color={theme.primary} />
+                  </View>
+                  <Text style={[styles.menuItemTitle, { color: '#333' }]}>Sobre</Text>
+                  <Text style={[styles.menuItemSubtitle, { color: '#666' }]}>Informações</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={styles.menuItem}
+                  onPress={() => {
+                    setMenuModalVisible(false);
+                    router.replace('/(auth)/login');
+                  }}
+                >
+                  <View style={[styles.menuIconContainer, { backgroundColor: `rgba(${theme === themes.feminine ? '182, 135, 254' : '0, 115, 234'}, 0.15)` }]}>
+                    <ExternalLink size={28} color={theme.primary} />
+                  </View>
+                  <Text style={[styles.menuItemTitle, { color: '#333' }]}>Logout</Text>
+                  <Text style={[styles.menuItemSubtitle, { color: '#666' }]}>Sair do aplicativo</Text>
+                </TouchableOpacity>
+
+                <View style={styles.menuItem}>
+                  {/* Item vazio para manter o alinhamento */}
+                </View>
+              </View>
+            </View>
+
+            <TouchableOpacity 
+              style={[styles.closeFullButton, { backgroundColor: theme.primary }]}
+              onPress={() => setMenuModalVisible(false)}
+            >
+              <Text style={styles.closeFullButtonText}>Fechar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -508,52 +803,131 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 16,
     marginRight: 12,
+    height: 140,
+    overflow: 'hidden',
+    transform: [{ translateY: 0 }],
     ...Platform.select({
       ios: {
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.15,
+        shadowRadius: 8,
       },
       android: {
-        elevation: 2,
+        elevation: 4,
       },
+      web: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.15,
+        shadowRadius: 12,
+      }
+    }),
+  },
+  financialCardPressed: {
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.25,
+        shadowRadius: 12,
+        transform: [{ scale: 1.05 }, { translateY: -5 }],
+      },
+      android: {
+        elevation: 8,
+        transform: [{ scale: 1.05 }, { translateY: -5 }],
+      },
+      web: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.25,
+        shadowRadius: 20,
+        transform: [{ scale: 1.05 }, { translateY: -5 }],
+      },
+      default: {}
     }),
   },
   headerContainer: {
-    paddingTop: Platform.OS === 'android' ? 40 : 0,
-    paddingBottom: 20,
-    paddingHorizontal: 20,
+    paddingTop: Platform.OS === 'android' ? 20 : 0,
+    paddingBottom: 10,
+    paddingHorizontal: 16,
     borderBottomLeftRadius: 0,
     borderBottomRightRadius: 0,
   },
   headerContent: {
-    paddingBottom: 10,
+    paddingBottom: 5,
   },
   profileSection: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 12,
+    marginTop: 8,
+    paddingHorizontal: 6,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    backdropFilter: 'blur(8px)',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#fff',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 10,
+      },
+      android: {
+        elevation: 2,
+      },
+      web: {
+        boxShadow: '0 2px 10px rgba(255, 255, 255, 0.1)',
+      }
+    }),
   },
   profileInfo: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
+    justifyContent: 'space-between',
   },
   logoutButton: {
-    marginLeft: 'auto',
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    padding: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    padding: 10,
     borderRadius: 20,
+    transform: [{ scale: 1 }],
+    ...Platform.select({
+      ios: {
+        shadowColor: '#fff',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.15,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 3,
+      },
+      web: {
+        boxShadow: '0 2px 4px rgba(255, 255, 255, 0.15)',
+      }
+    }),
   },
   profileImage: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    marginRight: 15,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.5)',
+    borderColor: 'rgba(255,255,255,0.7)',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.3,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 4,
+      },
+      web: {
+        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
+      }
+    }),
   },
   budgetTitle: {
     fontSize: 20,
@@ -565,50 +939,156 @@ const styles = StyleSheet.create({
     fontFamily: fontFallbacks.Poppins_400Regular,
     color: 'rgba(255,255,255,0.8)',
   },
-  monthSelector: {
+  monthSelectorContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    paddingHorizontal: 15,
-    paddingVertical: 8,
-    borderRadius: 25,
+    justifyContent: 'center',
+    flex: 1,
   },
   monthText: {
     color: 'white',
     marginHorizontal: 10,
-    fontFamily: fontFallbacks.Poppins_500Medium,
+    fontFamily: fontFallbacks.Poppins_600SemiBold,
+    fontSize: 18,
+    textAlign: 'center',
+  },
+  monthNavButton: {
+    padding: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 16,
+    width: 32,
+    height: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+    transform: [{ scale: 1 }],
+    ...Platform.select({
+      ios: {
+        shadowColor: '#fff',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.15,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 3,
+      },
+      web: {
+        boxShadow: '0 2px 4px rgba(255, 255, 255, 0.15)',
+      }
+    }),
   },
   balanceSection: {
-    marginBottom: 20,
+    marginBottom: 16,
+    marginTop: 30,
+    paddingHorizontal: 8,
+    paddingVertical: 12,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    backdropFilter: 'blur(8px)',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#fff',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 10,
+      },
+      android: {
+        elevation: 2,
+      },
+      web: {
+        boxShadow: '0 2px 10px rgba(255, 255, 255, 0.1)',
+      }
+    }),
   },
-  balanceAmount: {
-    fontSize: 42,
-    fontFamily: fontFallbacks.Poppins_600SemiBold,
+  balanceHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+    paddingHorizontal: 12,
+  },
+  balanceHeaderItem: {
+    flexDirection: 'column',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+  },
+  balanceIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 6,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 3,
+      },
+      android: {
+        elevation: 3,
+      },
+      web: {
+        boxShadow: '0 2px 6px rgba(0, 0, 0, 0.2)',
+      }
+    }),
+  },
+  balanceHeaderText: {
+    fontSize: 14,
+    fontFamily: fontFallbacks.Poppins_400Regular,
     color: 'white',
-    marginBottom: 5,
+    marginTop: 2,
   },
-  balanceLabel: {
+  balanceValueRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    marginVertical: 8,
+  },
+  balanceValueItem: {
+    paddingHorizontal: 4,
+    alignItems: 'center',
+  },
+  balanceValueCenterItem: {
+    flex: 1.2,
+    alignItems: 'center',
+  },
+  balanceAmountSmall: {
     fontSize: 16,
     fontFamily: fontFallbacks.Poppins_400Regular,
-    color: 'rgba(255,255,255,0.8)',
+    color: 'white',
+    textAlign: 'center',
+  },
+  balanceAmountLarge: {
+    fontSize: 36,
+    fontFamily: fontFallbacks.Poppins_600SemiBold,
+    color: 'white',
+    textAlign: 'center',
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
   },
   usersRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    alignSelf: 'flex-end',
+    justifyContent: 'flex-end',
+    paddingRight: 12,
+    marginTop: 6,
   },
   userAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     borderWidth: 2,
     borderColor: 'white',
     marginLeft: -10,
   },
   addUserAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: 'rgba(255,255,255,0.3)',
     justifyContent: 'center',
     alignItems: 'center',
@@ -616,7 +1096,7 @@ const styles = StyleSheet.create({
   },
   addUserText: {
     color: 'white',
-    fontSize: 20,
+    fontSize: 18,
   },
   // Section Container
   sectionContainer: {
@@ -624,16 +1104,23 @@ const styles = StyleSheet.create({
     marginTop: 20,
     borderRadius: 20,
     padding: 20,
+    transform: [{ translateY: 0 }],
     ...Platform.select({
       ios: {
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
+        shadowOpacity: 0.15,
+        shadowRadius: 12,
       },
       android: {
-        elevation: 3,
+        elevation: 5,
       },
+      web: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.15,
+        shadowRadius: 16,
+      }
     }),
   },
   sectionHeader: {
@@ -692,20 +1179,53 @@ const styles = StyleSheet.create({
   },
   card: {
     flex: 1,
+    width: 160,
     backgroundColor: 'white',
     borderRadius: 20,
     padding: 20,
     marginHorizontal: 5,
+    marginRight: 12,
+    height: 140,
+    transform: [{ translateY: 0 }], // Base para animação
     ...Platform.select({
       ios: {
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.15,
         shadowRadius: 8,
       },
       android: {
-        elevation: 3,
+        elevation: 4,
       },
+      web: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.15,
+        shadowRadius: 12,
+      }
+    }),
+  },
+  cardPressed: {
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.25,
+        shadowRadius: 12,
+        transform: [{ scale: 1.05 }, { translateY: -5 }],
+      },
+      android: {
+        elevation: 8,
+        transform: [{ scale: 1.05 }, { translateY: -5 }],
+      },
+      web: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.25,
+        shadowRadius: 20,
+        transform: [{ scale: 1.05 }, { translateY: -5 }],
+      },
+      default: {}
     }),
   },
   cardLabel: {
@@ -713,22 +1233,28 @@ const styles = StyleSheet.create({
     fontFamily: fontFallbacks.Poppins_600SemiBold,
     color: '#333',
     marginBottom: 10,
+    flexShrink: 1,
   },
   cardAmount: {
-    fontSize: 28,
+    fontSize: 24,
     fontFamily: fontFallbacks.Poppins_600SemiBold,
     color: '#333',
-    marginBottom: 5,
+    marginBottom: 4,
+    flexShrink: 1,
   },
   cardChangePositive: {
     fontSize: 14,
     fontFamily: fontFallbacks.Poppins_400Regular,
     color: '#4CD964',
+    flexShrink: 1,
+    flexWrap: 'wrap',
   },
   cardChangeNegative: {
     fontSize: 14,
     fontFamily: fontFallbacks.Poppins_400Regular,
     color: '#FF3B30',
+    flexShrink: 1,
+    flexWrap: 'wrap',
   },
   // Bills
   billItem: {
@@ -769,16 +1295,23 @@ const styles = StyleSheet.create({
     marginTop: 20,
     borderRadius: 20,
     padding: 20,
+    transform: [{ translateY: 0 }],
     ...Platform.select({
       ios: {
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
+        shadowOpacity: 0.15,
+        shadowRadius: 12,
       },
       android: {
-        elevation: 3,
+        elevation: 5,
       },
+      web: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.15,
+        shadowRadius: 16,
+      }
     }),
   },
   transactionWrapper: {
@@ -867,16 +1400,23 @@ const styles = StyleSheet.create({
     marginTop: 20,
     borderRadius: 20,
     padding: 20,
+    transform: [{ translateY: 0 }],
     ...Platform.select({
       ios: {
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
+        shadowOpacity: 0.15,
+        shadowRadius: 12,
       },
       android: {
-        elevation: 3,
+        elevation: 5,
       },
+      web: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.15,
+        shadowRadius: 16,
+      }
     }),
   },
   overviewHeader: {
@@ -1039,11 +1579,11 @@ const styles = StyleSheet.create({
   // Bottom Navigation
   bottomNav: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'space-around',
     alignItems: 'center',
     backgroundColor: 'white',
     paddingVertical: 10,
-    paddingHorizontal: 20,
+    paddingHorizontal: 15,
     borderTopLeftRadius: 25,
     borderTopRightRadius: 25,
     position: 'absolute',
@@ -1077,6 +1617,38 @@ const styles = StyleSheet.create({
   },
   addButton: {
     marginTop: -30,
+    backgroundColor: 'white',
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  addButtonInner: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: themes.feminine.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    transform: [{ scale: 1 }],
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.2,
+        shadowRadius: 6,
+      },
+      android: {
+        elevation: 5,
+      },
+      web: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.2,
+        shadowRadius: 8,
+      }
+    }),
   },
   cardsScrollContainer: {
     paddingLeft: 16,
@@ -1094,14 +1666,151 @@ const styles = StyleSheet.create({
     color: '#333333',
     marginBottom: 8,
   },
-  cardAmount: {
-    fontSize: 22,
-    fontFamily: fontFallbacks.Poppins_600SemiBold,
-    color: '#333333',
-    marginBottom: 4,
-  },
   cardPercentage: {
     fontSize: 14,
     fontFamily: fontFallbacks.Poppins_400Regular,
+  },
+  // Menu Modal Styles
+  menuModalContainer: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  menuModalContent: {
+    borderTopLeftRadius: 25,
+    borderTopRightRadius: 25,
+    paddingTop: 20,
+    paddingBottom: 30,
+    paddingHorizontal: 20,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: -4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 10,
+      },
+      android: {
+        elevation: 10,
+      },
+    }),
+  },
+  menuHeader: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginBottom: 20,
+  },
+  closeButton: {
+    padding: 10,
+    borderRadius: 20,
+  },
+  closeButtonText: {
+    fontSize: 16,
+    fontFamily: fontFallbacks.Poppins_500Medium,
+  },
+  menuGrid: {
+    marginBottom: 20,
+  },
+  menuRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 24,
+  },
+  menuItem: {
+    width: '30%',
+    alignItems: 'center',
+  },
+  menuIconContainer: {
+    width: 60,
+    height: 60,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 3,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
+  },
+  menuItemTitle: {
+    fontSize: 14,
+    fontFamily: fontFallbacks.Poppins_600SemiBold,
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+  menuItemSubtitle: {
+    fontSize: 12,
+    fontFamily: fontFallbacks.Poppins_400Regular,
+    textAlign: 'center',
+    opacity: 0.8,
+  },
+  closeFullButton: {
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginHorizontal: 5,
+    marginTop: 5,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 3,
+      },
+    }),
+  },
+  closeFullButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontFamily: fontFallbacks.Poppins_600SemiBold,
+  },
+  dateSelector: {
+    marginTop: 14,
+    paddingHorizontal: 16,
+    marginBottom: 6,
+  },
+  dateTimeline: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    position: 'relative',
+    paddingHorizontal: 8,
+    height: 24,
+  },
+  timelineLine: {
+    position: 'absolute',
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    left: 4,
+    right: 4,
+    top: 4,
+    zIndex: 1,
+  },
+  dateItem: {
+    alignItems: 'center',
+    zIndex: 2,
+  },
+  dateDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: 'white',
+    marginBottom: 4,
+  },
+  dateText: {
+    fontSize: 10,
+    fontFamily: fontFallbacks.Poppins_400Regular,
+    color: 'white',
+    textAlign: 'center',
+    marginTop: 2,
   },
 }); 

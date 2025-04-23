@@ -4,6 +4,7 @@ import { router } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { fontFallbacks } from '@/utils/styles';
 import { Eye, EyeOff } from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 
 export default function Register() {
   const [name, setName] = useState('');
@@ -76,9 +77,19 @@ export default function Register() {
   }
 
   return (
-    <View style={styles.container}>
+    <LinearGradient
+      colors={['#ffffff','rgba(182,135,254,0.2)']}
+      start={{ x: 0.5, y: 0.5 }}
+      end={{ x: 0.5, y: 1 }}
+      style={styles.container}
+    >
       <SafeAreaView style={styles.safeArea}>
-        <View style={styles.cardContainer}>
+        <LinearGradient
+          colors={['#ffffff','rgba(182,135,254,0.2)']}
+          start={{ x: 0.5, y: 0.5 }}
+          end={{ x: 0.5, y: 1 }}
+          style={styles.cardContainer}
+        >
           <View style={styles.header}>
             <Text style={styles.title}>Criar Conta</Text>
             <Text style={styles.subtitle}>Comece sua jornada financeira a dois</Text>
@@ -169,16 +180,16 @@ export default function Register() {
               </TouchableOpacity>
             </View>
           </View>
-        </View>
+        </LinearGradient>
       </SafeAreaView>
-    </View>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f7fa',
+    backgroundColor: 'transparent',
   },
   safeArea: {
     flex: 1,
@@ -189,26 +200,17 @@ const styles = StyleSheet.create({
   cardContainer: {
     width: '100%',
     maxWidth: 400,
-    backgroundColor: '#ffffff',
+    backgroundColor: 'transparent',
     borderRadius: 30,
     padding: 24,
     elevation: 5,
     ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
-      },
-      android: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
-      },
+      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 8 },
+      android: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 8 },
       web: {
         boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.1)',
-      }
+        backgroundImage: 'linear-gradient(to bottom, #ffffff, rgba(182,135,254,0.2))',
+      },
     }),
   },
   header: {

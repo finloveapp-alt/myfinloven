@@ -4,6 +4,7 @@ import { router } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { fontFallbacks } from '@/utils/styles';
 import { Eye, EyeOff } from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 
 export default function LoginForm() {
   const [email, setEmail] = useState('');
@@ -104,9 +105,19 @@ export default function LoginForm() {
   }
 
   return (
-    <View style={styles.container}>
+    <LinearGradient
+      colors={['#ffffff','rgba(182,135,254,0.2)']}
+      start={{ x: 0.5, y: 0.5 }}
+      end={{ x: 0.5, y: 1 }}
+      style={styles.container}
+    >
       <SafeAreaView style={styles.safeArea}>
-        <View style={styles.cardContainer}>
+        <LinearGradient
+          colors={['#ffffff','rgba(182,135,254,0.2)']}
+          start={{ x: 0.5, y: 0.5 }}
+          end={{ x: 0.5, y: 1 }}
+          style={styles.cardContainer}
+        >
           <View style={styles.header}>
             <Text style={styles.title}>Olá Novamente!</Text>
             <Text style={styles.subtitle}>Bem-vindo de volta, sentimos sua falta!</Text>
@@ -190,29 +201,32 @@ export default function LoginForm() {
               </TouchableOpacity>
             </View>
           </View>
-        </View>
+        </LinearGradient>
       </SafeAreaView>
-    </View>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f7fa',
+    backgroundColor: 'transparent',
   },
   safeArea: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+    padding: 0,
   },
   cardContainer: {
     width: '100%',
-    maxWidth: 400,
-    backgroundColor: '#ffffff',
-    borderRadius: 30,
+    height: '100%',
+    maxWidth: '100%',
+    backgroundColor: 'transparent',
+    borderRadius: 0,
     padding: 24,
+    paddingTop: Platform.OS === 'ios' ? 60 : 40,
+    paddingBottom: 36,
     elevation: 5,
     ...Platform.select({
       ios: {
@@ -234,10 +248,10 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: 'center',
-    marginBottom: 30,
+    marginBottom: 40,
   },
   title: {
-    fontSize: 28,
+    fontSize: 32,
     fontFamily: fontFallbacks.Poppins_600SemiBold,
     color: '#333333',
     marginBottom: 8,
@@ -250,14 +264,16 @@ const styles = StyleSheet.create({
   },
   form: {
     width: '100%',
+    flex: 1,
+    justifyContent: 'center',
   },
   inputContainer: {
-    marginBottom: 16,
+    marginBottom: 20,
     position: 'relative',
   },
   input: {
     backgroundColor: '#f8f8f8',
-    padding: 15,
+    padding: 16,
     borderRadius: 12,
     fontSize: 16,
     fontFamily: fontFallbacks.Poppins_400Regular,
@@ -269,23 +285,23 @@ const styles = StyleSheet.create({
   eyeIcon: {
     position: 'absolute',
     right: 15,
-    top: 12,
+    top: 14,
   },
   forgotPasswordLink: {
     alignSelf: 'flex-end',
-    marginBottom: 24,
+    marginBottom: 32,
   },
   forgotPasswordText: {
     color: '#0073ea',
     fontFamily: fontFallbacks.Poppins_500Medium,
-    fontSize: 14,
+    fontSize: 15,
   },
   loginButton: {
     backgroundColor: '#b687fe',
-    padding: 16,
+    padding: 18,
     borderRadius: 12,
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 32,
   },
   loginButtonText: {
     color: '#ffffff',
@@ -296,10 +312,10 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     borderWidth: 1,
     borderColor: '#b687fe',
-    padding: 16,
+    padding: 18,
     borderRadius: 12,
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 32,
   },
   testAccountButtonText: {
     color: '#b687fe',
@@ -309,7 +325,7 @@ const styles = StyleSheet.create({
   divider: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 32,
   },
   dividerLine: {
     flex: 1,
@@ -319,11 +335,11 @@ const styles = StyleSheet.create({
   dividerText: {
     color: '#666666',
     fontFamily: fontFallbacks.Poppins_400Regular,
-    fontSize: 14,
+    fontSize: 15,
     marginHorizontal: 10,
   },
   socialButtonsContainer: {
-    marginBottom: 24,
+    marginBottom: 36,
     width: '100%',
   },
   googleButton: {
@@ -334,11 +350,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e0e0e0',
     borderRadius: 12,
-    padding: 14,
+    padding: 16,
     width: '100%',
+    height: 56,
   },
   googleButtonText: {
-    marginLeft: 10,
+    marginLeft: 12,
     fontSize: 16,
     fontFamily: fontFallbacks.Poppins_500Medium,
     color: '#333333',
@@ -351,15 +368,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
+    marginTop: 'auto',
+    paddingTop: 24,
   },
   registerLinkText: {
     color: '#666666',
     fontFamily: fontFallbacks.Poppins_400Regular,
-    fontSize: 14,
+    fontSize: 15,
   },
   registerLinkHighlight: {
     color: '#0073ea',
-    fontFamily: fontFallbacks.Poppins_500Medium,
-    fontSize: 14,
+    fontFamily: fontFallbacks.Poppins_600SemiBold,
+    fontSize: 15,
   },
 }); 

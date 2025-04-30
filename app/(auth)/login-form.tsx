@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView, Platform, Image } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView, Platform, Image, Alert } from 'react-native';
 import { router } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { fontFallbacks } from '@/utils/styles';
@@ -18,30 +18,74 @@ export default function LoginForm() {
   }, []);
 
   async function signInWithEmail() {
+    if (!email.trim()) {
+      Alert.alert('Erro', 'Por favor, informe seu email');
+      return;
+    }
+    
+    if (!password.trim()) {
+      Alert.alert('Erro', 'Por favor, informe sua senha');
+      return;
+    }
+    
     setLoading(true);
     try {
-      try {
-        // Tenta autenticar com Supabase
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
+      // Tenta autenticar com Supabase
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-        // Se houver erro, mostra mensagem
-        if (error && mounted) {
-          alert(error.message);
-          return;
+      // Se houver erro, verifica o tipo de erro
+      if (error) {
+        console.error('Erro de autenticação:', error.message);
+        
+        if (error.message.includes('Email not confirmed')) {
+          Alert.alert(
+            'Email não confirmado',
+            'Você precisa confirmar seu email antes de fazer login. Por favor, verifique sua caixa de entrada e clique no link de confirmação que enviamos.',
+            [
+              { 
+                text: 'Reenviar email', 
+                onPress: async () => {
+                  try {
+                    const { error: resendError } = await supabase.auth.resend({
+                      type: 'signup',
+                      email: email,
+                    });
+                    
+                    if (resendError) {
+                      Alert.alert('Erro', 'Não foi possível reenviar o email de confirmação. Tente novamente mais tarde.');
+                    } else {
+                      Alert.alert('Sucesso', 'Email de confirmação reenviado! Verifique sua caixa de entrada.');
+                    }
+                  } catch (e) {
+                    Alert.alert('Erro', 'Ocorreu um erro ao tentar reenviar o email. Tente novamente mais tarde.');
+                  }
+                }
+              },
+              { 
+                text: 'OK',
+                style: 'default'
+              }
+            ]
+          );
+        } else {
+          Alert.alert('Erro', 'Email ou senha incorretos. Por favor, verifique suas credenciais.');
         }
-
-        // Se autenticou com sucesso, redireciona
-        if (mounted) {
-          router.replace('/(app)/dashboard');
-          return;
-        }
-      } catch (supabaseError) {
-        console.log('Erro Supabase:', supabaseError);
-        alert('Erro de conexão com o servidor. Tente novamente ou use a conta de teste.');
+        return;
       }
+
+      // Se autenticou com sucesso, verifica se temos o usuário
+      if (data && data.user) {
+        console.log('Login bem-sucedido:', data.user.email);
+        router.replace('/(app)/dashboard');
+      } else {
+        Alert.alert('Erro', 'Não foi possível autenticar. Tente novamente.');
+      }
+    } catch (error) {
+      console.error('Exceção na autenticação:', error);
+      Alert.alert('Erro', 'Ocorreu um erro durante o login. Verifique sua conexão com a internet.');
     } finally {
       if (mounted) {
         setLoading(false);
@@ -126,10 +170,11 @@ export default function LoginForm() {
           <View style={styles.form}>
             <View style={styles.inputContainer}>
               <TextInput
-                placeholder="Email (teste@finlove.com ou homem@finlove.com)"
+                placeholder="Email"
                 value={email}
                 onChangeText={setEmail}
                 autoCapitalize="none"
+                keyboardType="email-address"
                 style={styles.input}
                 placeholderTextColor="#66666680"
               />
@@ -166,11 +211,21 @@ export default function LoginForm() {
 
             <TouchableOpacity 
               style={styles.loginButton}
-              onPress={signInWithTestAccount}
+              onPress={signInWithEmail}
               disabled={loading}
             >
               <Text style={styles.loginButtonText}>
                 {loading ? 'Entrando...' : 'Entrar'}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.testAccountButton}
+              onPress={signInWithTestAccount}
+              disabled={loading}
+            >
+              <Text style={styles.testAccountButtonText}>
+                Usar conta de demonstração
               </Text>
             </TouchableOpacity>
 

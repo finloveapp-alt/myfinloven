@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView, Platform, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView, Platform, Alert, Modal } from 'react-native';
 import { router } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { fontFallbacks } from '@/utils/styles';
@@ -15,6 +15,7 @@ export default function Register() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [mounted, setMounted] = useState(true);
+  const [successModalVisible, setSuccessModalVisible] = useState(false);
 
   useEffect(() => {
     return () => setMounted(false);
@@ -49,26 +50,25 @@ export default function Register() {
         options: {
           data: {
             name: name,
-          }
+            full_name: name,
+            display_name: name.split(' ')[0], // Primeiro nome como display name
+            created_at: new Date().toISOString(),
+          },
+          emailRedirectTo: window.location?.origin || 'myfinlove://'
         }
       });
 
-      if (error && mounted) {
-        Alert.alert('Erro', error.message);
-        return;
-      }
-
-      if (mounted) {
-        Alert.alert(
-          'Conta criada com sucesso',
-          'Verifique seu email para confirmar o cadastro',
-          [{ text: 'OK', onPress: () => router.push('/(auth)/login') }]
-        );
+      if (error) {
+        console.error("Erro no cadastro:", error.message);
+        Alert.alert('Erro', `Falha ao criar conta: ${error.message}`);
+      } else if (data?.user) {
+        setSuccessModalVisible(true);
+      } else {
+        setSuccessModalVisible(true);
       }
     } catch (error) {
-      if (mounted) {
-        Alert.alert('Erro', 'Ocorreu um erro ao criar a conta');
-      }
+      console.error("Exceção no cadastro:", error);
+      Alert.alert('Erro', 'Ocorreu um erro ao criar a conta. Verifique sua conexão com a internet.');
     } finally {
       if (mounted) {
         setLoading(false);
@@ -182,6 +182,30 @@ export default function Register() {
           </View>
         </LinearGradient>
       </SafeAreaView>
+
+      <Modal
+        visible={successModalVisible}
+        transparent={true}
+        animationType="fade"
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <Text style={styles.modalTitle}>Finlove diz</Text>
+            <Text style={styles.modalMessage}>
+              Cadastro realizado com sucesso! Verifique seu email para confirmar sua conta.
+            </Text>
+            <TouchableOpacity 
+              style={styles.modalButton}
+              onPress={() => {
+                setSuccessModalVisible(false);
+                router.push('/(auth)/login');
+              }}
+            >
+              <Text style={styles.modalButtonText}>OK</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </LinearGradient>
   );
 }
@@ -278,5 +302,50 @@ const styles = StyleSheet.create({
     color: '#0073ea',
     fontFamily: fontFallbacks.Poppins_500Medium,
     fontSize: 14,
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  modalContainer: {
+    width: '80%',
+    maxWidth: 400,
+    backgroundColor: 'white',
+    borderRadius: 20,
+    padding: 20,
+    alignItems: 'center',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontFamily: fontFallbacks.Poppins_600SemiBold,
+    color: '#333',
+    marginBottom: 10,
+  },
+  modalMessage: {
+    fontSize: 16,
+    fontFamily: fontFallbacks.Poppins_400Regular,
+    color: '#333',
+    textAlign: 'center',
+    marginBottom: 20,
+    lineHeight: 24,
+  },
+  modalButton: {
+    backgroundColor: '#b687fe',
+    paddingVertical: 10,
+    paddingHorizontal: 30,
+    borderRadius: 20,
+    alignSelf: 'flex-end',
+  },
+  modalButtonText: {
+    fontSize: 16,
+    fontFamily: fontFallbacks.Poppins_600SemiBold,
+    color: 'white',
   },
 });

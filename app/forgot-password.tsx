@@ -13,14 +13,51 @@ export default function ForgotPassword() {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
+  // Armazenaremos a nova senha no localStorage/AsyncStorage para usá-la depois
+  const storePasswordForReset = async (email: string, newPassword: string) => {
+    try {
+      // Em um app real, você precisaria criptografar esta senha ou usar uma solução mais segura
+      // Esta é uma implementação simples para fins de demonstração
+      localStorage.setItem(`reset_password_${email}`, newPassword);
+      return true;
+    } catch (error) {
+      console.error("Erro ao armazenar senha temporária:", error);
+      return false;
+    }
+  };
+
   async function handleResetPassword() {
     if (!email) {
       Alert.alert('Erro', 'Por favor, informe seu email');
       return;
     }
+
+    if (!newPassword) {
+      Alert.alert('Erro', 'Por favor, informe sua nova senha');
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      Alert.alert('Erro', 'A senha deve ter pelo menos 6 caracteres');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      Alert.alert('Erro', 'As senhas não coincidem');
+      return;
+    }
     
     setLoading(true);
     try {
+      // Armazenar a senha temporariamente
+      const stored = await storePasswordForReset(email, newPassword);
+      if (!stored) {
+        Alert.alert('Erro', 'Não foi possível processar sua solicitação');
+        setLoading(false);
+        return;
+      }
+
+      // Enviar email de redefinição
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: 'myfinlove://reset-password',
       });
@@ -31,6 +68,10 @@ export default function ForgotPassword() {
       }
 
       setResetSent(true);
+      Alert.alert(
+        'Email enviado',
+        'Enviamos um link para o seu email. Clique nele para confirmar a redefinição de senha.'
+      );
     } catch (error) {
       Alert.alert('Erro', 'Ocorreu um erro ao processar sua solicitação');
     } finally {
@@ -46,10 +87,9 @@ export default function ForgotPassword() {
       style={styles.container}
     >
       <SafeAreaView style={styles.safeArea}>
-        <TouchableOpacity style={styles.topBackButton} onPress={() => router.replace('/login')}>
+        <TouchableOpacity style={styles.topBackButton} onPress={() => router.replace('/(auth)/login')}>
           <ArrowLeft size={24} color="#ffffff" />
         </TouchableOpacity>
-        {/* cardContainer wrapper removed */}
         <View style={styles.cardContent}>
           <View style={styles.imageContainer}>
             <TouchableOpacity 
@@ -64,8 +104,8 @@ export default function ForgotPassword() {
             <Text style={styles.title}>Recuperar Senha</Text>
             <Text style={styles.subtitle}>
               {resetSent 
-                ? 'Enviamos um email com instruções para redefinir sua senha. Verifique sua caixa de entrada.' 
-                : 'Digite seu email e enviaremos instruções para redefinir sua senha'}
+                ? 'Enviamos um email com instruções para redefinir sua senha. Verifique sua caixa de entrada e clique no link para confirmar.' 
+                : 'Preencha seu email e defina uma nova senha. Após enviar, você receberá um link de confirmação no seu email.'}
             </Text>
           </View>
 
@@ -123,14 +163,13 @@ export default function ForgotPassword() {
             <View style={styles.buttonsContainer}>
               <TouchableOpacity 
                 style={styles.returnButton}
-                onPress={() => router.replace('/login')}
+                onPress={() => router.replace('/(auth)/login')}
               >
                 <Text style={styles.returnButtonText}>Voltar para o login</Text>
               </TouchableOpacity>
             </View>
           )}
         </View>
-        {/* end cardContainer wrapper removed */}
       </SafeAreaView>
     </LinearGradient>
   );
@@ -146,19 +185,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
-  },
-  cardContainer: {
-    width: '100%',
-    maxWidth: '100%',
-    backgroundColor: '#ffffff',
-    borderRadius: 0,
-    overflow: 'hidden',
-    elevation: 5,
-    ...Platform.select({
-      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 8 },
-      android: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 8 },
-      web: { boxShadow: '0px 4px 8px rgba(0,0,0,0.1)' },
-    }),
   },
   cardContent: {
     alignItems: 'center',
@@ -212,7 +238,7 @@ const styles = StyleSheet.create({
     width: '100%',
     paddingHorizontal: 24,
     marginBottom: 20,
-    marginTop: -72,
+    marginTop: 20,
   },
   inputContainer: {
     marginBottom: 16,
@@ -229,7 +255,7 @@ const styles = StyleSheet.create({
   buttonsContainer: {
     width: '100%',
     paddingHorizontal: 24,
-    marginTop: 60,
+    marginTop: 20,
     marginBottom: 30,
   },
   resetButton: {

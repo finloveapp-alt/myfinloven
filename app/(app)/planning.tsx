@@ -1378,23 +1378,27 @@ const styles = StyleSheet.create({
     elevation: 2,
     borderWidth: 0.5,
     borderColor: '#f0f0f0',
+    alignItems: 'center',  // Centraliza o conteúdo horizontalmente
   },
   dateText: {
     fontSize: 14,
     color: '#777',
     fontFamily: fontFallbacks.Poppins_400Regular,
     marginBottom: 4,
+    textAlign: 'center',  // Centraliza o texto
   },
   amountText: {
     fontSize: width < 360 ? 24 : 28, // Responsive font size
     color: '#000',
     fontFamily: fontFallbacks.Poppins_600SemiBold,
     marginBottom: 4,
+    textAlign: 'center',  // Centraliza o texto
   },
   amountLabel: {
     fontSize: 14,
     color: '#666',
     fontFamily: fontFallbacks.Poppins_400Regular,
+    textAlign: 'center',  // Centraliza o texto
   },
   budgetContent: {
     paddingHorizontal: width < 360 ? 8 : 16, // Responsive padding
@@ -1468,7 +1472,7 @@ const styles = StyleSheet.create({
     width: 12,
     height: 12,
     borderRadius: 6,
-    marginRight: 0,
+    marginRight: 12,  // Aumentado de 0 para 12 para criar espaço entre a bolinha e o texto
   },
   legendText: {
     fontSize: 14,

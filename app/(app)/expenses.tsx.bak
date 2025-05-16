@@ -1,0 +1,989 @@
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, ActivityIndicator, Modal, TextInput, Pressable } from 'react-native';
+import { ArrowLeft, Search, List, MoreVertical, AlertCircle, Plus, Calendar, Check, CheckCircle, ChevronDown, CreditCard, Edit, Trash2, DollarSign, Copy, CreditCard as CardIcon, Percent, CheckSquare } from 'lucide-react-native';
+import { useRouter } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+// Interface para as despesas
+interface Expense {
+  id: string;
+  title: string;
+  amount: number;
+  dueDate: Date;
+  category: string;
+  account: string;
+  isPaid: boolean;
+  createdAt: Date;
+}
+
+export default function Expenses() {
+  const router = useRouter();
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [userBalance, setUserBalance] = useState(5000); // Saldo inicial do usuário (como exemplo)
+  const [confirmModalVisible, setConfirmModalVisible] = useState(false);
+  const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
+  const [fees, setFees] = useState('0,00');
+  const [optionsMenuVisible, setOptionsMenuVisible] = useState(false);
+  const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
+  const [activeExpenseId, setActiveExpenseId] = useState<string | null>(null);
+  const [headerMenuVisible, setHeaderMenuVisible] = useState(false);
+  const [headerMenuPosition, setHeaderMenuPosition] = useState({ x: 0, y: 0 });
+  const [deleteOptionsVisible, setDeleteOptionsVisible] = useState(false);
+  const [deleteMenuPosition, setDeleteMenuPosition] = useState({ x: 0, y: 0 });
+  const [deleteMenuSource, setDeleteMenuSource] = useState<'expense' | 'header' | null>(null);
+
+  // Carregar despesas e saldo do usuário
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        
+        // Carregar saldo do usuário
+        const storedBalance = await AsyncStorage.getItem('@MyFinlove:balance');
+        if (storedBalance) {
+          setUserBalance(parseFloat(storedBalance));
+        } else {
+          // Saldo inicial se não existir
+          await AsyncStorage.setItem('@MyFinlove:balance', userBalance.toString());
+        }
+        
+        // Carregar despesas
+        const storedExpenses = await AsyncStorage.getItem('@MyFinlove:expenses');
+        if (storedExpenses) {
+          const parsedExpenses = JSON.parse(storedExpenses).map((expense: any) => ({
+            ...expense,
+            dueDate: new Date(expense.dueDate),
+            createdAt: new Date(expense.createdAt)
+          }));
+          setExpenses(parsedExpenses);
+        } else {
+          // Criar exemplos para demonstração
+          const exampleExpenses: Expense[] = [
+            {
+              id: '1',
+              title: 'Academia',
+              amount: 70,
+              dueDate: new Date(2023, 3, 25), // 25 de Abril (mês é 0-indexed)
+              category: 'Lazer',
+              account: 'Nubank',
+              isPaid: false,
+              createdAt: new Date()
+            },
+            {
+              id: '2',
+              title: 'Aluguel',
+              amount: 1200,
+              dueDate: new Date(2023, 4, 7), // 7 de Maio
+              category: 'Moradia',
+              account: 'Itaú',
+              isPaid: false,
+              createdAt: new Date()
+            },
+            {
+              id: '3',
+              title: 'Internet',
+              amount: 120,
+              dueDate: new Date(2023, 3, 15), // 15 de Abril
+              category: 'Serviços',
+              account: 'Nubank',
+              isPaid: false,
+              createdAt: new Date()
+            },
+            {
+              id: '4',
+              title: 'Streaming',
+              amount: 39.90,
+              dueDate: new Date(2023, 3, 10), // 10 de Abril
+              category: 'Entretenimento',
+              account: 'Bradesco',
+              isPaid: true,
+              createdAt: new Date()
+            }
+          ];
+          
+          await AsyncStorage.setItem('@MyFinlove:expenses', JSON.stringify(exampleExpenses));
+          setExpenses(exampleExpenses);
+        }
+      } catch (error) {
+        console.error('Erro ao carregar dados:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadData();
+  }, []);
+
+  // Salvar despesas
+  const saveExpenses = async (updatedExpenses: Expense[]) => {
+    try {
+      await AsyncStorage.setItem('@MyFinlove:expenses', JSON.stringify(updatedExpenses));
+    } catch (error) {
+      console.error('Erro ao salvar despesas:', error);
+    }
+  };
+
+  // Salvar saldo
+  const saveBalance = async (amount: number) => {
+    try {
+      await AsyncStorage.setItem('@MyFinlove:balance', amount.toString());
+    } catch (error) {
+      console.error('Erro ao salvar saldo:', error);
+    }
+  };
+
+  // Abrir modal de confirmação de pagamento
+  const openConfirmPaymentModal = (expense: Expense) => {
+    setSelectedExpense(expense);
+    setFees('0,00'); // Reset fees
+    setConfirmModalVisible(true);
+  };
+
+  // Efetivar o pagamento
+  const effectivePayment = async () => {
+    if (!selectedExpense) return;
+    
+    // Converter vírgula para ponto e transformar em número
+    const feesValue = parseFloat(fees.replace(',', '.')) || 0;
+    const totalAmount = selectedExpense.amount + feesValue;
+    
+    // 1. Atualizar status da despesa
+    const updatedExpenses = expenses.map(expense => 
+      expense.id === selectedExpense.id ? { ...expense, isPaid: true } : expense
+    );
+    setExpenses(updatedExpenses);
+    await saveExpenses(updatedExpenses);
+    
+    // 2. Atualizar saldo
+    const newBalance = userBalance - totalAmount;
+    setUserBalance(newBalance);
+    await saveBalance(newBalance);
+    
+    // 3. Fechar modal e mostrar mensagem
+    setConfirmModalVisible(false);
+    setSelectedExpense(null);
+    
+    Alert.alert(
+      "Pagamento Efetivado",
+      `O pagamento de ${selectedExpense.title} no valor de R$ ${totalAmount.toFixed(2)} foi confirmado e seu saldo foi atualizado para R$ ${newBalance.toFixed(2)}.`
+    );
+  };
+
+  // Verificar se a data está atrasada
+  const isOverdue = (date: Date) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    date.setHours(0, 0, 0, 0);
+    return date < today;
+  };
+
+  // Formatar data como dia e nome do dia da semana
+  const formatDate = (date: Date) => {
+    const day = date.getDate();
+    const weekDays = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+    const weekDay = weekDays[date.getDay()];
+    return `${day}. ${weekDay}`;
+  };
+
+  // Calcular total de despesas não pagas
+  const calculateTotal = () => {
+    return expenses
+      .filter(expense => !expense.isPaid)
+      .reduce((sum, expense) => sum + expense.amount, 0);
+  };
+
+  // Agrupar por mês
+  const getMonthName = (date: Date) => {
+    const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+    return months[date.getMonth()];
+  };
+
+  // Filtrar e organizar as despesas
+  const sortedExpenses = [...expenses].sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
+
+  return (
+    <View style={styles.container}>
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.iconButton}>
+          <ArrowLeft size={24} color="#fff" />
+        </TouchableOpacity>
+        <View style={styles.headerTitleContainer}>
+          <Text style={styles.title}>Despesas</Text>
+          <Text style={styles.subtitle}>
+            Saldo: R$ {userBalance.toFixed(2)} · A pagar: R$ {calculateTotal().toFixed(2)}
+          </Text>
+        </View>
+        <View style={styles.headerActions}>
+          <TouchableOpacity style={styles.iconButton}>
+            <Search size={20} color="#fff" />
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.iconButton}
+            onPress={(event) => {
+              // Capturar a posição do toque para posicionar o menu
+              const { pageX, pageY } = event.nativeEvent;
+              setHeaderMenuPosition({ x: pageX - 150, y: pageY + 30 });
+              setHeaderMenuVisible(true);
+            }}
+          >
+            <List size={20} color="#fff" />
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {loading ? (
+        <View style={styles.loaderContainer}>
+          <ActivityIndicator size="large" color="#e57373" />
+        </View>
+      ) : (
+        <>
+          {/* Lista de despesas */}
+          <ScrollView 
+            style={styles.listContainer}
+            contentContainerStyle={styles.listContentContainer}
+            showsVerticalScrollIndicator={false}
+          >
+            {sortedExpenses.length === 0 ? (
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyText}>Nenhuma despesa encontrada</Text>
+              </View>
+            ) : (
+              sortedExpenses.map((expense) => (
+                <View key={expense.id} style={[
+                  styles.expenseItem,
+                  expense.isPaid ? styles.expensePaid : null,
+                  !expense.isPaid && isOverdue(new Date(expense.dueDate)) ? styles.expenseOverdue : null
+                ]}>
+                  <View style={[
+                    styles.expenseIconCircle, 
+                    expense.isPaid ? styles.expenseIconPaid : null,
+                    !expense.isPaid && isOverdue(new Date(expense.dueDate)) ? styles.expenseIconOverdue : null
+                  ]}>
+                    {expense.isPaid ? (
+                      <CheckCircle size={22} color="#4CAF50" />
+                    ) : isOverdue(new Date(expense.dueDate)) ? (
+                      <AlertCircle size={22} color="#ff5252" />
+                    ) : (
+                      <Calendar size={22} color="#bfa14a" />
+                    )}
+                  </View>
+                  <View style={styles.expenseDetails}>
+                    <Text style={[
+                      styles.expenseTitle,
+                      expense.isPaid ? styles.expenseTitlePaid : null,
+                      !expense.isPaid && isOverdue(new Date(expense.dueDate)) ? styles.expenseTitleOverdue : null
+                    ]}>
+                      {expense.title}
+                    </Text>
+                    <View style={styles.expenseMetaRow}>
+                      <View style={styles.expenseTag}>
+                        <Text style={styles.expenseTagText}>{expense.category}</Text>
+                      </View>
+                      <Text style={styles.expenseAccount}>{expense.account}</Text>
+                    </View>
+                    
+                    {/* Botão para confirmar pagamento (apenas para despesas não pagas) */}
+                    {!expense.isPaid && (
+                      <TouchableOpacity 
+                        style={[
+                          styles.confirmButton,
+                          isOverdue(new Date(expense.dueDate)) ? styles.confirmButtonOverdue : null
+                        ]}
+                        onPress={() => openConfirmPaymentModal(expense)}
+                      >
+                        <Text style={styles.confirmButtonText}>Pagar</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                  <View style={styles.expenseRight}>
+                      <Text style={[
+                        styles.expenseDate,
+                        !expense.isPaid && isOverdue(new Date(expense.dueDate)) ? styles.expenseDateOverdue : null
+                      ]}>
+                        {formatDate(new Date(expense.dueDate))}
+                      </Text>
+                      <Text style={[
+                        styles.expenseAmount,
+                        expense.isPaid ? styles.expenseAmountPaid : null,
+                        !expense.isPaid && isOverdue(new Date(expense.dueDate)) ? styles.expenseAmountOverdue : null
+                      ]}>
+                        R$ {expense.amount.toFixed(2)}
+                      </Text>
+                      <TouchableOpacity 
+                        style={styles.moreOptionsButton}
+                        onPress={(event) => {
+                          // Capturar a posição do toque para posicionar o menu
+                          const { pageX, pageY } = event.nativeEvent;
+                          setMenuPosition({ x: pageX - 150, y: pageY });
+                          setActiveExpenseId(expense.id);
+                          setOptionsMenuVisible(true);
+                        }}
+                      >
+                        <MoreVertical size={20} color="#666" />
+                      </TouchableOpacity>
+                      <View style={[
+                        styles.expenseDot,
+                        expense.isPaid ? styles.expenseDotPaid : null,
+                        !expense.isPaid && isOverdue(new Date(expense.dueDate)) ? styles.expenseDotOverdue : null
+                      ]} />
+                  </View>
+                </View>
+              ))
+            )}
+          </ScrollView>
+          
+          {/* Botão de adicionar */}
+          <TouchableOpacity style={styles.fab}>
+            <Plus size={26} color="#fff" />
+          </TouchableOpacity>
+
+          {/* Menu de Opções para despesas */}
+          {optionsMenuVisible && activeExpenseId && (
+            <View style={styles.optionsMenuOverlay}>
+              <Pressable 
+                style={styles.optionsMenuBackdrop}
+                onPress={() => setOptionsMenuVisible(false)}
+              />
+              <View style={[styles.optionsMenu, { top: menuPosition.y, left: menuPosition.x }]}>
+                <TouchableOpacity 
+                  style={styles.optionItem}
+                  onPress={() => {
+                    setOptionsMenuVisible(false);
+                    Alert.alert('Editar', 'Função de editar despesa');
+                  }}
+                >
+                  <Edit size={18} color="#fff" />
+                  <Text style={styles.optionText}>Editar</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={styles.optionItem}
+                  onPress={(event) => {
+                    // Capturar a posição para o submenu de exclusão
+                    const { pageX, pageY } = event.nativeEvent;
+                    setDeleteMenuPosition({ x: pageX + 150, y: pageY - 30 });
+                    setDeleteOptionsVisible(true);
+                  }}
+                >
+                  <Trash2 size={18} color="#fff" />
+                  <Text style={styles.optionText}>Excluir</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={styles.optionItem}
+                  onPress={() => {
+                    setOptionsMenuVisible(false);
+                    Alert.alert('Alterar valor', 'Função de alterar valor da despesa');
+                  }}
+                >
+                  <DollarSign size={18} color="#fff" />
+                  <Text style={styles.optionText}>Alterar valor</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={styles.optionItem}
+                  onPress={() => {
+                    setOptionsMenuVisible(false);
+                    Alert.alert('Duplicar', 'Função de duplicar despesa');
+                  }}
+                >
+                  <Copy size={18} color="#fff" />
+                  <Text style={styles.optionText}>Duplicar</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={styles.optionItem}
+                  onPress={() => {
+                    setOptionsMenuVisible(false);
+                    Alert.alert('Despesa cartão', 'Função de marcar como despesa de cartão');
+                  }}
+                >
+                  <CardIcon size={18} color="#fff" />
+                  <Text style={styles.optionText}>Despesa cartão</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={styles.optionItem}
+                  onPress={() => {
+                    setOptionsMenuVisible(false);
+                    Alert.alert('Pagamento parcial', 'Função de pagamento parcial');
+                  }}
+                >
+                  <Percent size={18} color="#fff" />
+                  <Text style={styles.optionText}>Pagamento parcial</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={styles.optionItem}
+                  onPress={() => {
+                    setOptionsMenuVisible(false);
+                    // Encontrar a despesa ativa
+                    const expense = expenses.find(e => e.id === activeExpenseId);
+                    if (expense) {
+                      // Marcar como efetivada
+                      const updatedExpenses = expenses.map(e => 
+                        e.id === activeExpenseId ? { ...e, isPaid: !e.isPaid } : e
+                      );
+                      setExpenses(updatedExpenses);
+                      saveExpenses(updatedExpenses);
+                    }
+                  }}
+                >
+                  <View style={styles.checkboxContainer}>
+                    <CheckSquare size={18} color="#fff" />
+                  </View>
+                  <Text style={styles.optionText}>Efetivada</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+
+          {/* Menu de Opções do cabeçalho */}
+          {headerMenuVisible && (
+            <View style={styles.optionsMenuOverlay}>
+              <Pressable 
+                style={styles.optionsMenuBackdrop}
+                onPress={() => setHeaderMenuVisible(false)}
+              />
+              <View style={[styles.optionsMenu, { top: headerMenuPosition.y, left: headerMenuPosition.x }]}>
+                <TouchableOpacity 
+                  style={styles.optionItem}
+                  onPress={() => {
+                    setHeaderMenuVisible(false);
+                    Alert.alert('Editar', 'Função de editar');
+                  }}
+                >
+                  <Edit size={18} color="#fff" />
+                  <Text style={styles.optionText}>Editar</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={styles.optionItem}
+                  onPress={(event) => {
+                    // Capturar a posição para o submenu de exclusão
+                    const { pageX, pageY } = event.nativeEvent;
+                    setDeleteMenuPosition({ x: pageX + 150, y: pageY - 30 });
+                    setDeleteOptionsVisible(true);
+                  }}
+                >
+                  <Trash2 size={18} color="#fff" />
+                  <Text style={styles.optionText}>Excluir</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={styles.optionItem}
+                  onPress={() => {
+                    setHeaderMenuVisible(false);
+                    Alert.alert('Alterar valor', 'Função de alterar valor');
+                  }}
+                >
+                  <DollarSign size={18} color="#fff" />
+                  <Text style={styles.optionText}>Alterar valor</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={styles.optionItem}
+                  onPress={() => {
+                    setHeaderMenuVisible(false);
+                    Alert.alert('Duplicar', 'Função de duplicar');
+                  }}
+                >
+                  <Copy size={18} color="#fff" />
+                  <Text style={styles.optionText}>Duplicar</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={styles.optionItem}
+                  onPress={() => {
+                    setHeaderMenuVisible(false);
+                    Alert.alert('Despesa cartão', 'Função de marcar como despesa de cartão');
+                  }}
+                >
+                  <CardIcon size={18} color="#fff" />
+                  <Text style={styles.optionText}>Despesa cartão</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={styles.optionItem}
+                  onPress={() => {
+                    setHeaderMenuVisible(false);
+                    Alert.alert('Pagamento parcial', 'Função de pagamento parcial');
+                  }}
+                >
+                  <Percent size={18} color="#fff" />
+                  <Text style={styles.optionText}>Pagamento parcial</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={styles.optionItem}
+                  onPress={() => {
+                    setHeaderMenuVisible(false);
+                    Alert.alert('Efetivada', 'Função de marcar como efetivada');
+                  }}
+                >
+                  <View style={styles.checkboxContainer}>
+                    <CheckSquare size={18} color="#fff" />
+                  </View>
+                  <Text style={styles.optionText}>Efetivada</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+
+          {/* Submenu de opções de exclusão */}
+          {deleteOptionsVisible && (
+            <View style={styles.deleteMenuOverlay}>
+              <Pressable 
+                style={styles.deleteMenuBackdrop}
+                onPress={() => {
+                  setDeleteOptionsVisible(false);
+                }}
+              />
+              <View style={[styles.deleteMenu, { top: deleteMenuPosition.y, left: deleteMenuPosition.x }]}>
+                <TouchableOpacity 
+                  style={styles.optionItem}
+                  onPress={() => {
+                    setDeleteOptionsVisible(false);
+                    if (deleteMenuSource === 'expense') {
+                      setOptionsMenuVisible(false);
+                    } else if (deleteMenuSource === 'header') {
+                      setHeaderMenuVisible(false);
+                    }
+                    Alert.alert('Excluir apenas este mês', 'Função de excluir apenas este mês');
+                  }}
+                >
+                  <Calendar size={18} color="#fff" />
+                  <Text style={styles.optionText}>Excluir apenas este mês</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={styles.optionItem}
+                  onPress={() => {
+                    setDeleteOptionsVisible(false);
+                    if (deleteMenuSource === 'expense') {
+                      setOptionsMenuVisible(false);
+                    } else if (deleteMenuSource === 'header') {
+                      setHeaderMenuVisible(false);
+                    }
+                    Alert.alert('Excluir a partir deste mês', 'Função de excluir a partir deste mês');
+                  }}
+                >
+                  <Calendar size={18} color="#fff" />
+                  <Text style={styles.optionText}>Excluir a partir deste mês</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={styles.optionItem}
+                  onPress={() => {
+                    setDeleteOptionsVisible(false);
+                    if (deleteMenuSource === 'expense') {
+                      setOptionsMenuVisible(false);
+                    } else if (deleteMenuSource === 'header') {
+                      setHeaderMenuVisible(false);
+                    }
+                    Alert.alert('Excluir definitivamente', 'Função de excluir definitivamente');
+                  }}
+                >
+                  <Trash2 size={18} color="#fff" />
+                  <Text style={styles.optionText}>Excluir definitivamente</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+        </>
+      )}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#181A1B',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: 50,
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+    backgroundColor: '#181A1B',
+  },
+  headerTitleContainer: {
+    flex: 1,
+    marginHorizontal: 12,
+  },
+  iconButton: {
+    padding: 8,
+  },
+  title: {
+    color: '#fff',
+    fontSize: 22,
+    fontWeight: 'bold',
+  },
+  subtitle: {
+    color: '#b0b0b0',
+    fontSize: 14,
+    marginTop: 2,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  listContainer: {
+    flex: 1,
+  },
+  listContentContainer: {
+    paddingHorizontal: 12,
+    paddingTop: 8,
+  },
+  loaderContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 32,
+    marginTop: 48,
+  },
+  emptyText: {
+    color: '#b0b0b0',
+    fontSize: 16,
+  },
+  expenseItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#222426',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 10,
+  },
+  expensePaid: {
+    opacity: 0.7,
+    backgroundColor: '#1e2420',
+  },
+  expenseOverdue: {
+    borderLeftWidth: 3,
+    borderLeftColor: '#ff5252',
+    backgroundColor: '#2a2224',
+  },
+  expenseIconCircle: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#2c2c2c',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 14,
+  },
+  expenseIconPaid: {
+    backgroundColor: '#1c3320',
+  },
+  expenseIconOverdue: {
+    backgroundColor: '#3f1b1b',
+  },
+  expenseDetails: {
+    flex: 1,
+    marginRight: 8,
+  },
+  expenseTitle: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  expenseMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  expenseTitlePaid: {
+    color: '#8fbc8f',
+  },
+  expenseTitleOverdue: {
+    color: '#ff6b6b',
+  },
+  expenseTag: {
+    backgroundColor: '#3a3a4a',
+    borderRadius: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    marginRight: 8,
+  },
+  expenseTagText: {
+    color: '#b6b6fa',
+    fontSize: 11,
+    fontWeight: '500',
+  },
+  expenseAccount: {
+    color: '#b0b0b0',
+    fontSize: 12,
+  },
+  expenseRight: {
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+    minWidth: 80,
+  },
+  expenseDate: {
+    color: '#b0b0b0',
+    fontSize: 12,
+    marginBottom: 4,
+  },
+  expenseDateOverdue: {
+    color: '#ff9999',
+  },
+  expenseAmount: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  expenseAmountPaid: {
+    color: '#8fbc8f',
+  },
+  expenseAmountOverdue: {
+    color: '#ff6b6b',
+  },
+  expenseDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#3a7afe',
+    marginTop: 6,
+  },
+  expenseDotPaid: {
+    backgroundColor: '#4CAF50',
+  },
+  expenseDotOverdue: {
+    backgroundColor: '#ff5252',
+  },
+  moreOptionsButton: {
+    padding: 5,
+    marginLeft: 'auto',
+  },
+  optionsMenuOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 1000,
+  },
+  optionsMenuBackdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  deleteMenuOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 1001,
+  },
+  deleteMenuBackdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  deleteMenu: {
+    position: 'absolute',
+    width: 250,
+    backgroundColor: '#222',
+    borderRadius: 8,
+    padding: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+    zIndex: 1002,
+  },
+  optionsMenu: {
+    position: 'absolute',
+    width: 200,
+    backgroundColor: '#222',
+    borderRadius: 8,
+    padding: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+    zIndex: 1001,
+  },
+  optionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+  },
+  optionText: {
+    color: '#fff',
+    marginLeft: 10,
+    fontSize: 14,
+    fontWeight: '400',
+  },
+  checkboxContainer: {
+    width: 18,
+    height: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  confirmButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#3a7afe',
+    borderRadius: 6,
+    paddingVertical: 6,
+    alignSelf: 'flex-start',
+  },
+  confirmButtonOverdue: {
+    backgroundColor: '#ff5252',
+  },
+  confirmButtonText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: 'bold',
+    marginRight: 4,
+  },
+  fab: {
+    position: 'absolute',
+    right: 20,
+    bottom: 24,
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    backgroundColor: '#e57373',
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+  },
+  bottomPadding: {
+    height: 80,
+  },
+
+  // Modal styles
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalContent: {
+    backgroundColor: '#1c1e1f',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    padding: 20,
+  },
+  modalTitle: {
+    color: '#fff',
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 24,
+  },
+  modalField: {
+    marginBottom: 20,
+  },
+  modalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  modalFieldHalf: {
+    width: '48%',
+  },
+  modalLabel: {
+    color: '#999',
+    fontSize: 14,
+    marginBottom: 8,
+  },
+  modalValue: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  modalValueLarge: {
+    color: '#fff',
+    fontSize: 24,
+    fontWeight: 'bold',
+  },
+  feesContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  feesInput: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#fff',
+    padding: 0,
+  },
+  accountSelector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+  },
+  accountCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#8e44ad',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  accountInitial: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  accountName: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '500',
+    flex: 1,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 20,
+  },
+  cancelButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelButtonText: {
+    color: '#7186ed',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  effectiveButton: {
+    backgroundColor: '#7186ed',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  effectiveButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+}); 

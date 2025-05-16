@@ -1,0 +1,1 @@
+unifiedHeader: { paddingTop: Platform.OS === "android" ? 50 : 60, paddingHorizontal: 20, paddingBottom: 30, }, headerContent: { flexDirection: "row", alignItems: "center", marginBottom: 20, },

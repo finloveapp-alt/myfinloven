@@ -145,7 +145,7 @@ export default function Dashboard() {
       icon: '🍽️',
       backgroundColor: '#FFE2E6',
       title: 'Restaurante',
-      subtitle: 'Almoço - Compartilhado',
+      subtitle: 'Almoço Compartilhado',
       amount: 'R$ 85',
       paymentMethod: 'Pix'
     }
@@ -301,7 +301,10 @@ export default function Dashboard() {
                 pressed && styles.financialCardPressed
               ]}
               onPressIn={() => setPressedCard('receitas')}
-              onPressOut={() => setPressedCard(null)}
+              onPressOut={() => {
+                setPressedCard(null);
+                router.push('/historico-receitas');
+              }}
             >
               <Text style={styles.cardLabel}>Receitas</Text>
               <Text style={styles.cardAmount}>R$ 5.000</Text>
@@ -315,7 +318,10 @@ export default function Dashboard() {
                 pressed && styles.financialCardPressed
               ]}
               onPressIn={() => setPressedCard('despesas')}
-              onPressOut={() => setPressedCard(null)}
+              onPressOut={() => {
+                setPressedCard(null);
+                router.push('/historico-despesas');
+              }}
             >
               <Text style={styles.cardLabel}>Despesas</Text>
               <Text style={styles.cardAmount}>R$ 1.880</Text>
@@ -329,7 +335,10 @@ export default function Dashboard() {
                 pressed && styles.cardPressed
               ]}
               onPressIn={() => setPressedCard('debitos')}
-              onPressOut={() => setPressedCard(null)}
+              onPressOut={() => {
+                setPressedCard(null);
+                router.push('/historico-debitos');
+              }}
             >
               <Text style={styles.cardLabel}>Débitos</Text>
               <Text style={styles.cardAmount}>R$ 2.350</Text>
@@ -343,7 +352,10 @@ export default function Dashboard() {
                 pressed && styles.cardPressed
               ]}
               onPressIn={() => setPressedCard('creditos')}
-              onPressOut={() => setPressedCard(null)}
+              onPressOut={() => {
+                setPressedCard(null);
+                router.push('/historico-creditos');
+              }}
             >
               <Text style={styles.cardLabel}>Créditos</Text>
               <Text style={styles.cardAmount}>R$ 3.200</Text>
@@ -372,7 +384,13 @@ export default function Dashboard() {
               </View>
               <View style={styles.transactionDetails}>
                 <Text style={styles.transactionTitle}>{transactions[currentTransactionIndex].title}</Text>
-                <Text style={styles.transactionSubtitle}>{transactions[currentTransactionIndex].subtitle}</Text>
+                {currentTransactionIndex === 2 ? (
+                  <>
+                    <Text style={styles.transactionSubtitle}>Almoço - Compartilhado</Text>
+                  </>
+                ) : (
+                  <Text style={styles.transactionSubtitle}>{transactions[currentTransactionIndex].subtitle}</Text>
+                )}
               </View>
               <View style={styles.transactionAmountContainer}>
                 <Text style={styles.transactionAmount}>{transactions[currentTransactionIndex].amount}</Text>
@@ -411,11 +429,16 @@ export default function Dashboard() {
             <Text style={styles.summaryValue}>R$ 3.120,00</Text>
           </View>
 
-          <View style={styles.summaryItem}>
+          <TouchableOpacity 
+            style={[styles.summaryItem, styles.clickableItem]}
+            onPress={() => router.push('/historico-receitas')}
+            activeOpacity={0.7}
+          >
             <ArrowDownCircle size={18} color={theme.income} />
             <Text style={styles.summaryLabel}>Receitas totais do mês:</Text>
             <Text style={[styles.summaryValue, {color: theme.income}]}>R$ 5.000,00</Text>
-          </View>
+            <ChevronRight size={16} color="#999" style={styles.chevronIcon} />
+          </TouchableOpacity>
 
           <View style={styles.summaryItem}>
             <ArrowUpCircle size={18} color={theme.expense} />
@@ -462,47 +485,44 @@ export default function Dashboard() {
         </View>
 
         {/* Contas a Pagar & Cartões */}
-        <View style={[styles.sectionContainer, { backgroundColor: theme.card }]}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Contas a Pagar & Cartões</Text>
-            <TouchableOpacity>
+        <TouchableOpacity onPress={() => router.push('/expenses')} activeOpacity={0.8}>
+          <View style={[styles.sectionContainer, { backgroundColor: theme.card }]}> 
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Contas a Pagar & Cartões</Text>
               <ChevronRight size={20} color="#999" />
-            </TouchableOpacity>
+            </View>
+            <View style={styles.billItem}>
+              <View style={[styles.billIconContainer, {backgroundColor: '#FFE2E6'}]}>
+                <CreditCard size={20} color="#FF5A6E" />
+              </View>
+              <View style={styles.billDetails}>
+                <Text style={styles.billTitle}>Cartão Nubank</Text>
+                <Text style={styles.billDate}>Vence em 10 Abr</Text>
+              </View>
+              <Text style={styles.billAmount}>R$ 783,50</Text>
+            </View>
+            <View style={styles.billItem}>
+              <View style={[styles.billIconContainer, {backgroundColor: '#E3F5FF'}]}>
+                <Receipt size={20} color="#0095FF" />
+              </View>
+              <View style={styles.billDetails}>
+                <Text style={styles.billTitle}>Aluguel</Text>
+                <Text style={styles.billDate}>Débito automático · 05 Abr</Text>
+              </View>
+              <Text style={styles.billAmount}>R$ 1.200,00</Text>
+            </View>
+            <View style={styles.billItem}>
+              <View style={[styles.billIconContainer, {backgroundColor: '#FFF6E3'}]}>
+                <Receipt size={20} color="#FFB627" />
+              </View>
+              <View style={styles.billDetails}>
+                <Text style={styles.billTitle}>Internet</Text>
+                <Text style={styles.billDate}>Boleto · 15 Abr</Text>
+              </View>
+              <Text style={styles.billAmount}>R$ 120,00</Text>
+            </View>
           </View>
-
-          <View style={styles.billItem}>
-            <View style={[styles.billIconContainer, {backgroundColor: '#FFE2E6'}]}>
-              <CreditCard size={20} color="#FF5A6E" />
-            </View>
-            <View style={styles.billDetails}>
-              <Text style={styles.billTitle}>Cartão Nubank</Text>
-              <Text style={styles.billDate}>Vence em 10 Abr</Text>
-            </View>
-            <Text style={styles.billAmount}>R$ 783,50</Text>
-          </View>
-
-          <View style={styles.billItem}>
-            <View style={[styles.billIconContainer, {backgroundColor: '#E3F5FF'}]}>
-              <Receipt size={20} color="#0095FF" />
-            </View>
-            <View style={styles.billDetails}>
-              <Text style={styles.billTitle}>Aluguel</Text>
-              <Text style={styles.billDate}>Débito automático · 05 Abr</Text>
-            </View>
-            <Text style={styles.billAmount}>R$ 1.200,00</Text>
-          </View>
-
-          <View style={styles.billItem}>
-            <View style={[styles.billIconContainer, {backgroundColor: '#FFF6E3'}]}>
-              <Receipt size={20} color="#FFB627" />
-            </View>
-            <View style={styles.billDetails}>
-              <Text style={styles.billTitle}>Internet</Text>
-              <Text style={styles.billDate}>Boleto · 15 Abr</Text>
-            </View>
-            <Text style={styles.billAmount}>R$ 120,00</Text>
-          </View>
-        </View>
+        </TouchableOpacity>
 
         {/* Metas Financeiras */}
         <View style={[styles.sectionContainer, { backgroundColor: theme.card }]}>
@@ -734,14 +754,14 @@ export default function Dashboard() {
                   style={styles.menuItem}
                   onPress={() => {
                     setMenuModalVisible(false);
-                    router.push('/(app)/accounts');
+                    router.push('/expenses');
                   }}
                 >
                   <View style={[styles.menuIconContainer, { backgroundColor: `rgba(${theme === themes.feminine ? '182, 135, 254' : '0, 115, 234'}, 0.15)` }]}>
                     <Wallet size={28} color={theme.primary} />
                   </View>
-                  <Text style={[styles.menuItemTitle, { color: '#333' }]}>Contas</Text>
-                  <Text style={[styles.menuItemSubtitle, { color: '#666' }]}>Gerenciar contas</Text>
+                  <Text style={[styles.menuItemTitle, { color: '#333' }]}>Contas a Pagar</Text>
+                  <Text style={[styles.menuItemSubtitle, { color: '#666' }]}>Gerenciar pagamentos</Text>
                 </TouchableOpacity>
               </View>
 
@@ -751,14 +771,28 @@ export default function Dashboard() {
                   style={styles.menuItem}
                   onPress={() => {
                     setMenuModalVisible(false);
-                    // Navegação para sobre
+                    router.push('/(app)/accounts');
                   }}
                 >
                   <View style={[styles.menuIconContainer, { backgroundColor: `rgba(${theme === themes.feminine ? '182, 135, 254' : '0, 115, 234'}, 0.15)` }]}>
-                    <Info size={28} color={theme.primary} />
+                    <Wallet size={28} color={theme.primary} />
                   </View>
-                  <Text style={[styles.menuItemTitle, { color: '#333' }]}>Sobre</Text>
-                  <Text style={[styles.menuItemSubtitle, { color: '#666' }]}>Informações</Text>
+                  <Text style={[styles.menuItemTitle, { color: '#333' }]}>Contas</Text>
+                  <Text style={[styles.menuItemSubtitle, { color: '#666' }]}>Gerenciar contas</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={styles.menuItem}
+                  onPress={() => {
+                    setMenuModalVisible(false);
+                    router.push('/(app)/receitas');
+                  }}
+                >
+                  <View style={[styles.menuIconContainer, { backgroundColor: `rgba(${theme === themes.feminine ? '182, 135, 254' : '0, 115, 234'}, 0.15)` }]}>
+                    <ArrowUpCircle size={28} color={theme.primary} />
+                  </View>
+                  <Text style={[styles.menuItemTitle, { color: '#333' }]}>Receitas</Text>
+                  <Text style={[styles.menuItemSubtitle, { color: '#666' }]}>Gerenciar receitas</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity 
@@ -774,10 +808,6 @@ export default function Dashboard() {
                   <Text style={[styles.menuItemTitle, { color: '#333' }]}>Logout</Text>
                   <Text style={[styles.menuItemSubtitle, { color: '#666' }]}>Sair do aplicativo</Text>
                 </TouchableOpacity>
-
-                <View style={styles.menuItem}>
-                  {/* Item vazio para manter o alinhamento */}
-                </View>
               </View>
             </View>
 
@@ -799,11 +829,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   financialCard: {
-    width: 160,
+    width: 170,
     borderRadius: 16,
-    padding: 16,
-    marginRight: 12,
-    height: 140,
+    padding: 14,
+    paddingHorizontal: 18,
+    paddingBottom: 8,
+    marginRight: 8,
+    height: 120,
     overflow: 'hidden',
     transform: [{ translateY: 0 }],
     ...Platform.select({
@@ -1178,15 +1210,14 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   card: {
-    flex: 1,
-    width: 160,
-    backgroundColor: 'white',
-    borderRadius: 20,
-    padding: 20,
-    marginHorizontal: 5,
-    marginRight: 12,
-    height: 140,
-    transform: [{ translateY: 0 }], // Base para animação
+    width: 170,
+    borderRadius: 16,
+    padding: 14,
+    paddingHorizontal: 18,
+    paddingBottom: 8,
+    marginRight: 8,
+    height: 120,
+    overflow: 'hidden',
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -1232,14 +1263,14 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: fontFallbacks.Poppins_600SemiBold,
     color: '#333',
-    marginBottom: 10,
+    marginBottom: 8,
     flexShrink: 1,
   },
   cardAmount: {
     fontSize: 24,
     fontFamily: fontFallbacks.Poppins_600SemiBold,
     color: '#333',
-    marginBottom: 4,
+    marginBottom: 2,
     flexShrink: 1,
   },
   cardChangePositive: {
@@ -1247,14 +1278,16 @@ const styles = StyleSheet.create({
     fontFamily: fontFallbacks.Poppins_400Regular,
     color: '#4CD964',
     flexShrink: 1,
-    flexWrap: 'wrap',
+    flexWrap: 'nowrap',
+    marginBottom: 0,
   },
   cardChangeNegative: {
     fontSize: 14,
     fontFamily: fontFallbacks.Poppins_400Regular,
     color: '#FF3B30',
     flexShrink: 1,
-    flexWrap: 'wrap',
+    flexWrap: 'nowrap',
+    marginBottom: 0,
   },
   // Bills
   billItem: {
@@ -1357,8 +1390,9 @@ const styles = StyleSheet.create({
     color: '#666',
   },
   transactionAmountContainer: {
-    flex: 1,
+    justifyContent: 'flex-end',
     alignItems: 'flex-end',
+    marginLeft: 5,
   },
   transactionAmount: {
     fontSize: 16,
@@ -1652,7 +1686,7 @@ const styles = StyleSheet.create({
   },
   cardsScrollContainer: {
     paddingLeft: 16,
-    paddingRight: 32,
+    paddingRight: 24,
     marginTop: 16,
     marginBottom: 16,
   },
@@ -1812,5 +1846,20 @@ const styles = StyleSheet.create({
     color: 'white',
     textAlign: 'center',
     marginTop: 2,
+  },
+  clickableItem: {
+    position: 'relative',
+    paddingRight: 24,
+    backgroundColor: 'rgba(179, 136, 255, 0.05)',
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    marginVertical: 4,
+  },
+  chevronIcon: {
+    position: 'absolute',
+    right: 12,
+    top: '50%',
+    marginTop: -8,
   },
 }); 

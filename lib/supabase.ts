@@ -42,13 +42,15 @@ const ExpoSecureStoreAdapter = {
   },
 };
 
-// Add fallback values for development
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
-const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
+// NOTA: As credenciais devem ser armazenadas em variáveis de ambiente
+// Em um ambiente de desenvolvimento, você pode criar um arquivo .env
+// As credenciais reais foram removidas deste arquivo por motivos de segurança
+const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || 'YOUR_SUPABASE_URL';
+const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || 'YOUR_SUPABASE_ANON_KEY';
 
 if (!supabaseUrl || !supabaseAnonKey) {
   console.warn(
-    'Supabase URL or Anonymous Key is missing. Please check your .env file.'
+    'Supabase URL or Anonymous Key is missing. Please check your configuration.'
   );
 }
 

@@ -374,7 +374,7 @@ export default function Accounts() {
       
       {/* Cabeçalho unificado com degradê */}
       <LinearGradient
-        colors={['#b687fe', '#7d41e0']}
+        colors={['#b687fe', '#8d5fe3']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.unifiedHeader}
@@ -1145,17 +1145,11 @@ export default function Accounts() {
                   <Text style={[styles.menuItemSubtitle, { color: '#666' }]}>Gerenciar</Text>
                 </TouchableOpacity>
                 
-                <TouchableOpacity 
-                  style={styles.menuItem}
-                  onPress={() => {
-                    setMenuModalVisible(false);
-                    router.replace('/(app)/bill-payments');
-                  }}
-                >
+                <TouchableOpacity style={styles.menuItem}>
                   <View style={[styles.menuIconContainer, { backgroundColor: 'rgba(182, 135, 254, 0.15)' }]}>
                     <Receipt size={24} color={theme.primary} />
                   </View>
-                  <Text style={[styles.menuItemTitle, { color: '#333' }]}>Contas a Pagar</Text>
+                  <Text style={[styles.menuItemTitle, { color: '#333' }]}>Contas</Text>
                   <Text style={[styles.menuItemSubtitle, { color: '#666' }]}>Pagamentos</Text>
                 </TouchableOpacity>
               </View>
@@ -1218,10 +1212,10 @@ export default function Accounts() {
         </TouchableOpacity>
         
         <TouchableOpacity 
-          style={styles.floatingAddButton}
+          style={styles.addButton}
           onPress={() => setNewAccountModalVisible(true)}
         >
-          <View style={styles.floatingButtonInner}>
+          <View style={styles.addButtonInner}>
             <PlusCircle size={32} color="#fff" />
           </View>
         </TouchableOpacity>
@@ -1252,10 +1246,6 @@ const styles = StyleSheet.create({
     paddingTop: Platform.OS === 'android' ? 50 : 60,
     paddingHorizontal: 20,
     paddingBottom: 30,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
   },
   headerContent: {
     flexDirection: 'row',
@@ -1302,12 +1292,6 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     paddingTop: 20,
-    paddingBottom: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 2,
   },
   tabsScroll: {
     paddingHorizontal: 20,
@@ -2009,7 +1993,7 @@ const styles = StyleSheet.create({
     color: '#999',
     marginTop: 4,
   },
-  floatingAddButton: {
+  addButton: {
     marginTop: -30,
     backgroundColor: 'white',
     width: 60,
@@ -2018,7 +2002,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  floatingButtonInner: {
+  addButtonInner: {
     width: 50,
     height: 50,
     borderRadius: 25,

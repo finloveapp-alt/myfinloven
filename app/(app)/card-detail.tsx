@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Dimensions, ScrollView } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Dimensions, ScrollView, Animated } from 'react-native';
 import { ArrowLeft } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useRouter } from 'expo-router';
@@ -18,7 +18,12 @@ export default function CardDetail() {
   const router = useRouter();
 
   const handleBack = () => {
-    router.back();
+    try {
+      router.back();
+    } catch (error) {
+      // Fallback em caso de erro
+      router.navigate('/(app)');
+    }
   };
 
   const weekData = [
@@ -32,6 +37,28 @@ export default function CardDetail() {
   ];
 
   const maxValue = Math.max(...weekData.map(item => item.value));
+  const maxIndex = weekData.findIndex(item => item.value === maxValue);
+
+  // Referências para animação
+  const barAnimations = useRef(weekData.map(() => new Animated.Value(0))).current;
+  
+  // Animar as barras quando o componente montar
+  useEffect(() => {
+    Animated.stagger(100, 
+      barAnimations.map(anim => 
+        Animated.spring(anim, {
+          toValue: 1,
+          tension: 50,
+          friction: 7,
+          useNativeDriver: true,
+        })
+      )
+    ).start();
+  }, []);
+
+  // Calcular média e gasto total
+  const mediaGasto = Math.round(weekData.reduce((acc, item) => acc + item.value, 0) / weekData.length);
+  const gastoTotal = weekData.reduce((acc, item) => acc + item.value, 0);
 
   return (
     <View style={styles.container}>
@@ -97,21 +124,52 @@ export default function CardDetail() {
 
         {/* Weekly Chart */}
         <View style={styles.chartContainer}>
-          <View style={styles.chart}>
-            {weekData.map((item, index) => (
-              <View key={index} style={styles.chartColumn}>
-                <View style={styles.barContainer}>
-                  <View 
-                    style={[
-                      styles.bar, 
-                      { height: (item.value / maxValue) * 120 }
-                    ]}
-                  />
-                </View>
-                <Text style={styles.chartLabel}>{item.day}</Text>
-                <Text style={styles.chartValue}>R$ {item.value}</Text>
+          <View style={styles.chartHeader}>
+            <Text style={styles.chartTitle}>Gastos Semanais</Text>
+          </View>
+          
+          <View style={styles.chartWrapper}>
+            <View style={styles.chart}>
+              {/* Linhas de grade horizontais */}
+              <View style={styles.gridLines}>
+                {[0, 1, 2].map((_, index) => (
+                  <View key={index} style={styles.gridLine} />
+                ))}
               </View>
-            ))}
+              
+              {weekData.map((item, index) => {
+                // Destacar apenas o valor máximo
+                const isMax = item.value === maxValue;
+                
+                return (
+                  <View key={index} style={styles.chartColumn}>
+                    <View style={styles.barContainer}>
+                      <Animated.View 
+                        style={[
+                          styles.bar, 
+                          { 
+                            height: (item.value / maxValue) * 120,
+                            transform: [
+                              { scaleY: barAnimations[index] }
+                            ],
+                            opacity: barAnimations[index].interpolate({
+                              inputRange: [0, 1],
+                              outputRange: [0.4, 1]
+                            })
+                          },
+                          isMax && styles.maxBar
+                        ]}
+                      />
+                    </View>
+                    <Text style={styles.chartLabel}>{item.day}</Text>
+                    <Text style={[
+                      styles.chartValue,
+                      isMax && styles.maxValueText
+                    ]}>R$ {item.value}</Text>
+                  </View>
+                );
+              })}
+            </View>
           </View>
         </View>
 
@@ -261,39 +319,89 @@ const styles = StyleSheet.create({
   },
   chartContainer: {
     backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 20,
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  chartHeader: {
+    marginBottom: 16,
+    alignItems: 'center',
+  },
+  chartTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+  },
+  chartWrapper: {
+    paddingHorizontal: 8,
   },
   chart: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-end',
     height: 160,
+    paddingTop: 10,
+    paddingBottom: 10,
+    position: 'relative',
+  },
+  gridLines: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 50,
+    justifyContent: 'space-between',
+    zIndex: 0,
+  },
+  gridLine: {
+    height: 1,
+    backgroundColor: '#f0f0f0',
+    width: '100%',
   },
   chartColumn: {
     alignItems: 'center',
-    width: '14%',
+    width: '13%',
+    zIndex: 1,
   },
   barContainer: {
-    height: 120,
+    height: 130,
     justifyContent: 'flex-end',
+    alignItems: 'center',
+    width: '100%',
   },
   bar: {
-    width: 3,
+    width: 18,
     backgroundColor: '#6366f1',
-    borderRadius: 1.5,
+    borderRadius: 0,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  maxBar: {
+    backgroundColor: '#5145e5',
   },
   chartLabel: {
     fontSize: 12,
-    color: '#666',
-    marginTop: 6,
-    marginBottom: 2,
+    color: '#555',
+    marginTop: 10,
+    marginBottom: 3,
+    fontWeight: '500',
   },
   chartValue: {
     fontSize: 11,
-    color: '#000',
-    fontWeight: '500',
+    color: '#333',
+    fontWeight: '600',
+  },
+  maxValueText: {
+    color: '#5145e5',
+    fontWeight: '700',
   },
   historyButton: {
     backgroundColor: '#6366f1',

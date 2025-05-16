@@ -30,15 +30,34 @@ export default function LoginForm() {
     
     setLoading(true);
     try {
+      // Log detalhado para depuração
+      console.log(`### TENTANDO LOGIN PARA: ${email.trim()} (${password.length} caracteres)`);
+      
+      // Verificar se é um email de convite antes de tentar login
+      console.log("Verificando se é um usuário convidado...");
+      const { data: coupleData, error: coupleError } = await supabase
+        .from('couples')
+        .select('*')
+        .eq('invitation_email', email.trim())
+        .maybeSingle();
+        
+      if (coupleError) {
+        console.error("### ERRO AO VERIFICAR SE É CONVIDADO:", coupleError);
+      } else if (coupleData) {
+        console.log("### ENCONTRADO CONVITE PARA:", email);
+        console.log("### DADOS DO CONVITE:", coupleData);
+        console.log("### STATUS DO CONVITE:", coupleData.status);
+      }
+      
       // Tenta autenticar com Supabase
       const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+        email: email.trim(),
+        password: password.trim(),
       });
 
-      // Se houver erro, verifica o tipo de erro
+      // Se houver erro, verifica o tipo
       if (error) {
-        console.error('Erro de autenticação:', error.message);
+        console.error('### ERRO DE LOGIN:', error.message);
         
         if (error.message.includes('Email not confirmed')) {
           Alert.alert(
@@ -51,7 +70,7 @@ export default function LoginForm() {
                   try {
                     const { error: resendError } = await supabase.auth.resend({
                       type: 'signup',
-                      email: email,
+                      email: email.trim(),
                     });
                     
                     if (resendError) {
@@ -64,21 +83,361 @@ export default function LoginForm() {
                   }
                 }
               },
-              { 
-                text: 'OK',
-                style: 'default'
-              }
+              { text: 'OK', style: 'default' }
             ]
           );
+        } else if (error.message.includes('Invalid login credentials')) {
+          // Se o usuário possivelmente é um convidado que não completou o registro
+          if (coupleData) {
+            console.log("### USUÁRIO É UM CONVIDADO");
+            
+            if (coupleData.status === 'active') {
+              console.log("### CONVITE JÁ ESTÁ ATIVO, MAS CREDENCIAIS INVÁLIDAS");
+              Alert.alert(
+                'Credenciais inválidas',
+                'Este email já está associado a uma conta, mas a senha não está correta. ' +
+                'Você pode tentar recuperar sua senha ou, se nunca completou o registro, aceitar o convite novamente.',
+                [
+                  { 
+                    text: 'Recuperar senha', 
+                    onPress: () => router.push('/forgot-password')
+                  },
+                  { 
+                    text: 'OK', 
+                    style: 'cancel' 
+                  }
+                ]
+              );
+            } else if (coupleData.status === 'pending') {
+              console.log("### USUÁRIO É UM CONVIDADO COM REGISTRO INCOMPLETO");
+              Alert.alert(
+                'Convite pendente',
+                'Parece que você recebeu um convite, mas ainda não completou o registro. Deseja criar uma conta agora?',
+                [
+                  { 
+                    text: 'Sim', 
+                    onPress: () => {
+                      // Redirecionar para página de registro com os dados do convite
+                      router.push({
+                        pathname: '/(auth)/register',
+                        params: {
+                          fromCoupleInvitation: 'true',
+                          invitationToken: coupleData.invitation_token,
+                          inviterId: coupleData.user1_id,
+                          coupleId: coupleData.id,
+                          invitationEmail: email.trim(),
+                          manualEntry: 'true'
+                        }
+                      });
+                    }
+                  },
+                  { text: 'Não', style: 'cancel' }
+                ]
+              );
+            }
+          } else {
+            Alert.alert('Erro', 'Email ou senha incorretos. Por favor, verifique suas credenciais.');
+          }
         } else {
-          Alert.alert('Erro', 'Email ou senha incorretos. Por favor, verifique suas credenciais.');
+          Alert.alert('Erro de login', error.message);
         }
         return;
       }
 
-      // Se autenticou com sucesso, verifica se temos o usuário
+      // Se autenticou com sucesso, procede normalmente
       if (data && data.user) {
-        console.log('Login bem-sucedido:', data.user.email);
+        console.log('### LOGIN BEM SUCEDIDO:', data.user.email);
+        console.log('### METADADOS DO USUÁRIO:', data.user.user_metadata);
+        
+        // Processar perfil temporário se existir
+        try {
+          console.log("Tentando processar dados de perfil temporário");
+          
+          // Chamar a função SQL para processar o perfil temporário pelo email
+          const { data: tempProfileResult, error: tempProfileError } = await supabase
+            .rpc('process_profile_temp_by_email', {
+              p_email: email.trim().toLowerCase()
+            });
+            
+          if (tempProfileError) {
+            console.error("Erro ao processar perfil temporário:", tempProfileError);
+          } else if (tempProfileResult) {
+            console.log("Resultado do processamento de perfil:", tempProfileResult);
+            
+            // Se o resultado indica que um casal foi ativado
+            if (tempProfileResult.success && tempProfileResult.couple_activated) {
+              console.log("Casal ativado com sucesso durante login");
+              
+              // Mostrar mensagem de sucesso para casal
+              Alert.alert(
+                'Parabéns!',
+                'Sua conta de casal foi ativada. Agora vocês podem compartilhar informações financeiras!',
+                [{ 
+                  text: 'OK', 
+                  onPress: () => {
+                    // Navegar para o dashboard após fechar o alerta
+                    setTimeout(() => {
+                      router.replace('/(app)/dashboard');
+                    }, 100);
+                  }
+                }]
+              );
+              return;
+            }
+          }
+        } catch (processingError) {
+          console.error("Exceção ao processar perfil temporário:", processingError);
+        }
+        
+        // Verificar se existe nome nos metadados e se é um usuário convidado
+        const userName = data.user.user_metadata?.display_name || 
+                        data.user.user_metadata?.name || 
+                        data.user.user_metadata?.full_name;
+                      
+        const isCoupleInvitation = data.user.user_metadata?.couple_invitation === true;
+        
+        if (isCoupleInvitation) {
+          console.log('### USUÁRIO É UM CONVIDADO DE CASAL');
+        }
+        
+        // NOVO: Verificar e processar associações pendentes
+        try {
+          console.log("Verificando perfis e associações pendentes para o usuário:", data.user.id);
+          
+          // NOVO: Processar perfil pendente primeiro
+          const { data: processProfileResult, error: processProfileError } = await supabase
+            .rpc('process_pending_profile', {
+              p_user_id: data.user.id
+            });
+            
+          if (processProfileError) {
+            console.error("Erro ao processar perfil pendente:", processProfileError);
+          } else if (processProfileResult && processProfileResult.success) {
+            console.log("Perfil processado com sucesso:", processProfileResult);
+          }
+          
+          // Recuperar dados locais se disponíveis
+          try {
+            const localUserData = localStorage.getItem(`user_metadata_${email.trim().toLowerCase()}`);
+            if (localUserData) {
+              const parsedData = JSON.parse(localUserData);
+              console.log("Dados locais encontrados:", parsedData);
+              
+              // Tentar atualizar metadados do usuário com os dados salvos localmente
+              try {
+                const { error: updateError } = await supabase.auth.updateUser({
+                  data: {
+                    display_name: parsedData.name,
+                    name: parsedData.name,
+                    full_name: parsedData.name,
+                    gender: parsedData.gender,
+                    account_type: parsedData.accountType,
+                    name_saved: true
+                  }
+                });
+                
+                if (updateError) {
+                  console.error("Erro ao atualizar metadados do usuário:", updateError);
+                } else {
+                  console.log("Metadados do usuário atualizados com sucesso usando dados locais");
+                  // Remover dados locais após uso bem-sucedido
+                  localStorage.removeItem(`user_metadata_${email.trim().toLowerCase()}`);
+                }
+              } catch (updateError) {
+                console.error("Exceção ao atualizar metadados:", updateError);
+              }
+            }
+          } catch (localStorageError) {
+            console.log("Erro ao acessar localStorage:", localStorageError);
+          }
+          
+          // Verificar se existem associações pendentes
+          const { data: pendingData, error: pendingError } = await supabase
+            .from('pending_couple_associations')
+            .select('*')
+            .eq('user_id', data.user.id)
+            .eq('processed', false)
+            .order('created_at', { ascending: false })
+            .limit(1);
+            
+          if (pendingError) {
+            console.error("Erro ao verificar associações pendentes:", pendingError);
+          } else if (pendingData && pendingData.length > 0) {
+            console.log("Associação pendente encontrada:", pendingData[0]);
+            
+            // Processar associação pendente
+            const { data: processResult, error: processError } = await supabase
+              .rpc('process_pending_couple_association', {
+                p_user_id: data.user.id
+              });
+              
+            if (processError) {
+              console.error("Erro ao processar associação:", processError);
+            } else if (processResult.success) {
+              console.log("Associação processada com sucesso:", processResult);
+              
+              // Mostrar mensagem de sucesso
+              Alert.alert(
+                'Parabéns!',
+                'Sua conta de casal foi ativada. Agora vocês podem compartilhar informações financeiras!',
+                [{ 
+                  text: 'OK', 
+                  onPress: () => {
+                    // Navegar para o dashboard após fechar o alerta
+                    setTimeout(() => {
+                      router.replace('/(app)/dashboard');
+                    }, 100);
+                  }
+                }]
+              );
+              return;
+            }
+          } else {
+            console.log("Nenhuma associação pendente encontrada para este usuário");
+          }
+        } catch (pendingError) {
+          console.error("Exceção ao processar pendências:", pendingError);
+        }
+        
+        // Verificar o perfil do usuário
+        try {
+          const { data: profileData, error: profileError } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', data.user.id)
+            .maybeSingle();
+            
+          if (profileError) {
+            console.error('Erro ao buscar perfil:', profileError);
+          } else if (profileData) {
+            console.log('Perfil encontrado:', profileData);
+            
+            // Se o perfil existe mas o nome está vazio ou não definido
+            if (!profileData.name && userName) {
+              console.log('Atualizando nome do perfil com:', userName);
+              
+              // Atualizar o perfil com o nome disponível nos metadados
+              const { error: updateError } = await supabase
+                .from('profiles')
+                .update({ name: userName })
+                .eq('id', data.user.id);
+                
+              if (updateError) {
+                console.error('Erro ao atualizar nome no perfil:', updateError);
+              } else {
+                console.log('Nome atualizado no perfil com sucesso');
+              }
+            }
+            
+            // Se não tem display_name nos metadados mas tem nome no perfil
+            if (!userName && profileData.name) {
+              console.log('Atualizando display_name nos metadados com:', profileData.name);
+              
+              // Atualizar os metadados com o nome disponível no perfil
+              try {
+                const { error: updateError } = await supabase.auth.updateUser({
+                  data: {
+                    display_name: profileData.name,
+                    name: profileData.name,
+                    full_name: profileData.name
+                  }
+                });
+                
+                if (updateError) {
+                  console.error('Erro ao atualizar display_name:', updateError);
+                } else {
+                  console.log('display_name atualizado com sucesso');
+                }
+              } catch (updateError) {
+                console.error('Erro ao atualizar metadados:', updateError);
+              }
+            }
+          } else {
+            console.warn('Perfil não encontrado para o usuário, tentando criar...');
+            
+            // Criar perfil básico a partir dos metadados do usuário
+            try {
+              const userData = {
+                id: data.user.id,
+                email: data.user.email,
+                name: userName || email.split('@')[0],
+                gender: data.user.user_metadata?.gender || 'não informado',
+                account_type: data.user.user_metadata?.account_type || 'individual',
+                created_at: new Date().toISOString()
+              };
+              
+              const { error: createError } = await supabase
+                .from('profiles')
+                .upsert(userData, { onConflict: 'id' });
+                
+              if (createError) {
+                console.error('Erro ao criar perfil:', createError);
+              } else {
+                console.log('Perfil criado com sucesso a partir dos metadados');
+              }
+            } catch (e) {
+              console.error('Exceção ao criar perfil:', e);
+            }
+          }
+        } catch (profileError) {
+          console.error('Exceção ao buscar perfil:', profileError);
+        }
+        
+        // Verificar se é parte de um casal
+        try {
+          console.log('Verificando associações de casal para:', data.user.id);
+          
+          const { data: coupleData, error: coupleError } = await supabase
+            .from('couples')
+            .select('*')
+            .or(`user1_id.eq.${data.user.id},user2_id.eq.${data.user.id}`)
+            .maybeSingle();
+            
+          if (coupleError) {
+            console.error('Erro ao verificar associação de casal:', coupleError);
+          } else if (coupleData) {
+            console.log('Associação de casal encontrada:', coupleData);
+            
+            // Verificar se é um convite pendente
+            if (coupleData.status === 'pending') {
+              console.log('Atualizando status do casal para active');
+              
+              // Atualizar status para active
+              const { error: updateError } = await supabase
+                .from('couples')
+                .update({ status: 'active' })
+                .eq('id', coupleData.id);
+                
+              if (updateError) {
+                console.error('Erro ao atualizar status do casal:', updateError);
+              } else {
+                console.log('Status do casal atualizado com sucesso');
+                
+                // Mostrar mensagem de sucesso
+                Alert.alert(
+                  'Parabéns!',
+                  'Sua conta de casal está ativa. Agora vocês podem compartilhar informações financeiras!',
+                  [{ 
+                    text: 'OK', 
+                    onPress: () => {
+                      // Navegar para o dashboard após fechar o alerta
+                      setTimeout(() => {
+                        router.replace('/(app)/dashboard');
+                      }, 100);
+                    }
+                  }]
+                );
+                return;
+              }
+            }
+          } else {
+            console.log('Não há associação de casal para este usuário');
+          }
+        } catch (error) {
+          console.error('Exceção ao verificar associação de casal:', error);
+        }
+        
+        // Fluxo normal de redirecionamento
         router.replace('/(app)/dashboard');
       } else {
         Alert.alert('Erro', 'Não foi possível autenticar. Tente novamente.');

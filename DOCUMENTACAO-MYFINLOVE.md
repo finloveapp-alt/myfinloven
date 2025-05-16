@@ -127,4 +127,4 @@ O projeto utiliza Expo Router, que implementa um sistema de navegação baseado 
 
 ---
 
-Documentação criada em [DATA], representando o estado atual do projeto MyFinLove. 
+Documentação criada em 10 de Novembro de 2023, atualizada em 10 de Outubro de 2024, representando o estado atual do projeto MyFinLove. 

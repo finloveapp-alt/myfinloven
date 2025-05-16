@@ -42,11 +42,10 @@ const ExpoSecureStoreAdapter = {
   },
 };
 
-// NOTA: As credenciais devem ser armazenadas em variáveis de ambiente
-// Em um ambiente de desenvolvimento, você pode criar um arquivo .env
-// As credenciais reais foram removidas deste arquivo por motivos de segurança
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || 'YOUR_SUPABASE_URL';
-const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || 'YOUR_SUPABASE_ANON_KEY';
+// NOTA: Em um ambiente de produção, use variáveis de ambiente
+// As credenciais estão definidas diretamente para facilitar o desenvolvimento
+const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || 'https://bellpfebhwltuqlkwirt.supabase.co';
+const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJlbGxwZmViaHdsdHVxbGt3aXJ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDc0MzEyMTksImV4cCI6MjA2MzAwNzIxOX0.Rkt_yMjM23vl5XikWHi5EcDhvf8yUALCEzFhUQPSKcs';
 
 if (!supabaseUrl || !supabaseAnonKey) {
   console.warn(

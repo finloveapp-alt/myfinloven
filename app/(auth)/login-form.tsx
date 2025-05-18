@@ -230,9 +230,25 @@ export default function LoginForm() {
           }
         }
         
-        // NOVO: Verificar e processar associações pendentes
+        // Verificar se existem associações pendentes
         try {
           console.log("Verificando perfis e associações pendentes para o usuário:", data.user.id);
+          
+          // Processando atualizações pendentes de metadados
+          try {
+            const { data: pendingMetadataResult, error: pendingMetadataError } = await supabase
+              .rpc('process_pending_metadata_updates', {
+                p_user_id: data.user.id
+              });
+              
+            if (pendingMetadataError) {
+              console.log("Erro ao processar metadados pendentes:", pendingMetadataError);
+            } else if (pendingMetadataResult?.success) {
+              console.log("Metadados pendentes processados com sucesso:", pendingMetadataResult);
+            }
+          } catch (metadataError) {
+            console.error("Exceção ao processar metadados pendentes:", metadataError);
+          }
           
           // NOVO: Processar perfil pendente primeiro
           const { data: processProfileResult, error: processProfileError } = await supabase

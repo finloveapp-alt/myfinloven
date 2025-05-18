@@ -648,20 +648,11 @@ export async function registerFromCoupleInvitation(userData) {
       const baseURL = 'https://bellpfebhwltuqlkwirt.supabase.co';
       const functionURL = `${baseURL}/functions/v1/update-invited-user`;
       
-      // Obter token de acesso
-      const { data: sessionData } = await supabase.auth.getSession();
-      const accessToken = sessionData?.session?.access_token;
-      
-      if (!accessToken) {
-        console.warn("Sem token de acesso válido, tentando fazer chamada sem autenticação");
-      }
-      
-      // Chamar a Edge Function com os dados necessários
+      // Chamar a Edge Function com os dados necessários (sem autenticação)
       const response = await fetch(functionURL, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          ...(accessToken ? { 'Authorization': `Bearer ${accessToken}` } : {})
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           userId: authData.user.id,

@@ -76,12 +76,23 @@ const themes = {
   }
 };
 
+// Interface para o objeto de perfil de usuário
+interface UserProfile {
+  id: string;
+  name: string;
+  email: string;
+  gender: string;
+  avatar_url?: string;
+}
+
 export default function Dashboard() {
   const [theme, setTheme] = useState(themes.feminine);
   const [currentTransactionIndex, setCurrentTransactionIndex] = useState(0);
   const [menuModalVisible, setMenuModalVisible] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [pressedCard, setPressedCard] = useState<string | null>(null);
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
+  const [partnerUser, setPartnerUser] = useState<UserProfile | null>(null);
   
   useEffect(() => {
     // Verifica se existe um tema definido globalmente
@@ -92,7 +103,98 @@ export default function Dashboard() {
       setTheme(themes.feminine);
       console.log('Dashboard: Aplicando tema feminino (rosa)');
     }
+    
+    // Buscar informações do usuário atual e seu parceiro
+    fetchUserAndPartner();
   }, []);
+  
+  // Função para buscar o usuário atual e seu parceiro
+  const fetchUserAndPartner = async () => {
+    try {
+      // Obter a sessão atual
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError) {
+        console.error('Erro ao obter sessão:', sessionError);
+        return;
+      }
+      
+      if (!session?.user) {
+        console.log('Nenhuma sessão de usuário encontrada');
+        return;
+      }
+      
+      const userId = session.user.id;
+      
+      // Buscar o perfil do usuário atual
+      const { data: userProfile, error: userError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+        
+      if (userError) {
+        console.error('Erro ao buscar perfil do usuário:', userError);
+        return;
+      }
+      
+      if (userProfile) {
+        setCurrentUser({
+          id: userProfile.id,
+          name: userProfile.name || 'Usuário',
+          email: userProfile.email || '',
+          gender: userProfile.gender || '',
+          avatar_url: userProfile.gender?.toLowerCase() === 'homem' ? 
+            'https://randomuser.me/api/portraits/men/36.jpg' : 
+            'https://randomuser.me/api/portraits/women/44.jpg'
+        });
+      }
+      
+      // Buscar relacionamento de casal
+      const { data: coupleData, error: coupleError } = await supabase
+        .from('couples')
+        .select('*')
+        .or(`user1_id.eq.${userId},user2_id.eq.${userId}`)
+        .eq('status', 'active')
+        .single();
+        
+      if (coupleError && coupleError.code !== 'PGRST116') { // PGRST116 é o código para "nenhum resultado" no PostgREST
+        console.error('Erro ao buscar relacionamento de casal:', coupleError);
+        return;
+      }
+      
+      if (coupleData) {
+        // Determinar o ID do parceiro
+        const partnerId = coupleData.user1_id === userId ? coupleData.user2_id : coupleData.user1_id;
+        
+        // Buscar o perfil do parceiro
+        const { data: partnerProfile, error: partnerError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', partnerId)
+          .single();
+          
+        if (partnerError) {
+          console.error('Erro ao buscar perfil do parceiro:', partnerError);
+          return;
+        }
+        
+        if (partnerProfile) {
+          setPartnerUser({
+            id: partnerProfile.id,
+            name: partnerProfile.name || 'Parceiro',
+            email: partnerProfile.email || '',
+            gender: partnerProfile.gender || '',
+            avatar_url: partnerProfile.gender?.toLowerCase() === 'homem' ? 
+              'https://randomuser.me/api/portraits/men/42.jpg' : 
+              'https://randomuser.me/api/portraits/women/33.jpg'
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Erro ao buscar usuários:', error);
+    }
+  };
 
   // Funções para navegar entre meses
   const goToPreviousMonth = () => {
@@ -276,15 +378,39 @@ export default function Dashboard() {
             </View>
 
             <View style={styles.usersRow}>
-              <Image
-                source={{ uri: theme === themes.masculine 
-                  ? 'https://randomuser.me/api/portraits/women/33.jpg'
-                  : 'https://randomuser.me/api/portraits/men/42.jpg' }}
-                style={styles.userAvatar}
-              />
-              <View style={styles.addUserAvatar}>
-                <Text style={styles.addUserText}>+</Text>
-              </View>
+              {currentUser && (
+                <Image
+                  source={{ uri: currentUser.avatar_url || (theme === themes.masculine 
+                    ? 'https://randomuser.me/api/portraits/men/36.jpg'
+                    : 'https://randomuser.me/api/portraits/women/44.jpg') }}
+                  style={styles.userAvatar}
+                />
+              )}
+              
+              {partnerUser ? (
+                <Image
+                  source={{ uri: partnerUser.avatar_url || (theme === themes.masculine 
+                    ? 'https://randomuser.me/api/portraits/women/33.jpg'
+                    : 'https://randomuser.me/api/portraits/men/42.jpg') }}
+                  style={styles.userAvatar}
+                />
+              ) : (
+                <TouchableOpacity 
+                  style={styles.addUserAvatar}
+                  onPress={() => {
+                    Alert.alert(
+                      'Convidar Parceiro',
+                      'Deseja convidar seu parceiro para compartilhar finanças?',
+                      [
+                        { text: 'Cancelar', style: 'cancel' },
+                        { text: 'Convidar', onPress: () => router.push('/convite-parceiro') }
+                      ]
+                    );
+                  }}
+                >
+                  <Text style={styles.addUserText}>+</Text>
+                </TouchableOpacity>
+              )}
             </View>
           </SafeAreaView>
         </LinearGradient>

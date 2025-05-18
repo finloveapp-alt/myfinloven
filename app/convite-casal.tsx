@@ -173,6 +173,7 @@ export default function ConviteCasal() {
     email: params?.email as string
   });
   const [debugInfo, setDebugInfo] = useState('');
+  const [paramsExtracted, setParamsExtracted] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [inviteData, setInviteData] = useState(null);
@@ -199,6 +200,7 @@ export default function ConviteCasal() {
       
       if (extractedParams.token && extractedParams.inviter && extractedParams.couple) {
         setUrlParams(extractedParams);
+        setParamsExtracted(true);
         
         // Atualizar informações de depuração
         const newDebugText = `${debugInfo}\n\nParâmetros extraídos da URL:
@@ -207,15 +209,43 @@ export default function ConviteCasal() {
         couple: ${extractedParams.couple || 'null'}
         email: ${extractedParams.email || 'null'}`;
         setDebugInfo(newDebugText);
+        
+        // Recarregar a página com os parâmetros extraídos para navegadores
+        if (typeof window !== 'undefined' && !(params?.token && params?.inviter && params?.couple)) {
+          // Apenas para web, redirecionar para a mesma página com os parâmetros
+          // na URL para uma experiência melhor (sem hash)
+          const url = `/convite-casal?token=${extractedParams.token}&inviter=${extractedParams.inviter}&couple=${extractedParams.couple}`;
+          const emailParam = extractedParams.email ? `&email=${encodeURIComponent(extractedParams.email)}` : '';
+          
+          // Verificar se a URL atual já contém esses parâmetros para evitar redirecionamento infinito
+          const currentUrl = window.location.href;
+          if (!currentUrl.includes(`token=${extractedParams.token}`) || 
+              !currentUrl.includes(`inviter=${extractedParams.inviter}`) ||
+              !currentUrl.includes(`couple=${extractedParams.couple}`)) {
+            console.log("Redirecionando para URL com parâmetros corretos:", url + emailParam);
+            
+            // Impedir a execução do useEffect de verificação com parâmetros incompletos
+            setLoading(true);
+            
+            // Redirecionar após um pequeno atraso
+            setTimeout(() => {
+              window.location.href = url + emailParam;
+            }, 100);
+            return;
+          }
+        }
       }
     }
   }, []);
 
+  // Verificar o convite quando os parâmetros estiverem disponíveis
   useEffect(() => {
     if (!urlParams.token || !urlParams.inviter || !urlParams.couple) {
-      console.error("Parâmetros incompletos:", urlParams);
-      setError('Link de convite inválido ou incompleto');
-      setLoading(false);
+      if (!paramsExtracted) {
+        console.error("Parâmetros incompletos:", urlParams);
+        setError('Link de convite inválido ou incompleto');
+        setLoading(false);
+      }
       return;
     }
 

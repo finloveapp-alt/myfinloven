@@ -89,6 +89,7 @@ interface UserProfile {
   gender: string;
   avatar_url?: string;
   profile_picture_url?: string;
+  account_type?: string;
 }
 
 export default function Dashboard() {
@@ -102,6 +103,9 @@ export default function Dashboard() {
   const [profilePictureModalVisible, setProfilePictureModalVisible] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [inviteModalVisible, setInviteModalVisible] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviting, setInviting] = useState(false);
   
   useEffect(() => {
     // Verifica se existe um tema definido globalmente
@@ -153,6 +157,7 @@ export default function Dashboard() {
           name: userProfile.name || 'Usuário',
           email: userProfile.email || '',
           gender: userProfile.gender || '',
+          account_type: userProfile.account_type || 'individual',
           profile_picture_url: userProfile.profile_picture_url || null,
           avatar_url: userProfile.profile_picture_url || (userProfile.gender?.toLowerCase() === 'homem' ? 
             'https://randomuser.me/api/portraits/men/36.jpg' : 
@@ -451,6 +456,75 @@ export default function Dashboard() {
     }
   };
 
+  // Função para enviar convite
+  const handleSendInvitation = async () => {
+    if (!inviteEmail || !inviteEmail.trim()) {
+      Alert.alert('Erro', 'Por favor, informe o email do convidado');
+      return;
+    }
+    
+    setInviting(true);
+    try {
+      if (!currentUser) {
+        throw new Error('Nenhum usuário logado');
+      }
+      
+      // Gerar token único para o convite
+      const invitationToken = Math.random().toString(36).substring(2, 15) + 
+        Math.random().toString(36).substring(2, 15);
+      
+      // Criar registro na tabela couples
+      const { data: coupleData, error: coupleError } = await supabase
+        .from('couples')
+        .insert({
+          user1_id: currentUser.id,
+          invitation_token: invitationToken,
+          invitation_email: inviteEmail.trim().toLowerCase(),
+          status: 'pending'
+        })
+        .select('id')
+        .single();
+        
+      if (coupleError) {
+        throw new Error('Falha ao criar convite. Verifique se o email é válido.');
+      }
+      
+      // Enviar convite por email usando a Edge Function
+      const inviteResponse = await fetch(`${supabase.supabaseUrl}/functions/v1/send-couple-invitation`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          partnerEmail: inviteEmail.trim().toLowerCase(),
+          inviterName: currentUser.name || 'Seu parceiro',
+          inviterId: currentUser.id,
+          invitationToken: invitationToken,
+          coupleId: coupleData.id
+        })
+      });
+      
+      if (!inviteResponse.ok) {
+        const errorData = await inviteResponse.json();
+        throw new Error(`Falha ao enviar convite: ${errorData.error || 'Erro desconhecido'}`);
+      }
+      
+      Alert.alert(
+        'Convite Enviado',
+        `Um convite foi enviado para ${inviteEmail}. Seu convidado receberá instruções para aceitar o convite.`,
+        [{ text: 'OK', onPress: () => setInviteModalVisible(false) }]
+      );
+      
+      setInviteEmail('');
+      
+    } catch (error) {
+      console.error('Erro ao enviar convite:', error);
+      Alert.alert('Erro', error.message || 'Falha ao enviar convite. Por favor, tente novamente.');
+    } finally {
+      setInviting(false);
+    }
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <StatusBar style="light" />
@@ -561,22 +635,15 @@ export default function Dashboard() {
                 />
               )}
               
-              {/* Botão de adicionar usuário sempre visível */}
-              <TouchableOpacity 
-                style={styles.addUserAvatar}
-                onPress={() => {
-                  Alert.alert(
-                    'Convidar Usuário',
-                    'Deseja convidar alguém para compartilhar finanças?',
-                    [
-                      { text: 'Cancelar', style: 'cancel' },
-                      { text: 'Convidar', onPress: () => router.push('/convite-parceiro') }
-                    ]
-                  );
-                }}
-              >
-                <Text style={styles.addUserText}>+</Text>
-              </TouchableOpacity>
+              {/* Botão de adicionar usuário apenas se o usuário atual não for um convidado */}
+              {currentUser?.account_type !== 'couple' && (
+                <TouchableOpacity 
+                  style={styles.addUserAvatar}
+                  onPress={() => setInviteModalVisible(true)}
+                >
+                  <Text style={styles.addUserText}>+</Text>
+                </TouchableOpacity>
+              )}
             </View>
           </SafeAreaView>
         </LinearGradient>
@@ -1202,6 +1269,60 @@ export default function Dashboard() {
                     </TouchableOpacity>
                   </View>
                 )}
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal de Convite */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={inviteModalVisible}
+        onRequestClose={() => setInviteModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Convidar Usuário</Text>
+              <TouchableOpacity 
+                style={styles.closeButton}
+                onPress={() => setInviteModalVisible(false)}
+              >
+                <X size={24} color="#333" />
+              </TouchableOpacity>
+            </View>
+            
+            {inviting ? (
+              <View style={styles.uploadingContainer}>
+                <ActivityIndicator size="large" color={theme.primary} />
+                <Text style={styles.uploadingText}>Enviando convite...</Text>
+              </View>
+            ) : (
+              <>
+                <Text style={styles.modalSubtitle}>
+                  Convide alguém para compartilhar finanças e organizar o orçamento juntos.
+                </Text>
+                
+                <View style={styles.inputContainer}>
+                  <Text style={styles.inputLabel}>Email do Convidado</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Digite o email"
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    value={inviteEmail}
+                    onChangeText={setInviteEmail}
+                  />
+                </View>
+                
+                <TouchableOpacity
+                  style={[styles.inviteButton, { backgroundColor: theme.primary }]}
+                  onPress={handleSendInvitation}
+                >
+                  <Text style={styles.inviteButtonText}>Enviar Convite</Text>
+                </TouchableOpacity>
               </>
             )}
           </View>
@@ -2363,5 +2484,87 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     marginTop: 0,
     width: '100%',
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalContent: {
+    backgroundColor: 'white',
+    borderTopLeftRadius: 25,
+    borderTopRightRadius: 25,
+    padding: 20,
+    paddingBottom: 40,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: -4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 10,
+      },
+      android: {
+        elevation: 10,
+      },
+    }),
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontFamily: fontFallbacks.Poppins_600SemiBold,
+    color: '#333',
+  },
+  modalSubtitle: {
+    fontSize: 16,
+    fontFamily: fontFallbacks.Poppins_400Regular,
+    color: '#666',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  inputContainer: {
+    marginBottom: 20,
+  },
+  inputLabel: {
+    fontSize: 14,
+    fontFamily: fontFallbacks.Poppins_500Medium,
+    color: '#666',
+    marginBottom: 8,
+  },
+  input: {
+    backgroundColor: '#F5F5F5',
+    padding: 15,
+    borderRadius: 8,
+    fontSize: 16,
+    fontFamily: fontFallbacks.Poppins_400Regular,
+  },
+  inviteButton: {
+    padding: 16,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginTop: 10,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
+  },
+  inviteButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontFamily: fontFallbacks.Poppins_600SemiBold,
   },
 }); 

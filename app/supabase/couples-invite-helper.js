@@ -3,7 +3,7 @@
  * Este módulo resolve o problema de associação de casais com o Supabase Auth
  */
 
-import { supabase } from '../lib/supabase';
+import { supabase } from '../../lib/supabase';
 
 /**
  * Extrai parâmetros de convite de casal da URL ou token JWT

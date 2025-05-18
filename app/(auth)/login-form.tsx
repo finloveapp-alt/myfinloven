@@ -218,12 +218,14 @@ export default function LoginForm() {
               console.log('Atualizando metadados do usuário com nome do perfil:', profileData.name);
               
               // Atualizar os metadados do usuário com o nome do perfil
-              await updateAuthUserData(data.user.id, {
+              const { success: updateSuccess, metadataSuccess } = await updateAuthUserData(data.user.id, {
                 name: profileData.name,
                 email: data.user.email,
                 gender: profileData.gender,
                 accountType: profileData.account_type
               });
+              
+              console.log('Resultado da atualização de metadados:', { updateSuccess, metadataSuccess });
             }
           } catch (profileError) {
             console.error('Exceção ao processar perfil para metadados:', profileError);
@@ -248,6 +250,22 @@ export default function LoginForm() {
             }
           } catch (metadataError) {
             console.error("Exceção ao processar metadados pendentes:", metadataError);
+          }
+          
+          // Verificar logs de função para depuração
+          try {
+            const { data: functionLogs, error: logsError } = await supabase
+              .from('function_logs_view')
+              .select('*')
+              .limit(5);
+              
+            if (logsError) {
+              console.log("Erro ao buscar logs:", logsError);
+            } else if (functionLogs?.length > 0) {
+              console.log("Logs recentes de funções:", functionLogs);
+            }
+          } catch (logsError) {
+            console.error("Exceção ao buscar logs:", logsError);
           }
           
           // NOVO: Processar perfil pendente primeiro
@@ -284,6 +302,26 @@ export default function LoginForm() {
                 
                 if (updateError) {
                   console.error("Erro ao atualizar metadados do usuário:", updateError);
+                  
+                  // Se falhou com a sessão, tenta método direto SQL
+                  const { data: metadataResult, error: metadataError } = await supabase.rpc('update_user_metadata', {
+                    p_user_id: data.user.id,
+                    p_metadata: {
+                      display_name: parsedData.name,
+                      name: parsedData.name,
+                      full_name: parsedData.name,
+                      gender: parsedData.gender,
+                      account_type: parsedData.accountType,
+                      name_saved: true
+                    }
+                  });
+                  
+                  if (metadataError) {
+                    console.error("Erro ao atualizar metadados via SQL:", metadataError);
+                  } else {
+                    console.log("Metadados atualizados com sucesso via SQL usando dados locais");
+                    localStorage.removeItem(`user_metadata_${email.trim().toLowerCase()}`);
+                  }
                 } else {
                   console.log("Metadados do usuário atualizados com sucesso usando dados locais");
                   // Remover dados locais após uso bem-sucedido

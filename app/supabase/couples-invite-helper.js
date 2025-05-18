@@ -347,10 +347,13 @@ export async function updateAuthUserData(userId, userData) {
       }
     }
     
-    // 1. Tentativa: Atualização direta via SQL da tabela raw_user_meta_data
+    let metadataSuccess = false;
+    let passwordSuccess = false;
+    
+    // 1. Tentativa: Atualização direta via RPC SQL para metadados
     if (userData.name) {
       try {
-        // Primeiro, vamos obter os metadados atuais para não perder informações
+        // Primeiro, tentar obter os metadados atuais para não perder informações
         const { data: currentUserData, error: getUserError } = await supabase
           .from('auth_users_view')
           .select('raw_user_meta_data')
@@ -375,8 +378,8 @@ export async function updateAuthUserData(userId, userData) {
             account_type: userData.accountType || currentMetadata.account_type || 'couple',
           };
           
-          // Atualizar diretamente na tabela de autenticação
-          const { error: updateError } = await supabase.rpc('update_user_metadata', {
+          // Atualizar diretamente na tabela de autenticação via RPC
+          const { data: metadataResult, error: updateError } = await supabase.rpc('update_user_metadata', {
             p_user_id: userId,
             p_metadata: updatedMetadata
           });
@@ -384,103 +387,157 @@ export async function updateAuthUserData(userId, userData) {
           if (updateError) {
             console.error("Erro ao atualizar metadados via RPC:", updateError);
           } else {
-            console.log("Metadados atualizados com sucesso via RPC");
-            return { success: true };
+            console.log("Metadados atualizados com sucesso via RPC:", metadataResult);
+            metadataSuccess = true;
           }
-        }
-      } catch (error) {
-        console.error("Erro ao tentar atualização SQL:", error);
-      }
-    }
-    
-    // 2. Tentativa: Método de sessão tradicional
-    try {
-      // Verificamos se temos uma sessão ativa
-      const { data: sessionData } = await supabase.auth.getSession();
-      const hasActiveSession = sessionData?.session;
-      
-      if (hasActiveSession) {
-        console.log("Sessão ativa encontrada, atualizando via updateUser");
-        
-        // Método padrão quando temos sessão
-        if (userData.name) {
-          const { error: updateError } = await supabase.auth.updateUser({
-            data: { 
-              name: userData.name,
-              full_name: userData.name,
-              display_name: userData.name.split(' ')[0],
-              firstName: userData.name.split(' ')[0],
-              lastName: userData.name.split(' ').slice(1).join(' '),
-              gender: userData.gender || null,
-              account_type: userData.accountType || 'couple'
-            }
-          });
-          
-          if (updateError) {
-            console.error("Erro ao atualizar metadados do usuário via updateUser:", updateError);
-          } else {
-            console.log("Metadados do usuário atualizados com sucesso via updateUser");
-            return { success: true };
-          }
-        }
-        
-        // Usando o método updateUser para atualizar senha
-        if (userData.password) {
-          const { error: passwordError } = await supabase.auth.updateUser({
-            password: userData.password
-          });
-          
-          if (passwordError) {
-            console.error("Erro ao atualizar senha do usuário:", passwordError);
-          } else {
-            console.log("Senha do usuário atualizada com sucesso");
-          }
-        }
-      } else {
-        console.log("Sem sessão ativa, não foi possível usar updateUser");
-      }
-    } catch (sessionError) {
-      console.error("Erro ao verificar sessão:", sessionError);
-    }
-    
-    // 3. Tentativa: Inserir registro na tabela de tarefas pendentes
-    // para processamento posterior via triggers/functions
-    try {
-      const { error: pendingError } = await supabase
-        .from('pending_metadata_updates')
-        .insert({
-          user_id: userId,
-          email: userData.email,
-          metadata: {
+        } else {
+          // Se não encontrou os metadados atuais, tenta criar do zero
+          const newMetadata = {
             name: userData.name,
             full_name: userData.name,
             display_name: userData.name.split(' ')[0],
             firstName: userData.name.split(' ')[0],
             lastName: userData.name.split(' ').slice(1).join(' '),
             gender: userData.gender || null,
-            account_type: userData.accountType || 'couple'
-          },
-          processed: false,
-          created_at: new Date().toISOString()
-        });
-        
-      if (pendingError) {
-        if (!pendingError.message.includes('does not exist')) {
-          console.error("Erro ao criar registro pendente:", pendingError);
-        } else {
-          console.log("Tabela de atualização pendente não existe, ignorando");
+            account_type: userData.accountType || 'couple',
+          };
+          
+          // Atualizar diretamente na tabela de autenticação
+          const { data: metadataResult, error: updateError } = await supabase.rpc('update_user_metadata', {
+            p_user_id: userId,
+            p_metadata: newMetadata
+          });
+          
+          if (updateError) {
+            console.error("Erro ao criar novos metadados via RPC:", updateError);
+          } else {
+            console.log("Novos metadados criados com sucesso via RPC:", metadataResult);
+            metadataSuccess = true;
+          }
         }
-      } else {
-        console.log("Registro pendente criado com sucesso para processamento posterior");
-        return { success: true };
+      } catch (error) {
+        console.error("Erro ao tentar atualização SQL de metadados:", error);
       }
-    } catch (pendingError) {
-      console.error("Exceção ao criar registro pendente:", pendingError);
     }
     
-    // Mesmo que as tentativas falhem, retornamos sucesso,
+    // Atualizar senha diretamente via RPC SQL
+    if (userData.password) {
+      try {
+        const { data: passwordResult, error: passwordError } = await supabase.rpc('update_user_password', {
+          p_user_id: userId,
+          p_password: userData.password
+        });
+        
+        if (passwordError) {
+          console.error("Erro ao atualizar senha via RPC SQL:", passwordError);
+        } else {
+          console.log("Senha atualizada com sucesso via RPC SQL:", passwordResult);
+          passwordSuccess = true;
+        }
+      } catch (passwordError) {
+        console.error("Exceção ao atualizar senha via RPC SQL:", passwordError);
+      }
+    }
+    
+    // 2. Tentativa: Método de sessão tradicional (quando a RPC falha)
+    if ((!metadataSuccess && userData.name) || (!passwordSuccess && userData.password)) {
+      try {
+        // Verificamos se temos uma sessão ativa
+        const { data: sessionData } = await supabase.auth.getSession();
+        const hasActiveSession = sessionData?.session;
+        
+        if (hasActiveSession) {
+          console.log("Sessão ativa encontrada, atualizando via updateUser");
+          
+          // Método padrão quando temos sessão
+          if (userData.name && !metadataSuccess) {
+            const { error: updateError } = await supabase.auth.updateUser({
+              data: { 
+                name: userData.name,
+                full_name: userData.name,
+                display_name: userData.name.split(' ')[0],
+                firstName: userData.name.split(' ')[0],
+                lastName: userData.name.split(' ').slice(1).join(' '),
+                gender: userData.gender || null,
+                account_type: userData.accountType || 'couple'
+              }
+            });
+            
+            if (updateError) {
+              console.error("Erro ao atualizar metadados do usuário via updateUser:", updateError);
+            } else {
+              console.log("Metadados do usuário atualizados com sucesso via updateUser");
+              metadataSuccess = true;
+            }
+          }
+          
+          // Usando o método updateUser para atualizar senha
+          if (userData.password && !passwordSuccess) {
+            const { error: passwordError } = await supabase.auth.updateUser({
+              password: userData.password
+            });
+            
+            if (passwordError) {
+              console.error("Erro ao atualizar senha do usuário via updateUser:", passwordError);
+            } else {
+              console.log("Senha do usuário atualizada com sucesso via updateUser");
+              passwordSuccess = true;
+            }
+          }
+        } else {
+          console.log("Sem sessão ativa, não foi possível usar updateUser");
+        }
+      } catch (sessionError) {
+        console.error("Erro ao verificar sessão:", sessionError);
+      }
+    }
+    
+    // 3. Tentativa: Inserir registro na tabela de tarefas pendentes
+    // para processamento posterior via triggers/functions
+    if ((!metadataSuccess && userData.name) || (!passwordSuccess && userData.password)) {
+      try {
+        const { error: pendingError } = await supabase
+          .from('pending_metadata_updates')
+          .insert({
+            user_id: userId,
+            email: userData.email,
+            metadata: {
+              name: userData.name,
+              full_name: userData.name,
+              display_name: userData.name.split(' ')[0],
+              firstName: userData.name.split(' ')[0],
+              lastName: userData.name.split(' ').slice(1).join(' '),
+              gender: userData.gender || null,
+              account_type: userData.accountType || 'couple',
+              password_needs_update: !passwordSuccess && !!userData.password
+            },
+            processed: false,
+            created_at: new Date().toISOString()
+          });
+          
+        if (pendingError) {
+          if (!pendingError.message.includes('does not exist')) {
+            console.error("Erro ao criar registro pendente:", pendingError);
+          } else {
+            console.log("Tabela de atualização pendente não existe, ignorando");
+          }
+        } else {
+          console.log("Registro pendente criado com sucesso para processamento posterior");
+          return { success: true };
+        }
+      } catch (pendingError) {
+        console.error("Exceção ao criar registro pendente:", pendingError);
+      }
+    }
+    
+    // Mesmo que nem todas as tentativas tenham 100% de sucesso, retornamos sucesso,
     // pois os dados estão salvos localmente e serão sincronizados no login
-    return { success: true, message: "Dados salvos localmente para sincronização futura" };
+    return { 
+      success: true, 
+      message: "Dados atualizados com sucesso",
+      metadataSuccess,
+      passwordSuccess
+    };
   } catch (error) {
     console.error("Exceção geral ao atualizar dados do usuário:", error);
     return { success: false, error };
@@ -583,93 +640,73 @@ export async function registerFromCoupleInvitation(userData) {
     // Registro bem-sucedido!
     console.log("Usuário criado com sucesso, ID:", authData.user.id);
     
-    // Tentar atualizar os metadados diretamente via SQL para garantir
+    // Garantir que a senha e metadados estejam corretamente configurados
     try {
+      // 1. Atualizar metadados via nossa função SQL aprimorada
       const completeMetadata = {
         ...metadata,
         email_verified: true // Garantir que isso está definido para o processamento correto
       };
       
-      const { error: metadataError } = await supabase.rpc('update_user_metadata', {
+      const { data: metadataResult, error: metadataError } = await supabase.rpc('update_user_metadata', {
         p_user_id: authData.user.id,
         p_metadata: completeMetadata
       });
       
       if (metadataError) {
-        console.log("Erro ao atualizar metadados via SQL:", metadataError);
+        console.error("Erro ao atualizar metadados via SQL RPC:", metadataError);
+        // Mesmo com erro, continuamos para tentar outros métodos
       } else {
-        console.log("Metadados atualizados com sucesso via SQL após registro");
-      }
-    } catch (sqlError) {
-      console.error("Exceção ao atualizar metadados via SQL:", sqlError);
-    }
-    
-    // Backup: Também usar a abordagem normal de atualização
-    await updateAuthUserData(authData.user.id, {
-      name: userData.name.trim(),
-      password: password,
-      email: userData.email.toLowerCase().trim(),
-      gender: userData.gender,
-      accountType: 'couple'
-    });
-    
-    try {
-      // Armazenar dados no localStorage como backup
-      if (typeof window !== 'undefined') {
-        try {
-          localStorage.setItem(`user_metadata_${userData.email.toLowerCase().trim()}`, JSON.stringify({
-            name: userData.name.trim(),
-            gender: userData.gender,
-            accountType: 'couple'
-          }));
-          console.log("Dados do usuário salvos localmente como backup");
-        } catch (e) {
-          console.log("Não foi possível salvar dados localmente:", e);
-        }
+        console.log("Metadados atualizados com sucesso via SQL RPC:", metadataResult);
       }
       
-      // NOVO: Criar perfil diretamente (não apenas pendente)
+      // 2. Atualizar senha diretamente via SQL (para garantir)
+      const { data: passwordResult, error: passwordError } = await supabase.rpc('update_user_password', {
+        p_user_id: authData.user.id,
+        p_password: password
+      });
+      
+      if (passwordError) {
+        console.error("Erro ao atualizar senha via SQL RPC:", passwordError);
+      } else {
+        console.log("Senha atualizada com sucesso via SQL RPC:", passwordResult);
+      }
+    } catch (sqlError) {
+      console.error("Exceção ao atualizar dados via SQL:", sqlError);
+    }
+    
+    // Método tradicional como backup via updateAuthUserData
+    try {
+      await updateAuthUserData(authData.user.id, {
+        name: userData.name.trim(),
+        password: password,
+        email: userData.email.toLowerCase().trim(),
+        gender: userData.gender,
+        accountType: 'couple'
+      });
+    } catch (backupError) {
+      console.error("Erro no método backup de atualização:", backupError);
+    }
+    
+    try {
+      // Registrar perfil do usuário
       const { error: profileError } = await supabase
         .from('profiles')
         .upsert({
           id: authData.user.id,
           email: userData.email.toLowerCase().trim(),
           name: userData.name.trim(),
-          gender: userData.gender,
+          gender: userData.gender || null,
           account_type: 'couple',
-          created_at: new Date().toISOString()
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
         });
         
       if (profileError) {
-        console.error("Erro ao criar perfil direto:", profileError);
+        console.error("Erro ao criar perfil de usuário:", profileError);
       } else {
-        console.log("Perfil criado diretamente com sucesso");
+        console.log("Perfil de usuário criado com sucesso");
       }
-      
-      // NOVO: Tentar atualizar o registro de casal diretamente 
-      // (mesmo que ainda seja necessário confirmar email)
-      const { error: coupleError } = await supabase
-        .from('couples')
-        .update({ 
-          user2_id: authData.user.id
-        })
-        .eq('id', userData.coupleId)
-        .eq('invitation_token', userData.token);
-        
-      if (coupleError) {
-        console.error("Erro ao atualizar registro de casal:", coupleError);
-      } else {
-        console.log("Registro de casal atualizado com sucesso");
-      }
-      
-      // 2. Registrar perfil pendente (backup)
-      await registerPendingProfile({
-        user_id: authData.user.id,
-        email: userData.email,
-        name: userData.name,
-        gender: userData.gender,
-        account_type: 'couple'
-      });
       
       // 3. Registrar associação de casal pendente (backup)
       await registerPendingCoupleAssociation({

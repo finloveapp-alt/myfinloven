@@ -174,10 +174,22 @@ export default function ConviteCasal() {
   });
   const [debugInfo, setDebugInfo] = useState('');
   const [paramsExtracted, setParamsExtracted] = useState(false);
+  // Adicionar um estado para controlar se estamos processando hash
+  const [processingHash, setProcessingHash] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [inviteData, setInviteData] = useState(null);
   const [error, setError] = useState('');
+
+  // Verificar imediatamente se há um hash na URL que precisa ser processado
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.location.hash && 
+        window.location.hash.includes('access_token=') && 
+        window.location.hash.includes('type=invite')) {
+      setProcessingHash(true);
+      console.log("URL contém hash de autenticação, processando...");
+    }
+  }, []);
 
   // Depurar parâmetros no início
   useEffect(() => {
@@ -201,6 +213,7 @@ export default function ConviteCasal() {
       if (extractedParams.token && extractedParams.inviter && extractedParams.couple) {
         setUrlParams(extractedParams);
         setParamsExtracted(true);
+        setProcessingHash(false);
         
         // Atualizar informações de depuração
         const newDebugText = `${debugInfo}\n\nParâmetros extraídos da URL:
@@ -234,14 +247,25 @@ export default function ConviteCasal() {
             return;
           }
         }
+      } else if (processingHash) {
+        // Se ainda estamos processando o hash, mantenha a tela de carregamento
+        console.log("Ainda processando o hash, mantendo tela de carregamento");
+        return;
       }
     }
   }, []);
 
   // Verificar o convite quando os parâmetros estiverem disponíveis
   useEffect(() => {
+    // Não mostrar erro se estamos processando um hash
+    if (processingHash) {
+      console.log("Adiando verificação enquanto processa hash");
+      return;
+    }
+    
     if (!urlParams.token || !urlParams.inviter || !urlParams.couple) {
-      if (!paramsExtracted) {
+      // Só mostrar erro se não estamos processando parâmetros
+      if (!paramsExtracted && !processingHash) {
         console.error("Parâmetros incompletos:", urlParams);
         setError('Link de convite inválido ou incompleto');
         setLoading(false);
@@ -278,7 +302,7 @@ export default function ConviteCasal() {
     }
 
     verifyInvite();
-  }, [urlParams.token, urlParams.inviter, urlParams.couple]);
+  }, [urlParams.token, urlParams.inviter, urlParams.couple, processingHash]);
 
   const handleAcceptInvite = () => {
     // Garantir que todos os parâmetros necessários sejam incluídos

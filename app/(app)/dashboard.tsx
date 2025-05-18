@@ -151,13 +151,24 @@ export default function Dashboard() {
         return;
       }
       
+      console.log('Perfil do usuário obtido do banco:', userProfile);
+      
       if (userProfile) {
+        // Certifique-se de que account_type seja sempre 'individual' quando não for 'couple'
+        const accountType = userProfile.account_type === 'couple' ? 'couple' : 'individual';
+        
+        console.log('Perfil do usuário carregado:', {
+          id: userProfile.id,
+          account_type_raw: userProfile.account_type,
+          account_type_processed: accountType
+        });
+        
         setCurrentUser({
           id: userProfile.id,
           name: userProfile.name || 'Usuário',
           email: userProfile.email || '',
           gender: userProfile.gender || '',
-          account_type: userProfile.account_type || 'individual',
+          account_type: accountType, // Usar o valor processado
           profile_picture_url: userProfile.profile_picture_url || null,
           avatar_url: userProfile.profile_picture_url || (userProfile.gender?.toLowerCase() === 'homem' ? 
             'https://randomuser.me/api/portraits/men/36.jpg' : 
@@ -636,7 +647,17 @@ export default function Dashboard() {
               )}
               
               {/* Botão de adicionar usuário apenas se o usuário atual não for um convidado */}
-              {currentUser?.account_type !== 'couple' && (
+              {console.log('Renderização condicional do botão +:', { 
+                currentUser: currentUser,
+                currentUserAccountType: currentUser?.account_type,
+                shouldShowButton: currentUser?.account_type !== 'couple',
+                isNull: currentUser?.account_type === null,
+                isUndefined: currentUser?.account_type === undefined,
+                isTypeOfString: typeof currentUser?.account_type === 'string',
+                comparison: currentUser?.account_type === 'couple'
+              })}
+              
+              {(currentUser && currentUser.account_type !== 'couple') && (
                 <TouchableOpacity 
                   style={styles.addUserAvatar}
                   onPress={() => setInviteModalVisible(true)}

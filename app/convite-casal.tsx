@@ -10,16 +10,27 @@ import { LinearGradient } from 'expo-linear-gradient';
 function extractParamsFromUrl() {
   // Verifica se estamos em ambiente web
   if (typeof window !== 'undefined') {
+    console.log("DEPURAÇÃO - URL completa:", window.location.href);
+    
     // Tenta extrair do redirect_to
     const urlParams = new URLSearchParams(window.location.search);
     const redirectTo = urlParams.get('redirect_to');
+    console.log("DEPURAÇÃO - Parâmetro redirect_to:", redirectTo);
     
     if (redirectTo) {
       // Se temos um redirect_to, precisamos decodificá-lo e extrair seus parâmetros
       try {
         const decodedRedirect = decodeURIComponent(redirectTo);
+        console.log("DEPURAÇÃO - URL decodificada:", decodedRedirect);
+        
         const redirectUrl = new URL(decodedRedirect);
         const redirectParams = new URLSearchParams(redirectUrl.search);
+        console.log("DEPURAÇÃO - Parâmetros da URL redirecionada:", {
+          token: redirectParams.get('token'),
+          inviter: redirectParams.get('inviter'),
+          couple: redirectParams.get('couple'),
+          email: redirectParams.get('email')
+        });
         
         return {
           token: redirectParams.get('token'),
@@ -34,6 +45,38 @@ function extractParamsFromUrl() {
     
     // Tenta extrair diretamente da URL atual
     const currentParams = new URLSearchParams(window.location.search);
+    console.log("DEPURAÇÃO - Parâmetros da URL atual:", {
+      token: currentParams.get('token'),
+      inviter: currentParams.get('inviter'),
+      couple: currentParams.get('couple'),
+      email: currentParams.get('email')
+    });
+    
+    // Try parsing hash params if they exist
+    if (window.location.hash) {
+      try {
+        const hashParams = new URLSearchParams(window.location.hash.substring(1));
+        console.log("DEPURAÇÃO - Parâmetros do hash:", {
+          token: hashParams.get('token'),
+          inviter: hashParams.get('inviter'),
+          couple: hashParams.get('couple'),
+          email: hashParams.get('email')
+        });
+        
+        // If hash params are valid, return them
+        if (hashParams.get('token') && hashParams.get('inviter') && hashParams.get('couple')) {
+          return {
+            token: hashParams.get('token'),
+            inviter: hashParams.get('inviter'),
+            couple: hashParams.get('couple'),
+            email: hashParams.get('email')
+          };
+        }
+      } catch (e) {
+        console.error("Erro ao processar hash:", e);
+      }
+    }
+    
     return {
       token: currentParams.get('token'),
       inviter: currentParams.get('inviter'),
@@ -54,10 +97,22 @@ export default function ConviteCasal() {
     couple: params?.couple as string,
     email: params?.email as string
   });
+  const [debugInfo, setDebugInfo] = useState('');
 
   const [loading, setLoading] = useState(true);
   const [inviteData, setInviteData] = useState(null);
   const [error, setError] = useState('');
+
+  // Depurar parâmetros no início
+  useEffect(() => {
+    console.log("DEPURAÇÃO - useLocalSearchParams:", params);
+    const debugText = `Params recebidos:
+    token: ${params?.token || 'null'}
+    inviter: ${params?.inviter || 'null'}
+    couple: ${params?.couple || 'null'}
+    email: ${params?.email || 'null'}`;
+    setDebugInfo(debugText);
+  }, [params]);
 
   // Tentar extrair parâmetros da URL em um efeito separado
   useEffect(() => {
@@ -69,6 +124,14 @@ export default function ConviteCasal() {
       
       if (extractedParams.token && extractedParams.inviter && extractedParams.couple) {
         setUrlParams(extractedParams);
+        
+        // Atualizar informações de depuração
+        const newDebugText = `${debugInfo}\n\nParâmetros extraídos da URL:
+        token: ${extractedParams.token || 'null'}
+        inviter: ${extractedParams.inviter || 'null'}
+        couple: ${extractedParams.couple || 'null'}
+        email: ${extractedParams.email || 'null'}`;
+        setDebugInfo(newDebugText);
       }
     }
   }, []);
@@ -92,6 +155,14 @@ export default function ConviteCasal() {
         } else {
           console.log("Detalhes do convite encontrados:", inviteDetails);
           setInviteData(inviteDetails);
+          
+          // Atualizar informações de depuração
+          const newDebugText = `${debugInfo}\n\nDados do convite:
+          id: ${inviteDetails.id || 'null'}
+          status: ${inviteDetails.status || 'null'}
+          user1_id: ${inviteDetails.user1_id || 'null'}
+          invitation_email: ${inviteDetails.invitation_email || 'null'}`;
+          setDebugInfo(newDebugText);
         }
       } catch (err) {
         console.error("Erro ao verificar convite:", err);
@@ -156,6 +227,10 @@ export default function ConviteCasal() {
             {error ? (
               <View style={styles.errorContainer}>
                 <Text style={styles.errorText}>{error}</Text>
+                <View style={styles.debugContainer}>
+                  <Text style={styles.debugTitle}>Informações de Debug:</Text>
+                  <Text style={styles.debugText}>{debugInfo}</Text>
+                </View>
                 <TouchableOpacity 
                   style={styles.button}
                   onPress={() => router.push('/')}
@@ -202,6 +277,11 @@ export default function ConviteCasal() {
                 <Text style={styles.infoText}>
                   Ao criar uma conta através deste convite, você estará se conectando ao perfil do seu parceiro(a) para compartilhar o gerenciamento financeiro.
                 </Text>
+                
+                <View style={styles.debugContainer}>
+                  <Text style={styles.debugTitle}>Informações de Debug:</Text>
+                  <Text style={styles.debugText}>{debugInfo}</Text>
+                </View>
               </View>
             )}
           </View>
@@ -317,4 +397,25 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 20,
   },
+  debugContainer: {
+    marginTop: 20,
+    padding: 10,
+    backgroundColor: '#f8f9fa',
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    width: '100%',
+  },
+  debugTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    marginBottom: 5,
+    color: '#333'
+  },
+  debugText: {
+    fontSize: 12,
+    fontFamily: 'monospace',
+    color: '#555',
+    whiteSpace: 'pre-wrap'
+  }
 }); 

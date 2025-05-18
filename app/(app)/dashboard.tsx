@@ -106,6 +106,7 @@ export default function Dashboard() {
   const [inviteModalVisible, setInviteModalVisible] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviting, setInviting] = useState(false);
+  const [isUserInviter, setIsUserInviter] = useState(false);
   
   useEffect(() => {
     // Verifica se existe um tema definido globalmente
@@ -153,6 +154,21 @@ export default function Dashboard() {
       
       console.log('Perfil do usuário obtido do banco:', userProfile);
       
+      // Verificar se o usuário é um convidador (user1_id em algum registro de couples)
+      const { data: userAsInviter, error: inviterError } = await supabase
+        .from('couples')
+        .select('id')
+        .eq('user1_id', userId)
+        .limit(1);
+        
+      if (inviterError) {
+        console.error('Erro ao verificar se usuário é convidador:', inviterError);
+      }
+      
+      const isInviter = userAsInviter && userAsInviter.length > 0;
+      console.log('Usuário é convidador:', isInviter);
+      setIsUserInviter(isInviter);
+      
       if (userProfile) {
         // Certifique-se de que account_type seja sempre 'individual' quando não for 'couple'
         const accountType = userProfile.account_type === 'couple' ? 'couple' : 'individual';
@@ -160,7 +176,8 @@ export default function Dashboard() {
         console.log('Perfil do usuário carregado:', {
           id: userProfile.id,
           account_type_raw: userProfile.account_type,
-          account_type_processed: accountType
+          account_type_processed: accountType,
+          isInviter: isInviter
         });
         
         setCurrentUser({
@@ -168,7 +185,7 @@ export default function Dashboard() {
           name: userProfile.name || 'Usuário',
           email: userProfile.email || '',
           gender: userProfile.gender || '',
-          account_type: accountType, // Usar o valor processado
+          account_type: accountType,
           profile_picture_url: userProfile.profile_picture_url || null,
           avatar_url: userProfile.profile_picture_url || (userProfile.gender?.toLowerCase() === 'homem' ? 
             'https://randomuser.me/api/portraits/men/36.jpg' : 
@@ -646,7 +663,7 @@ export default function Dashboard() {
                 />
               )}
               
-              {/* Botão de adicionar usuário apenas se o usuário atual não for um convidado */}
+              {/* Botão de adicionar usuário apenas se o usuário atual for um convidador ou não tiver um par */}
               {console.log('Renderização condicional do botão +:', { 
                 currentUser: currentUser,
                 currentUserAccountType: currentUser?.account_type,
@@ -654,10 +671,12 @@ export default function Dashboard() {
                 isNull: currentUser?.account_type === null,
                 isUndefined: currentUser?.account_type === undefined,
                 isTypeOfString: typeof currentUser?.account_type === 'string',
-                comparison: currentUser?.account_type === 'couple'
+                comparison: currentUser?.account_type === 'couple',
+                isUserInviter: isUserInviter
               })}
               
-              {(currentUser && currentUser.account_type !== 'couple') && (
+              {/* Mostrar o botão se o usuário for um convidador (independente do account_type) */}
+              {currentUser && isUserInviter && (
                 <TouchableOpacity 
                   style={styles.addUserAvatar}
                   onPress={() => setInviteModalVisible(true)}

@@ -644,19 +644,24 @@ export async function registerFromCoupleInvitation(userData) {
     try {
       console.log("Chamando Edge Function para atualizar metadados e senha");
       
-      // Obter a URL base do Supabase para construir a URL da função
-      const { data: projectURLData } = await supabase.functions.invoke('get-project-url', {});
-      const baseURL = projectURLData?.url || 'https://bellpfebhwltuqlkwirt.supabase.co';
-      
-      // Construir URL da função
+      // URL fixa para evitar problema de CORS com get-project-url
+      const baseURL = 'https://bellpfebhwltuqlkwirt.supabase.co';
       const functionURL = `${baseURL}/functions/v1/update-invited-user`;
+      
+      // Obter token de acesso
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData?.session?.access_token;
+      
+      if (!accessToken) {
+        console.warn("Sem token de acesso válido, tentando fazer chamada sem autenticação");
+      }
       
       // Chamar a Edge Function com os dados necessários
       const response = await fetch(functionURL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
+          ...(accessToken ? { 'Authorization': `Bearer ${accessToken}` } : {})
         },
         body: JSON.stringify({
           userId: authData.user.id,
@@ -670,13 +675,19 @@ export async function registerFromCoupleInvitation(userData) {
         })
       });
       
-      const resultData = await response.json();
-      
-      if (!response.ok) {
-        console.error("Erro na resposta da Edge Function:", resultData);
-        // Mesmo com erro, continuamos, pois o usuário foi criado
-      } else {
+      // Verificar resposta
+      if (response.ok) {
+        const resultData = await response.json();
         console.log("Edge Function executada com sucesso:", resultData);
+      } else {
+        console.error("Erro na resposta da Edge Function:", response.status, response.statusText);
+        try {
+          const errorData = await response.json();
+          console.error("Detalhes do erro:", errorData);
+        } catch(e) {
+          console.error("Não foi possível obter detalhes do erro");
+        }
+        // Mesmo com erro, continuamos, pois o usuário foi criado
       }
     } catch (edgeFunctionError) {
       console.error("Erro ao chamar Edge Function:", edgeFunctionError);

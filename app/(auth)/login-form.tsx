@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { fontFallbacks } from '@/utils/styles';
 import { Eye, EyeOff } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { updateAuthUserData } from '@/app/supabase/couples-invite-helper';
 
 export default function LoginForm() {
   const [email, setEmail] = useState('');
@@ -202,6 +203,28 @@ export default function LoginForm() {
         
         if (isCoupleInvitation) {
           console.log('### USUÁRIO É UM CONVIDADO DE CASAL');
+          
+          // Verificar se o perfil existe mas os metadados não estão completos
+          try {
+            const { data: profileData, error: profileError } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', data.user.id)
+              .maybeSingle();
+              
+            if (profileError) {
+              console.error('Erro ao buscar perfil:', profileError);
+            } else if (profileData && profileData.name && (!userName || userName !== profileData.name)) {
+              console.log('Atualizando metadados do usuário com nome do perfil:', profileData.name);
+              
+              // Atualizar os metadados do usuário com o nome do perfil
+              await updateAuthUserData(data.user.id, {
+                name: profileData.name
+              });
+            }
+          } catch (profileError) {
+            console.error('Exceção ao processar perfil para metadados:', profileError);
+          }
         }
         
         // NOVO: Verificar e processar associações pendentes

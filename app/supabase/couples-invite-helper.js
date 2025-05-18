@@ -318,6 +318,74 @@ function parseJwt(token) {
 }
 
 /**
+ * Atualiza explicitamente os dados do usuário na tabela auth.users
+ * @param {string} userId ID do usuário
+ * @param {Object} userData Dados a atualizar (name e/ou password)
+ * @returns {Promise<Object>} Resultado da operação
+ */
+export async function updateAuthUserData(userId, userData) {
+  try {
+    console.log("Atualizando dados do usuário na auth.users:", { 
+      userId, 
+      updateData: { 
+        name: userData.name || 'não alterado', 
+        password: userData.password ? "******" : "não alterada" 
+      } 
+    });
+    
+    // Usando o método updateUser para atualizar nome do usuário
+    if (userData.name) {
+      try {
+        const { error: updateError } = await supabase.auth.updateUser({
+          data: { 
+            name: userData.name,
+            full_name: userData.name,
+            display_name: userData.name.split(' ')[0],
+            firstName: userData.name.split(' ')[0],
+            lastName: userData.name.split(' ').slice(1).join(' '),
+          }
+        });
+        
+        if (updateError) {
+          console.error("Erro ao atualizar metadados do usuário:", updateError);
+          return { success: false, error: updateError, field: 'name' };
+        } else {
+          console.log("Metadados do usuário atualizados com sucesso");
+        }
+      } catch (updateError) {
+        console.error("Exceção ao atualizar metadados do usuário:", updateError);
+        return { success: false, error: updateError, field: 'name' };
+      }
+    }
+    
+    // Usando o método updateUser para atualizar senha
+    if (userData.password) {
+      try {
+        // Para atualizar a senha, precisamos usar o método específico
+        const { error: passwordError } = await supabase.auth.updateUser({
+          password: userData.password
+        });
+        
+        if (passwordError) {
+          console.error("Erro ao atualizar senha do usuário:", passwordError);
+          return { success: false, error: passwordError, field: 'password' };
+        } else {
+          console.log("Senha do usuário atualizada com sucesso");
+        }
+      } catch (passwordError) {
+        console.error("Exceção ao atualizar senha do usuário:", passwordError);
+        return { success: false, error: passwordError, field: 'password' };
+      }
+    }
+    
+    return { success: true };
+  } catch (error) {
+    console.error("Exceção ao atualizar dados do usuário:", error);
+    return { success: false, error };
+  }
+}
+
+/**
  * Função para tentar registrar um usuário a partir de um convite de casal
  * @param {Object} userData Dados do usuário e convite
  * @returns {Promise<Object>} Resultado do registro
@@ -412,6 +480,12 @@ export async function registerFromCoupleInvitation(userData) {
     
     // Registro bem-sucedido!
     console.log("Usuário criado com sucesso, ID:", authData.user.id);
+    
+    // NOVA CHAMADA: Garantir que o display name e a senha estejam atualizados
+    await updateAuthUserData(authData.user.id, {
+      name: userData.name.trim(),
+      password: password // Incluir a senha para atualizá-la explicitamente
+    });
     
     try {
       // Armazenar dados no localStorage como backup

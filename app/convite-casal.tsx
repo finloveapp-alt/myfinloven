@@ -6,20 +6,76 @@ import { fontFallbacks } from '@/utils/styles';
 import { verifyInvitation } from '@/app/supabase/couples-invite-helper';
 import { LinearGradient } from 'expo-linear-gradient';
 
+// Função auxiliar para extrair parâmetros da URL
+function extractParamsFromUrl() {
+  // Verifica se estamos em ambiente web
+  if (typeof window !== 'undefined') {
+    // Tenta extrair do redirect_to
+    const urlParams = new URLSearchParams(window.location.search);
+    const redirectTo = urlParams.get('redirect_to');
+    
+    if (redirectTo) {
+      // Se temos um redirect_to, precisamos decodificá-lo e extrair seus parâmetros
+      try {
+        const decodedRedirect = decodeURIComponent(redirectTo);
+        const redirectUrl = new URL(decodedRedirect);
+        const redirectParams = new URLSearchParams(redirectUrl.search);
+        
+        return {
+          token: redirectParams.get('token'),
+          inviter: redirectParams.get('inviter'),
+          couple: redirectParams.get('couple'),
+          email: redirectParams.get('email')
+        };
+      } catch (error) {
+        console.error("Erro ao decodificar redirect_to:", error);
+      }
+    }
+    
+    // Tenta extrair diretamente da URL atual
+    const currentParams = new URLSearchParams(window.location.search);
+    return {
+      token: currentParams.get('token'),
+      inviter: currentParams.get('inviter'),
+      couple: currentParams.get('couple'),
+      email: currentParams.get('email')
+    };
+  }
+  
+  return { token: null, inviter: null, couple: null, email: null };
+}
+
 export default function ConviteCasal() {
+  // Obter parâmetros da URL de duas maneiras possíveis
   const params = useLocalSearchParams();
-  const token = params?.token as string;
-  const inviter = params?.inviter as string;
-  const couple = params?.couple as string;
-  const email = params?.email as string;
+  const [urlParams, setUrlParams] = useState({
+    token: params?.token as string,
+    inviter: params?.inviter as string,
+    couple: params?.couple as string,
+    email: params?.email as string
+  });
 
   const [loading, setLoading] = useState(true);
   const [inviteData, setInviteData] = useState(null);
   const [error, setError] = useState('');
 
+  // Tentar extrair parâmetros da URL em um efeito separado
   useEffect(() => {
-    if (!token || !inviter || !couple) {
-      console.error("Parâmetros incompletos:", { token, inviter, couple });
+    // Se não temos todos os parâmetros, tentar extrair da URL
+    if (!urlParams.token || !urlParams.inviter || !urlParams.couple) {
+      console.log("Tentando extrair parâmetros da URL");
+      const extractedParams = extractParamsFromUrl();
+      console.log("Parâmetros extraídos:", extractedParams);
+      
+      if (extractedParams.token && extractedParams.inviter && extractedParams.couple) {
+        setUrlParams(extractedParams);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!urlParams.token || !urlParams.inviter || !urlParams.couple) {
+      console.error("Parâmetros incompletos:", urlParams);
       setError('Link de convite inválido ou incompleto');
       setLoading(false);
       return;
@@ -27,8 +83,8 @@ export default function ConviteCasal() {
 
     async function verifyInvite() {
       try {
-        console.log("Verificando convite:", { token, inviter, couple });
-        const inviteDetails = await verifyInvitation(token, inviter, couple);
+        console.log("Verificando convite:", urlParams);
+        const inviteDetails = await verifyInvitation(urlParams.token, urlParams.inviter, urlParams.couple);
         
         if (!inviteDetails) {
           console.error("Detalhes do convite não encontrados");
@@ -46,19 +102,19 @@ export default function ConviteCasal() {
     }
 
     verifyInvite();
-  }, [token, inviter, couple]);
+  }, [urlParams.token, urlParams.inviter, urlParams.couple]);
 
   const handleAcceptInvite = () => {
     // Redirecionar para a tela de registro com os parâmetros necessários
     const registerParams = new URLSearchParams({
       fromCoupleInvitation: 'true',
-      invitationToken: token,
-      inviterId: inviter,
-      coupleId: couple
+      invitationToken: urlParams.token,
+      inviterId: urlParams.inviter,
+      coupleId: urlParams.couple
     });
 
-    if (email) {
-      registerParams.append('invitationEmail', email);
+    if (urlParams.email) {
+      registerParams.append('invitationEmail', urlParams.email);
     } else {
       registerParams.append('manualEntry', 'true');
     }

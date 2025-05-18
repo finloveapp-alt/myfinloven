@@ -219,7 +219,10 @@ export default function LoginForm() {
               
               // Atualizar os metadados do usuário com o nome do perfil
               await updateAuthUserData(data.user.id, {
-                name: profileData.name
+                name: profileData.name,
+                email: data.user.email,
+                gender: profileData.gender,
+                accountType: profileData.account_type
               });
             }
           } catch (profileError) {

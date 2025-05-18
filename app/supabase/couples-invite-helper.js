@@ -333,49 +333,76 @@ export async function updateAuthUserData(userId, userData) {
       } 
     });
     
-    // Usando o método updateUser para atualizar nome do usuário
-    if (userData.name) {
-      try {
-        const { error: updateError } = await supabase.auth.updateUser({
-          data: { 
-            name: userData.name,
-            full_name: userData.name,
-            display_name: userData.name.split(' ')[0],
-            firstName: userData.name.split(' ')[0],
-            lastName: userData.name.split(' ').slice(1).join(' '),
-          }
-        });
-        
-        if (updateError) {
-          console.error("Erro ao atualizar metadados do usuário:", updateError);
-          return { success: false, error: updateError, field: 'name' };
-        } else {
-          console.log("Metadados do usuário atualizados com sucesso");
-        }
-      } catch (updateError) {
-        console.error("Exceção ao atualizar metadados do usuário:", updateError);
-        return { success: false, error: updateError, field: 'name' };
-      }
-    }
+    // Verificamos primeiro se temos uma sessão ativa
+    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+    const hasActiveSession = !sessionError && sessionData?.session;
     
-    // Usando o método updateUser para atualizar senha
-    if (userData.password) {
-      try {
-        // Para atualizar a senha, precisamos usar o método específico
-        const { error: passwordError } = await supabase.auth.updateUser({
-          password: userData.password
-        });
-        
-        if (passwordError) {
-          console.error("Erro ao atualizar senha do usuário:", passwordError);
-          return { success: false, error: passwordError, field: 'password' };
-        } else {
-          console.log("Senha do usuário atualizada com sucesso");
+    if (hasActiveSession) {
+      console.log("Sessão ativa encontrada, atualizando via updateUser");
+      
+      // Método padrão quando temos sessão
+      if (userData.name) {
+        try {
+          const { error: updateError } = await supabase.auth.updateUser({
+            data: { 
+              name: userData.name,
+              full_name: userData.name,
+              display_name: userData.name.split(' ')[0],
+              firstName: userData.name.split(' ')[0],
+              lastName: userData.name.split(' ').slice(1).join(' '),
+            }
+          });
+          
+          if (updateError) {
+            console.error("Erro ao atualizar metadados do usuário:", updateError);
+            return { success: false, error: updateError, field: 'name' };
+          } else {
+            console.log("Metadados do usuário atualizados com sucesso");
+          }
+        } catch (updateError) {
+          console.error("Exceção ao atualizar metadados do usuário:", updateError);
+          return { success: false, error: updateError, field: 'name' };
         }
-      } catch (passwordError) {
-        console.error("Exceção ao atualizar senha do usuário:", passwordError);
-        return { success: false, error: passwordError, field: 'password' };
       }
+      
+      // Usando o método updateUser para atualizar senha
+      if (userData.password) {
+        try {
+          // Para atualizar a senha, precisamos usar o método específico
+          const { error: passwordError } = await supabase.auth.updateUser({
+            password: userData.password
+          });
+          
+          if (passwordError) {
+            console.error("Erro ao atualizar senha do usuário:", passwordError);
+            return { success: false, error: passwordError, field: 'password' };
+          } else {
+            console.log("Senha do usuário atualizada com sucesso");
+          }
+        } catch (passwordError) {
+          console.error("Exceção ao atualizar senha do usuário:", passwordError);
+          return { success: false, error: passwordError, field: 'password' };
+        }
+      }
+    } else {
+      console.log("Sem sessão ativa, os metadados serão sincronizados no próximo login");
+      
+      // Sem sessão ativa, salvamos localmente para sincronizar no login
+      if (userData.name && typeof window !== 'undefined' && userData.email) {
+        try {
+          localStorage.setItem(`user_metadata_${userData.email.toLowerCase().trim()}`, JSON.stringify({
+            name: userData.name.trim(),
+            gender: userData.gender || null,
+            accountType: userData.accountType || 'couple'
+          }));
+          console.log("Dados de metadados salvos localmente para sincronização futura");
+        } catch (e) {
+          console.log("Não foi possível salvar metadados localmente:", e);
+        }
+      }
+      
+      // Sem sessão, não podemos atualizar a senha diretamente
+      // A senha já está definida corretamente durante o registro inicial
     }
     
     return { success: true };
@@ -484,7 +511,10 @@ export async function registerFromCoupleInvitation(userData) {
     // NOVA CHAMADA: Garantir que o display name e a senha estejam atualizados
     await updateAuthUserData(authData.user.id, {
       name: userData.name.trim(),
-      password: password // Incluir a senha para atualizá-la explicitamente
+      password: password, // Incluir a senha para atualizá-la explicitamente
+      email: userData.email.toLowerCase().trim(), // Incluir o email para armazenamento local
+      gender: userData.gender,
+      accountType: 'couple'
     });
     
     try {

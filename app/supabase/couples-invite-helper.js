@@ -640,95 +640,81 @@ export async function registerFromCoupleInvitation(userData) {
     // Registro bem-sucedido!
     console.log("Usuário criado com sucesso, ID:", authData.user.id);
     
-    // Garantir que a senha e metadados estejam corretamente configurados
+    // Nova abordagem: Chamar Edge Function para atualizar usuário
     try {
-      // 1. Atualizar metadados via nossa função SQL aprimorada
-      const completeMetadata = {
-        ...metadata,
-        email_verified: true // Garantir que isso está definido para o processamento correto
-      };
+      console.log("Chamando Edge Function para atualizar metadados e senha");
       
-      const { data: metadataResult, error: metadataError } = await supabase.rpc('update_user_metadata', {
-        p_user_id: authData.user.id,
-        p_metadata: completeMetadata
-      });
+      // Obter a URL base do Supabase para construir a URL da função
+      const { data: projectURLData } = await supabase.functions.invoke('get-project-url', {});
+      const baseURL = projectURLData?.url || 'https://bellpfebhwltuqlkwirt.supabase.co';
       
-      if (metadataError) {
-        console.error("Erro ao atualizar metadados via SQL RPC:", metadataError);
-        // Mesmo com erro, continuamos para tentar outros métodos
-      } else {
-        console.log("Metadados atualizados com sucesso via SQL RPC:", metadataResult);
-      }
+      // Construir URL da função
+      const functionURL = `${baseURL}/functions/v1/update-invited-user`;
       
-      // 2. Atualizar senha diretamente via SQL (para garantir)
-      const { data: passwordResult, error: passwordError } = await supabase.rpc('update_user_password', {
-        p_user_id: authData.user.id,
-        p_password: password
-      });
-      
-      if (passwordError) {
-        console.error("Erro ao atualizar senha via SQL RPC:", passwordError);
-      } else {
-        console.log("Senha atualizada com sucesso via SQL RPC:", passwordResult);
-      }
-    } catch (sqlError) {
-      console.error("Exceção ao atualizar dados via SQL:", sqlError);
-    }
-    
-    // Método tradicional como backup via updateAuthUserData
-    try {
-      await updateAuthUserData(authData.user.id, {
-        name: userData.name.trim(),
-        password: password,
-        email: userData.email.toLowerCase().trim(),
-        gender: userData.gender,
-        accountType: 'couple'
-      });
-    } catch (backupError) {
-      console.error("Erro no método backup de atualização:", backupError);
-    }
-    
-    try {
-      // Registrar perfil do usuário
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .upsert({
-          id: authData.user.id,
+      // Chamar a Edge Function com os dados necessários
+      const response = await fetch(functionURL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
+        },
+        body: JSON.stringify({
+          userId: authData.user.id,
+          name: userData.name.trim(),
           email: userData.email.toLowerCase().trim(),
+          password: password,
+          gender: userData.gender,
+          token: userData.token,
+          inviterId: userData.inviterId,
+          coupleId: userData.coupleId
+        })
+      });
+      
+      const resultData = await response.json();
+      
+      if (!response.ok) {
+        console.error("Erro na resposta da Edge Function:", resultData);
+        // Mesmo com erro, continuamos, pois o usuário foi criado
+      } else {
+        console.log("Edge Function executada com sucesso:", resultData);
+      }
+    } catch (edgeFunctionError) {
+      console.error("Erro ao chamar Edge Function:", edgeFunctionError);
+      
+      // Em caso de falha na Edge Function, usamos o método tradicional como backup
+      try {
+        console.log("Usando método tradicional como backup");
+        await updateAuthUserData(authData.user.id, {
+          name: userData.name.trim(),
+          password: password,
+          email: userData.email.toLowerCase().trim(),
+          gender: userData.gender,
+          accountType: 'couple'
+        });
+      } catch (backupError) {
+        console.error("Erro no método backup:", backupError);
+      }
+    }
+    
+    // Armazenar dados localmente para recuperação futura se necessário
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem(`user_metadata_${userData.email.toLowerCase().trim()}`, JSON.stringify({
           name: userData.name.trim(),
           gender: userData.gender || null,
-          account_type: 'couple',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        });
-        
-      if (profileError) {
-        console.error("Erro ao criar perfil de usuário:", profileError);
-      } else {
-        console.log("Perfil de usuário criado com sucesso");
+          accountType: 'couple'
+        }));
+        console.log("Dados do usuário salvos localmente como backup");
+      } catch (e) {
+        console.log("Não foi possível salvar dados localmente:", e);
       }
-      
-      // 3. Registrar associação de casal pendente (backup)
-      await registerPendingCoupleAssociation({
-        user_id: authData.user.id,
-        email: userData.email,
-        coupleId: userData.coupleId,
-        token: userData.token
-      });
-      
-      return { 
-        success: true, 
-        message: "Registro realizado com sucesso! Verifique seu email para confirmar a conta.",
-        user: authData.user
-      };
-    } catch (error) {
-      console.error("Erro ao registrar dados pendentes:", error);
-      return { 
-        success: true, 
-        warning: "Usuário registrado, mas houve um problema ao armazenar dados adicionais.",
-        user: authData.user
-      };
     }
+    
+    return { 
+      success: true, 
+      message: "Registro realizado com sucesso! Verifique seu email para confirmar a conta.",
+      user: authData.user
+    };
   } catch (error) {
     console.error("Exceção no processo de registro:", error);
     return { success: false, error, message: error.message || "Erro desconhecido ao processar o registro" };

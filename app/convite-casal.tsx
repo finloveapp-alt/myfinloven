@@ -176,10 +176,29 @@ export default function ConviteCasal() {
   const [paramsExtracted, setParamsExtracted] = useState(false);
   // Adicionar um estado para controlar se estamos processando hash
   const [processingHash, setProcessingHash] = useState(false);
+  // Estado para controlar se os parâmetros da query já foram verificados
+  const [queriedParamsChecked, setQueriedParamsChecked] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [inviteData, setInviteData] = useState(null);
   const [error, setError] = useState('');
+
+  // Verificar imediatamente se há parâmetros na query string
+  useEffect(() => {
+    if (params?.token && params?.inviter && params?.couple) {
+      console.log("Parâmetros encontrados na query string:", params);
+      setUrlParams({
+        token: params.token as string,
+        inviter: params.inviter as string,
+        couple: params.couple as string,
+        email: params?.email as string
+      });
+      setParamsExtracted(true);
+      setQueriedParamsChecked(true);
+    } else {
+      setQueriedParamsChecked(true);
+    }
+  }, [params]);
 
   // Verificar imediatamente se há um hash na URL que precisa ser processado
   useEffect(() => {
@@ -202,58 +221,68 @@ export default function ConviteCasal() {
     setDebugInfo(debugText);
   }, [params]);
 
-  // Tentar extrair parâmetros da URL em um efeito separado
+  // Tentar extrair parâmetros da URL em um efeito separado, mas apenas após checar os parâmetros da query
   useEffect(() => {
-    // Se não temos todos os parâmetros, tentar extrair da URL
-    if (!urlParams.token || !urlParams.inviter || !urlParams.couple) {
-      console.log("Tentando extrair parâmetros da URL");
-      const extractedParams = extractParamsFromUrl();
-      console.log("Parâmetros extraídos:", extractedParams);
+    // Só tenta extrair do hash se os parâmetros da query já foram verificados
+    if (!queriedParamsChecked) {
+      return;
+    }
+    
+    // Se já temos todos os parâmetros, não precisa extrair
+    if (urlParams.token && urlParams.inviter && urlParams.couple) {
+      setProcessingHash(false);
+      return;
+    }
+    
+    console.log("Tentando extrair parâmetros da URL");
+    const extractedParams = extractParamsFromUrl();
+    console.log("Parâmetros extraídos:", extractedParams);
+    
+    if (extractedParams.token && extractedParams.inviter && extractedParams.couple) {
+      setUrlParams(extractedParams);
+      setParamsExtracted(true);
+      setProcessingHash(false);
       
-      if (extractedParams.token && extractedParams.inviter && extractedParams.couple) {
-        setUrlParams(extractedParams);
-        setParamsExtracted(true);
-        setProcessingHash(false);
+      // Atualizar informações de depuração
+      const newDebugText = `${debugInfo}\n\nParâmetros extraídos da URL:
+      token: ${extractedParams.token || 'null'}
+      inviter: ${extractedParams.inviter || 'null'}
+      couple: ${extractedParams.couple || 'null'}
+      email: ${extractedParams.email || 'null'}`;
+      setDebugInfo(newDebugText);
+      
+      // Recarregar a página com os parâmetros extraídos para navegadores
+      if (typeof window !== 'undefined' && !(params?.token && params?.inviter && params?.couple)) {
+        // Apenas para web, redirecionar para a mesma página com os parâmetros
+        // na URL para uma experiência melhor (sem hash)
+        const url = `/convite-casal?token=${extractedParams.token}&inviter=${extractedParams.inviter}&couple=${extractedParams.couple}`;
+        const emailParam = extractedParams.email ? `&email=${encodeURIComponent(extractedParams.email)}` : '';
         
-        // Atualizar informações de depuração
-        const newDebugText = `${debugInfo}\n\nParâmetros extraídos da URL:
-        token: ${extractedParams.token || 'null'}
-        inviter: ${extractedParams.inviter || 'null'}
-        couple: ${extractedParams.couple || 'null'}
-        email: ${extractedParams.email || 'null'}`;
-        setDebugInfo(newDebugText);
-        
-        // Recarregar a página com os parâmetros extraídos para navegadores
-        if (typeof window !== 'undefined' && !(params?.token && params?.inviter && params?.couple)) {
-          // Apenas para web, redirecionar para a mesma página com os parâmetros
-          // na URL para uma experiência melhor (sem hash)
-          const url = `/convite-casal?token=${extractedParams.token}&inviter=${extractedParams.inviter}&couple=${extractedParams.couple}`;
-          const emailParam = extractedParams.email ? `&email=${encodeURIComponent(extractedParams.email)}` : '';
+        // Verificar se a URL atual já contém esses parâmetros para evitar redirecionamento infinito
+        const currentUrl = window.location.href;
+        if (!currentUrl.includes(`token=${extractedParams.token}`) || 
+            !currentUrl.includes(`inviter=${extractedParams.inviter}`) ||
+            !currentUrl.includes(`couple=${extractedParams.couple}`)) {
+          console.log("Redirecionando para URL com parâmetros corretos:", url + emailParam);
           
-          // Verificar se a URL atual já contém esses parâmetros para evitar redirecionamento infinito
-          const currentUrl = window.location.href;
-          if (!currentUrl.includes(`token=${extractedParams.token}`) || 
-              !currentUrl.includes(`inviter=${extractedParams.inviter}`) ||
-              !currentUrl.includes(`couple=${extractedParams.couple}`)) {
-            console.log("Redirecionando para URL com parâmetros corretos:", url + emailParam);
-            
-            // Impedir a execução do useEffect de verificação com parâmetros incompletos
-            setLoading(true);
-            
-            // Redirecionar após um pequeno atraso
-            setTimeout(() => {
-              window.location.href = url + emailParam;
-            }, 100);
-            return;
-          }
+          // Impedir a execução do useEffect de verificação com parâmetros incompletos
+          setLoading(true);
+          
+          // Redirecionar após um pequeno atraso
+          setTimeout(() => {
+            window.location.href = url + emailParam;
+          }, 100);
+          return;
         }
-      } else if (processingHash) {
-        // Se ainda estamos processando o hash, mantenha a tela de carregamento
-        console.log("Ainda processando o hash, mantendo tela de carregamento");
-        return;
+      }
+    } else {
+      // Se não conseguiu extrair e estava processando hash, marcar como finalizado
+      if (processingHash) {
+        console.log("Não foi possível extrair parâmetros do hash, finalizando processamento");
+        setProcessingHash(false);
       }
     }
-  }, []);
+  }, [queriedParamsChecked, debugInfo]);
 
   // Verificar o convite quando os parâmetros estiverem disponíveis
   useEffect(() => {
@@ -263,8 +292,13 @@ export default function ConviteCasal() {
       return;
     }
     
+    // Não verificar se ainda não checamos os parâmetros da query
+    if (!queriedParamsChecked) {
+      return;
+    }
+    
     if (!urlParams.token || !urlParams.inviter || !urlParams.couple) {
-      // Só mostrar erro se não estamos processando parâmetros
+      // Só mostrar erro se não estamos processando parâmetros e não estamos mais processando hash
       if (!paramsExtracted && !processingHash) {
         console.error("Parâmetros incompletos:", urlParams);
         setError('Link de convite inválido ou incompleto');
@@ -292,6 +326,9 @@ export default function ConviteCasal() {
           user1_id: ${inviteDetails.user1_id || 'null'}
           invitation_email: ${inviteDetails.invitation_email || 'null'}`;
           setDebugInfo(newDebugText);
+          
+          // Limpar qualquer erro
+          setError('');
         }
       } catch (err) {
         console.error("Erro ao verificar convite:", err);
@@ -302,7 +339,7 @@ export default function ConviteCasal() {
     }
 
     verifyInvite();
-  }, [urlParams.token, urlParams.inviter, urlParams.couple, processingHash]);
+  }, [urlParams.token, urlParams.inviter, urlParams.couple, processingHash, queriedParamsChecked, debugInfo]);
 
   const handleAcceptInvite = () => {
     // Garantir que todos os parâmetros necessários sejam incluídos

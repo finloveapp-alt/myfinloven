@@ -20,7 +20,6 @@ import { supabase } from '@/lib/supabase';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { fontFallbacks } from '@/utils/styles';
-import * as ImagePicker from 'expo-image-picker';
 import { 
   ArrowLeft, 
   ArrowRight, 
@@ -303,6 +302,16 @@ export default function Dashboard() {
   // Função para selecionar imagem da galeria
   const pickImage = async () => {
     try {
+      // Importar ImagePicker dinamicamente apenas quando a função for chamada
+      const ImagePicker = Platform.OS !== 'web' 
+        ? await import('expo-image-picker') 
+        : null;
+      
+      if (!ImagePicker) {
+        Alert.alert('Não suportado', 'Essa funcionalidade não está disponível nesta plataforma.');
+        return;
+      }
+
       // Solicitar permissão para acessar a galeria
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
@@ -330,6 +339,16 @@ export default function Dashboard() {
   // Função para tirar foto com a câmera
   const takePhoto = async () => {
     try {
+      // Importar ImagePicker dinamicamente apenas quando a função for chamada
+      const ImagePicker = Platform.OS !== 'web' 
+        ? await import('expo-image-picker') 
+        : null;
+      
+      if (!ImagePicker) {
+        Alert.alert('Não suportado', 'Essa funcionalidade não está disponível nesta plataforma.');
+        return;
+      }
+
       // Solicitar permissão para acessar a câmera
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== 'granted') {
@@ -413,6 +432,21 @@ export default function Dashboard() {
       console.error('Erro ao fazer upload da imagem:', error);
       Alert.alert('Erro', 'Não foi possível fazer o upload da imagem');
     } finally {
+      setUploading(false);
+    }
+  };
+
+  // Alternativa para upload de foto em ambiente web
+  const handleImageInputChange = async (event) => {
+    try {
+      if (Platform.OS === 'web' && event.target.files && event.target.files.length > 0) {
+        setUploading(true);
+        const file = event.target.files[0];
+        await uploadImage(URL.createObjectURL(file));
+      }
+    } catch (error) {
+      console.error('Erro ao processar arquivo web:', error);
+      Alert.alert('Erro', 'Não foi possível processar o arquivo');
       setUploading(false);
     }
   };
@@ -1117,27 +1151,56 @@ export default function Dashboard() {
                   />
                 </View>
                 
-                <View style={styles.buttonContainer}>
-                  <TouchableOpacity 
-                    style={[styles.photoButton, { backgroundColor: theme.primary }]}
-                    onPress={takePhoto}
-                  >
-                    <View style={styles.buttonContent}>
-                      <Camera size={24} color="#fff" style={styles.buttonIcon} />
-                      <Text style={styles.buttonText}>Tirar Foto</Text>
-                    </View>
-                  </TouchableOpacity>
-                  
-                  <TouchableOpacity 
-                    style={[styles.photoButton, { backgroundColor: theme.secondary }]}
-                    onPress={pickImage}
-                  >
-                    <View style={styles.buttonContent}>
-                      <ImageIcon size={24} color="#fff" style={styles.buttonIcon} />
-                      <Text style={styles.buttonText}>Escolher Foto</Text>
-                    </View>
-                  </TouchableOpacity>
-                </View>
+                {Platform.OS === 'web' ? (
+                  <View style={styles.webButtonContainer}>
+                    <TouchableOpacity 
+                      style={[styles.photoButton, { backgroundColor: theme.primary }]}
+                      onPress={() => {
+                        // Disparar o input file via JS
+                        const fileInput = document.getElementById('profile-picture-input');
+                        if (fileInput) fileInput.click();
+                      }}
+                    >
+                      <View style={styles.buttonContent}>
+                        <Upload size={24} color="#fff" style={styles.buttonIcon} />
+                        <Text style={styles.buttonText}>Escolher Foto</Text>
+                      </View>
+                    </TouchableOpacity>
+                    
+                    {/* Input file oculto para web */}
+                    {Platform.OS === 'web' && (
+                      <input
+                        type="file"
+                        id="profile-picture-input"
+                        accept="image/*"
+                        onChange={handleImageInputChange}
+                        style={{ display: 'none' }}
+                      />
+                    )}
+                  </View>
+                ) : (
+                  <View style={styles.buttonContainer}>
+                    <TouchableOpacity 
+                      style={[styles.photoButton, { backgroundColor: theme.primary }]}
+                      onPress={takePhoto}
+                    >
+                      <View style={styles.buttonContent}>
+                        <Camera size={24} color="#fff" style={styles.buttonIcon} />
+                        <Text style={styles.buttonText}>Tirar Foto</Text>
+                      </View>
+                    </TouchableOpacity>
+                    
+                    <TouchableOpacity 
+                      style={[styles.photoButton, { backgroundColor: theme.secondary }]}
+                      onPress={pickImage}
+                    >
+                      <View style={styles.buttonContent}>
+                        <ImageIcon size={24} color="#fff" style={styles.buttonIcon} />
+                        <Text style={styles.buttonText}>Escolher Foto</Text>
+                      </View>
+                    </TouchableOpacity>
+                  </View>
+                )}
               </>
             )}
           </View>
@@ -2294,5 +2357,10 @@ const styles = StyleSheet.create({
     fontFamily: fontFallbacks.Poppins_400Regular,
     color: '#333',
     marginTop: 15,
+  },
+  webButtonContainer: {
+    paddingHorizontal: 10,
+    marginTop: 0,
+    width: '100%',
   },
 }); 

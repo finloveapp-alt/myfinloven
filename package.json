@@ -47,6 +47,9 @@
     "react-native-web": "^0.20.0",
     "yup": "^1.6.1"
   },
+  "optionalDependencies": {
+    "expo-image-picker": "~16.0.6"
+  },
   "devDependencies": {
     "@babel/core": "^7.25.2",
     "@types/react": "~18.3.12",

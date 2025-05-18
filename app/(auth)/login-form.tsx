@@ -154,6 +154,46 @@ export default function LoginForm() {
         console.log('### LOGIN BEM SUCEDIDO:', data.user.email);
         console.log('### METADADOS DO USUÁRIO:', data.user.user_metadata);
         
+        // Verificar o gênero do usuário e definir o tema apropriado
+        try {
+          // Primeiro tenta obter dos metadados
+          let userGender = data.user.user_metadata?.gender || null;
+          
+          // Se não encontrou nos metadados, busca no perfil
+          if (!userGender) {
+            const { data: profileData, error: profileError } = await supabase
+              .from('profiles')
+              .select('gender')
+              .eq('id', data.user.id)
+              .maybeSingle();
+              
+            if (!profileError && profileData) {
+              userGender = profileData.gender;
+            }
+          }
+          
+          console.log('### GÊNERO DO USUÁRIO:', userGender);
+          
+          // Define o tema baseado no gênero: 'masculine' para homem, 'feminine' para mulher
+          if (userGender) {
+            if (userGender.toLowerCase() === 'male' || 
+                userGender.toLowerCase() === 'masculino' || 
+                userGender.toLowerCase() === 'homem' || 
+                userGender.toLowerCase() === 'm') {
+              global.dashboardTheme = 'masculine';
+              console.log('### TEMA DEFINIDO: Masculino (Azul)');
+            } else if (userGender.toLowerCase() === 'female' || 
+                       userGender.toLowerCase() === 'feminino' || 
+                       userGender.toLowerCase() === 'mulher' || 
+                       userGender.toLowerCase() === 'f') {
+              global.dashboardTheme = 'feminine';
+              console.log('### TEMA DEFINIDO: Feminino (Rosa)');
+            }
+          }
+        } catch (genderError) {
+          console.error('### ERRO AO OBTER GÊNERO:', genderError);
+        }
+        
         // Processar perfil temporário se existir
         try {
           console.log("Tentando processar dados de perfil temporário");
@@ -545,6 +585,10 @@ export default function LoginForm() {
       if (error) {
         alert(`Erro ao fazer login com Google: ${error.message}`);
       }
+      
+      // Não precisamos fazer nada aqui para verificar o gênero
+      // O Supabase redirecionará para a página após login bem-sucedido
+      // e o hook de sessão tratará de verificar o gênero e definir o tema
     } catch (error) {
       alert('Erro ao conectar com provedor externo');
     }

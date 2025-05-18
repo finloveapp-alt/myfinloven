@@ -87,8 +87,10 @@ export default function Dashboard() {
     // Verifica se existe um tema definido globalmente
     if (global.dashboardTheme === 'masculine') {
       setTheme(themes.masculine);
+      console.log('Dashboard: Aplicando tema masculino (azul)');
     } else {
       setTheme(themes.feminine);
+      console.log('Dashboard: Aplicando tema feminino (rosa)');
     }
   }, []);
 

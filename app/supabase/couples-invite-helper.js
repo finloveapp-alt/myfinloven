@@ -340,6 +340,15 @@ export async function registerFromCoupleInvitation(userData) {
     name: userData.name
   });
   
+  // Validação específica para a senha
+  const password = userData.password.trim();
+  if (password.length < 6) {
+    return { 
+      success: false, 
+      message: "A senha deve ter pelo menos 6 caracteres" 
+    };
+  }
+  
   try {
     console.log("Iniciando processo de registro no Supabase");
     
@@ -368,18 +377,20 @@ export async function registerFromCoupleInvitation(userData) {
       lastName: userData.name.split(' ').slice(1).join(' '),
       gender: userData.gender || '',
       account_type: 'couple',
+      couple_invitation: true, // Adicionado para indicar explicitamente que é um convite
       couple_id: userData.coupleId,
       invitation_token: userData.token,
       inviter_id: userData.inviterId,
       invitation_type: 'couple',
+      created_at: new Date().toISOString() // Adicionado para consistência
     };
     
     console.log("Metadados para registro:", metadata);
     
     // 1. Registrar o usuário no Supabase Auth
     const { data: authData, error: authError } = await supabase.auth.signUp({
-      email: userData.email,
-      password: userData.password,
+      email: userData.email.toLowerCase().trim(), // Certifique-se de que o email está em lowercase
+      password: password, // Já aplicamos trim acima
       options: {
         data: metadata,
         emailRedirectTo: window.location?.origin || 'myfinlove://'
@@ -388,13 +399,35 @@ export async function registerFromCoupleInvitation(userData) {
     
     if (authError) {
       console.error("Erro no registro:", authError);
-      return { success: false, error: authError };
+      return { success: false, error: authError, message: authError.message };
+    }
+    
+    if (!authData || !authData.user) {
+      console.error("Erro no registro: resposta inválida do Supabase");
+      return { 
+        success: false, 
+        message: "Erro ao criar a conta. Por favor, tente novamente." 
+      };
     }
     
     // Registro bem-sucedido!
     console.log("Usuário criado com sucesso, ID:", authData.user.id);
     
     try {
+      // Armazenar dados no localStorage como backup
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem(`user_metadata_${userData.email.toLowerCase().trim()}`, JSON.stringify({
+            name: userData.name.trim(),
+            gender: userData.gender,
+            accountType: 'couple'
+          }));
+          console.log("Dados do usuário salvos localmente como backup");
+        } catch (e) {
+          console.log("Não foi possível salvar dados localmente:", e);
+        }
+      }
+      
       // NOVO: Criar perfil diretamente (não apenas pendente)
       const { error: profileError } = await supabase
         .from('profiles')
@@ -403,7 +436,8 @@ export async function registerFromCoupleInvitation(userData) {
           email: userData.email.toLowerCase().trim(),
           name: userData.name.trim(),
           gender: userData.gender,
-          account_type: 'couple'
+          account_type: 'couple',
+          created_at: new Date().toISOString()
         });
         
       if (profileError) {
@@ -460,7 +494,7 @@ export async function registerFromCoupleInvitation(userData) {
     }
   } catch (error) {
     console.error("Exceção no processo de registro:", error);
-    return { success: false, error };
+    return { success: false, error, message: error.message || "Erro desconhecido ao processar o registro" };
   }
 }
 

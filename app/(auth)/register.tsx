@@ -48,6 +48,7 @@ export default function Register() {
         // Se for entrada manual, buscar o email do convite
         const fetchInvitationEmail = async () => {
           try {
+            console.log("Buscando email do convite para:", {coupleId, inviterId});
             const { data, error } = await supabase
               .from('couples')
               .select('invitation_email')
@@ -55,12 +56,19 @@ export default function Register() {
               .eq('user1_id', inviterId)
               .single();
               
+            if (error) {
+              console.error("Erro ao buscar email do convite:", error);
+              return;
+            }
+              
             if (data?.invitation_email) {
               console.log("Email do convite recuperado via busca manual:", data.invitation_email);
               setEmail(data.invitation_email);
+            } else {
+              console.log("Email do convite não encontrado na busca manual");
             }
           } catch (err) {
-            console.error("Erro ao buscar email do convite:", err);
+            console.error("Exceção ao buscar email do convite:", err);
           }
         };
         
@@ -68,6 +76,20 @@ export default function Register() {
       }
     }
   }, [fromCoupleInvitation, invitationEmail, manualEntry, coupleId, inviterId]);
+
+  // Exibir logs para depuração do fluxo de convite
+  useEffect(() => {
+    if (fromCoupleInvitation) {
+      console.log("Parâmetros de convite recebidos:", {
+        fromCoupleInvitation,
+        invitationToken,
+        inviterId,
+        coupleId,
+        invitationEmail,
+        manualEntry
+      });
+    }
+  }, [fromCoupleInvitation, invitationToken, inviterId, coupleId, invitationEmail, manualEntry]);
 
   // Função para verificar se o usuário existe na tabela auth.users
   const verifyUserExists = async (userId) => {
@@ -143,6 +165,15 @@ export default function Register() {
       if (fromCoupleInvitation && invitationToken && inviterId && coupleId) {
         try {
           console.log("Registrando a partir de convite de casal");
+          console.log("Dados para registro:", {
+            email: email.toLowerCase().trim(),
+            password: password.trim(),
+            name: name.trim(),
+            gender: gender,
+            token: invitationToken,
+            inviterId: inviterId,
+            coupleId: coupleId
+          });
           
           // Chamar a função especializada para registro a partir de convite
           const result = await registerFromCoupleInvitation({
@@ -163,6 +194,20 @@ export default function Register() {
           }
           
           console.log("Registro a partir de convite bem-sucedido:", result);
+          
+          // Salvar dados localmente como backup
+          if (typeof window !== 'undefined') {
+            try {
+              localStorage.setItem(`user_metadata_${email.toLowerCase().trim()}`, JSON.stringify({
+                name: name.trim(),
+                gender: gender,
+                accountType: 'couple'
+              }));
+              console.log("Dados do usuário salvos localmente como backup");
+            } catch (e) {
+              console.log("Não foi possível salvar dados localmente:", e);
+            }
+          }
           
           // Mostrar modal de confirmação de email
           setEmailVerificationNeededModalVisible(true);

@@ -38,7 +38,7 @@ export default function LoginForm() {
       const { data: coupleData, error: coupleError } = await supabase
         .from('couples')
         .select('*')
-        .eq('invitation_email', email.trim())
+        .eq('invitation_email', email.trim().toLowerCase())
         .maybeSingle();
         
       if (coupleError) {
@@ -51,7 +51,7 @@ export default function LoginForm() {
       
       // Tenta autenticar com Supabase
       const { data, error } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
+        email: email.trim().toLowerCase(),
         password: password.trim(),
       });
 
@@ -134,6 +134,10 @@ export default function LoginForm() {
                   { text: 'Não', style: 'cancel' }
                 ]
               );
+            } else {
+              // Se o status não for reconhecido
+              console.log(`### STATUS DE CONVITE NÃO RECONHECIDO: ${coupleData.status}`);
+              Alert.alert('Erro', 'Email ou senha incorretos. Por favor, verifique suas credenciais.');
             }
           } else {
             Alert.alert('Erro', 'Email ou senha incorretos. Por favor, verifique suas credenciais.');

@@ -176,23 +176,45 @@ export default function ConviteCasal() {
   }, [urlParams.token, urlParams.inviter, urlParams.couple]);
 
   const handleAcceptInvite = () => {
-    // Redirecionar para a tela de registro com os parâmetros necessários
-    const registerParams = new URLSearchParams({
+    // Garantir que todos os parâmetros necessários sejam incluídos
+    // Mesmo que alguns estejam vazios, vamos incluí-los explicitamente para debugging
+    const registerParams = {
       fromCoupleInvitation: 'true',
-      invitationToken: urlParams.token,
-      inviterId: urlParams.inviter,
-      coupleId: urlParams.couple
-    });
+      invitationToken: urlParams.token || '',
+      inviterId: urlParams.inviter || '',
+      coupleId: urlParams.couple || ''
+    };
 
+    // Adicionar email se disponível
     if (urlParams.email) {
-      registerParams.append('invitationEmail', urlParams.email);
+      registerParams['invitationEmail'] = urlParams.email;
     } else {
-      registerParams.append('manualEntry', 'true');
+      registerParams['manualEntry'] = 'true';
     }
 
+    console.log("DEPURAÇÃO - Parâmetros para registro:", registerParams);
+
+    // Na versão web, também podemos tentar pegar parâmetros da URL diretamente
+    if (typeof window !== 'undefined') {
+      console.log("DEPURAÇÃO - URL ao aceitar convite:", window.location.href);
+      
+      // Se estamos em modo de desenvolvimento, vamos adicionar informações adicionais
+      if (process.env.NODE_ENV === 'development') {
+        const extractedParams = extractParamsFromUrl();
+        console.log("DEPURAÇÃO - Parâmetros extraídos ao aceitar:", extractedParams);
+        
+        // Se temos parâmetros válidos da URL que podem estar faltando nos urlParams
+        if (extractedParams.token && !urlParams.token) registerParams['invitationToken'] = extractedParams.token;
+        if (extractedParams.inviter && !urlParams.inviter) registerParams['inviterId'] = extractedParams.inviter;
+        if (extractedParams.couple && !urlParams.couple) registerParams['coupleId'] = extractedParams.couple;
+        if (extractedParams.email && !urlParams.email) registerParams['invitationEmail'] = extractedParams.email;
+      }
+    }
+
+    // Redirecionar para o registro com os parâmetros
     router.push({
       pathname: '/(auth)/register',
-      params: Object.fromEntries(registerParams)
+      params: registerParams
     });
   };
 

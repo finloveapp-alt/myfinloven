@@ -552,30 +552,31 @@ export default function Dashboard() {
                 />
               )}
               
-              {partnerUser ? (
+              {partnerUser && (
                 <Image
                   source={{ uri: partnerUser.avatar_url || (theme === themes.masculine 
                     ? 'https://randomuser.me/api/portraits/women/33.jpg'
                     : 'https://randomuser.me/api/portraits/men/42.jpg') }}
                   style={styles.userAvatar}
                 />
-              ) : (
-                <TouchableOpacity 
-                  style={styles.addUserAvatar}
-                  onPress={() => {
-                    Alert.alert(
-                      'Convidar Parceiro',
-                      'Deseja convidar seu parceiro para compartilhar finanças?',
-                      [
-                        { text: 'Cancelar', style: 'cancel' },
-                        { text: 'Convidar', onPress: () => router.push('/convite-parceiro') }
-                      ]
-                    );
-                  }}
-                >
-                  <Text style={styles.addUserText}>+</Text>
-                </TouchableOpacity>
               )}
+              
+              {/* Botão de adicionar usuário sempre visível */}
+              <TouchableOpacity 
+                style={styles.addUserAvatar}
+                onPress={() => {
+                  Alert.alert(
+                    'Convidar Usuário',
+                    'Deseja convidar alguém para compartilhar finanças?',
+                    [
+                      { text: 'Cancelar', style: 'cancel' },
+                      { text: 'Convidar', onPress: () => router.push('/convite-parceiro') }
+                    ]
+                  );
+                }}
+              >
+                <Text style={styles.addUserText}>+</Text>
+              </TouchableOpacity>
             </View>
           </SafeAreaView>
         </LinearGradient>

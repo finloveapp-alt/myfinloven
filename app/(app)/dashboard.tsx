@@ -11,13 +11,16 @@ import {
   Platform,
   Alert,
   Modal,
-  Animated
+  Animated,
+  ActivityIndicator,
+  TextInput
 } from 'react-native';
 import { router } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { fontFallbacks } from '@/utils/styles';
+import * as ImagePicker from 'expo-image-picker';
 import { 
   ArrowLeft, 
   ArrowRight, 
@@ -43,7 +46,10 @@ import {
   Wallet,
   Info,
   ExternalLink,
-  Bell
+  Bell,
+  Camera,
+  Upload,
+  Image as ImageIcon
 } from 'lucide-react-native';
 
 // Definição de temas
@@ -83,6 +89,7 @@ interface UserProfile {
   email: string;
   gender: string;
   avatar_url?: string;
+  profile_picture_url?: string;
 }
 
 export default function Dashboard() {
@@ -93,6 +100,9 @@ export default function Dashboard() {
   const [pressedCard, setPressedCard] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [partnerUser, setPartnerUser] = useState<UserProfile | null>(null);
+  const [profilePictureModalVisible, setProfilePictureModalVisible] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
   
   useEffect(() => {
     // Verifica se existe um tema definido globalmente
@@ -144,9 +154,10 @@ export default function Dashboard() {
           name: userProfile.name || 'Usuário',
           email: userProfile.email || '',
           gender: userProfile.gender || '',
-          avatar_url: userProfile.gender?.toLowerCase() === 'homem' ? 
+          profile_picture_url: userProfile.profile_picture_url || null,
+          avatar_url: userProfile.profile_picture_url || (userProfile.gender?.toLowerCase() === 'homem' ? 
             'https://randomuser.me/api/portraits/men/36.jpg' : 
-            'https://randomuser.me/api/portraits/women/44.jpg'
+            'https://randomuser.me/api/portraits/women/44.jpg')
         });
       }
       
@@ -185,9 +196,10 @@ export default function Dashboard() {
             name: partnerProfile.name || 'Parceiro',
             email: partnerProfile.email || '',
             gender: partnerProfile.gender || '',
-            avatar_url: partnerProfile.gender?.toLowerCase() === 'homem' ? 
+            profile_picture_url: partnerProfile.profile_picture_url || null,
+            avatar_url: partnerProfile.profile_picture_url || (partnerProfile.gender?.toLowerCase() === 'homem' ? 
               'https://randomuser.me/api/portraits/men/42.jpg' : 
-              'https://randomuser.me/api/portraits/women/33.jpg'
+              'https://randomuser.me/api/portraits/women/33.jpg')
           });
         }
       }
@@ -288,6 +300,123 @@ export default function Dashboard() {
     return `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}`;
   };
 
+  // Função para selecionar imagem da galeria
+  const pickImage = async () => {
+    try {
+      // Solicitar permissão para acessar a galeria
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permissão negada', 'Precisamos de permissão para acessar sua galeria.');
+        return;
+      }
+
+      // Abrir seletor de imagem
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.5,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        await uploadImage(result.assets[0].uri);
+      }
+    } catch (error) {
+      console.error('Erro ao selecionar imagem:', error);
+      Alert.alert('Erro', 'Não foi possível selecionar a imagem');
+    }
+  };
+
+  // Função para tirar foto com a câmera
+  const takePhoto = async () => {
+    try {
+      // Solicitar permissão para acessar a câmera
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permissão negada', 'Precisamos de permissão para acessar sua câmera.');
+        return;
+      }
+
+      // Abrir câmera
+      const result = await ImagePicker.launchCameraAsync({
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.5,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        await uploadImage(result.assets[0].uri);
+      }
+    } catch (error) {
+      console.error('Erro ao tirar foto:', error);
+      Alert.alert('Erro', 'Não foi possível tirar a foto');
+    }
+  };
+
+  // Função para fazer upload da imagem para o Storage do Supabase
+  const uploadImage = async (uri: string) => {
+    try {
+      setUploading(true);
+
+      // Obter sessão do usuário
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session?.user) {
+        throw new Error('Falha ao obter sessão do usuário');
+      }
+
+      // Converter imagem para blob
+      const response = await fetch(uri);
+      const blob = await response.blob();
+      
+      // Gerar nome de arquivo único
+      const fileExt = uri.split('.').pop() || 'jpg';
+      const fileName = `${session.user.id}_${Date.now()}.${fileExt}`;
+      const filePath = `profile_pictures/${fileName}`;
+
+      // Upload para o storage
+      const { error: uploadError } = await supabase.storage
+        .from('user_uploads')
+        .upload(filePath, blob);
+
+      if (uploadError) {
+        throw uploadError;
+      }
+
+      // Obter URL pública da imagem
+      const { data: urlData } = await supabase.storage
+        .from('user_uploads')
+        .getPublicUrl(filePath);
+
+      // Atualizar perfil do usuário com URL da imagem
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ profile_picture_url: urlData.publicUrl })
+        .eq('id', session.user.id);
+
+      if (updateError) {
+        throw updateError;
+      }
+
+      // Atualizar estado local
+      setImageUrl(urlData.publicUrl);
+      setCurrentUser(prev => prev ? {
+        ...prev,
+        profile_picture_url: urlData.publicUrl,
+        avatar_url: urlData.publicUrl
+      } : null);
+
+      Alert.alert('Sucesso', 'Sua foto de perfil foi atualizada com sucesso!');
+      setProfilePictureModalVisible(false);
+      
+    } catch (error) {
+      console.error('Erro ao fazer upload da imagem:', error);
+      Alert.alert('Erro', 'Não foi possível fazer o upload da imagem');
+    } finally {
+      setUploading(false);
+    }
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <StatusBar style="light" />
@@ -300,12 +429,14 @@ export default function Dashboard() {
           <SafeAreaView style={styles.headerContent}>
             <View style={styles.profileSection}>
               <View style={styles.profileInfo}>
-                <Image
-                  source={{ uri: theme === themes.masculine 
-                    ? 'https://randomuser.me/api/portraits/men/36.jpg'
-                    : 'https://randomuser.me/api/portraits/women/44.jpg' }}
-                  style={styles.profileImage}
-                />
+                <TouchableOpacity onPress={() => setProfilePictureModalVisible(true)}>
+                  <Image
+                    source={{ uri: currentUser?.profile_picture_url || (theme === themes.masculine 
+                      ? 'https://randomuser.me/api/portraits/men/36.jpg'
+                      : 'https://randomuser.me/api/portraits/women/44.jpg') }}
+                    style={styles.profileImage}
+                  />
+                </TouchableOpacity>
                 <View style={styles.monthSelectorContainer}>
                   <TouchableOpacity style={styles.monthNavButton} onPress={goToPreviousMonth}>
                     <ArrowLeft size={22} color="#fff" />
@@ -945,6 +1076,70 @@ export default function Dashboard() {
             >
               <Text style={styles.closeFullButtonText}>Fechar</Text>
             </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Profile Picture Modal */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={profilePictureModalVisible}
+        onRequestClose={() => setProfilePictureModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Alterar Foto de Perfil</Text>
+              <TouchableOpacity 
+                style={styles.closeButton}
+                onPress={() => setProfilePictureModalVisible(false)}
+              >
+                <X size={24} color="#333" />
+              </TouchableOpacity>
+            </View>
+            
+            {uploading ? (
+              <View style={styles.uploadingContainer}>
+                <ActivityIndicator size="large" color={theme.primary} />
+                <Text style={styles.uploadingText}>Enviando sua foto...</Text>
+              </View>
+            ) : (
+              <>
+                <View style={styles.currentPhotoContainer}>
+                  <Image 
+                    source={{ 
+                      uri: currentUser?.profile_picture_url || (theme === themes.masculine 
+                        ? 'https://randomuser.me/api/portraits/men/36.jpg'
+                        : 'https://randomuser.me/api/portraits/women/44.jpg')
+                    }}
+                    style={styles.currentPhoto} 
+                  />
+                </View>
+                
+                <View style={styles.buttonContainer}>
+                  <TouchableOpacity 
+                    style={[styles.photoButton, { backgroundColor: theme.primary }]}
+                    onPress={takePhoto}
+                  >
+                    <View style={styles.buttonContent}>
+                      <Camera size={24} color="#fff" style={styles.buttonIcon} />
+                      <Text style={styles.buttonText}>Tirar Foto</Text>
+                    </View>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity 
+                    style={[styles.photoButton, { backgroundColor: theme.secondary }]}
+                    onPress={pickImage}
+                  >
+                    <View style={styles.buttonContent}>
+                      <ImageIcon size={24} color="#fff" style={styles.buttonIcon} />
+                      <Text style={styles.buttonText}>Escolher Foto</Text>
+                    </View>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
           </View>
         </View>
       </Modal>
@@ -1989,5 +2184,115 @@ const styles = StyleSheet.create({
     right: 12,
     top: '50%',
     marginTop: -8,
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalContent: {
+    backgroundColor: 'white',
+    borderTopLeftRadius: 25,
+    borderTopRightRadius: 25,
+    padding: 20,
+    paddingBottom: 40,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: -4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 10,
+      },
+      android: {
+        elevation: 10,
+      },
+    }),
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontFamily: fontFallbacks.Poppins_600SemiBold,
+    color: '#333',
+  },
+  closeButton: {
+    padding: 5,
+  },
+  currentPhotoContainer: {
+    alignItems: 'center',
+    marginBottom: 30,
+  },
+  currentPhoto: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    borderWidth: 3,
+    borderColor: '#f0f0f0',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
+  },
+  buttonContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 10,
+    gap: 20,
+  },
+  photoButton: {
+    flex: 1,
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
+  },
+  buttonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  buttonIcon: {
+    marginRight: 10,
+  },
+  buttonText: {
+    fontSize: 16,
+    fontFamily: fontFallbacks.Poppins_600SemiBold,
+    color: '#ffffff',
+  },
+  uploadingContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginVertical: 40,
+    height: 100,
+  },
+  uploadingText: {
+    fontSize: 16,
+    fontFamily: fontFallbacks.Poppins_400Regular,
+    color: '#333',
+    marginTop: 15,
   },
 }); 

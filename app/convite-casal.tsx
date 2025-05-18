@@ -52,11 +52,86 @@ function extractParamsFromUrl() {
       email: currentParams.get('email')
     });
     
-    // Try parsing hash params if they exist
+    // Tentar extrair de hash de autenticação do Supabase
     if (window.location.hash) {
+      const hashContent = window.location.hash;
+      console.log("DEPURAÇÃO - Hash completo:", hashContent);
+      
+      // Primeiro, verificar se é um formato de autenticação do Supabase 
+      // (geralmente contém access_token e type=invite no final)
+      if (hashContent.includes('access_token=') && hashContent.includes('type=invite')) {
+        // Extrair a parte após o último ponto de interrogação (que contém os parâmetros do convite)
+        const hashParts = hashContent.split('?');
+        if (hashParts.length > 1) {
+          // Pegar a última parte após o ponto de interrogação
+          const inviteParams = new URLSearchParams(hashParts[hashParts.length - 1]);
+          
+          console.log("DEPURAÇÃO - Parâmetros de convite extraídos do hash:", {
+            token: inviteParams.get('token'),
+            inviter: inviteParams.get('inviter'),
+            couple: inviteParams.get('couple'),
+            email: inviteParams.get('email')
+          });
+          
+          if (inviteParams.get('token') && inviteParams.get('inviter') && inviteParams.get('couple')) {
+            return {
+              token: inviteParams.get('token'),
+              inviter: inviteParams.get('inviter'),
+              couple: inviteParams.get('couple'),
+              email: inviteParams.get('email')
+            };
+          }
+        }
+        
+        // Se não encontrou após o último ?, tentar decodificar o JWT para extrair metadados
+        const match = hashContent.match(/access_token=([^&]*)/);
+        if (match && match[1]) {
+          try {
+            const jwt = match[1];
+            console.log("DEPURAÇÃO - Token JWT encontrado, tentando extrair metadados");
+            
+            // Função para decodificar JWT
+            const parseJwt = (token) => {
+              try {
+                const base64Url = token.split('.')[1];
+                const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+                  return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+                }).join(''));
+                return JSON.parse(jsonPayload);
+              } catch (e) {
+                console.error("Erro ao decodificar JWT:", e);
+                return null;
+              }
+            };
+            
+            const payload = parseJwt(jwt);
+            console.log("DEPURAÇÃO - Payload do token:", payload);
+            
+            if (payload?.user_metadata) {
+              const metadata = payload.user_metadata;
+              console.log("DEPURAÇÃO - Metadados do usuário:", metadata);
+              
+              // Extrair dados do convite dos metadados
+              if (metadata.invitation_token && metadata.inviter_id && metadata.couple_id) {
+                return {
+                  token: metadata.invitation_token,
+                  inviter: metadata.inviter_id,
+                  couple: metadata.couple_id,
+                  email: payload.email
+                };
+              }
+            }
+          } catch (e) {
+            console.error("Erro ao processar JWT:", e);
+          }
+        }
+      }
+      
+      // Se não encontrou no formato específico, tentar como URLSearchParams normal
       try {
         const hashParams = new URLSearchParams(window.location.hash.substring(1));
-        console.log("DEPURAÇÃO - Parâmetros do hash:", {
+        console.log("DEPURAÇÃO - Parâmetros do hash simples:", {
           token: hashParams.get('token'),
           inviter: hashParams.get('inviter'),
           couple: hashParams.get('couple'),

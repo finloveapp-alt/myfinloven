@@ -33,6 +33,12 @@ const themes = {
   }
 };
 
+// Definindo um themeDefault para ser usado no StyleSheet estático
+const themeDefault = {
+  text: '#333333',
+  primary: '#b687fe'
+};
+
 // Mock data para registros de transações (expandido com mais exemplos)
 const records = [
   {
@@ -788,7 +794,7 @@ export default function Registers() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Nova Transação</Text>
               <TouchableOpacity style={styles.closeButton} onPress={closeModal}>
-                <X size={20} color={theme.text} />
+                <X size={20} color={themeDefault.text} />
               </TouchableOpacity>
             </View>
 
@@ -1498,7 +1504,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 20,
     fontFamily: fontFallbacks.Poppins_600SemiBold,
-    color: theme.text,
+    color: themeDefault.text,
   },
   closeButton: {
     padding: 8,
@@ -1523,7 +1529,7 @@ const styles = StyleSheet.create({
   transactionTypeText: {
     fontSize: 16,
     fontFamily: fontFallbacks.Poppins_500Medium,
-    color: theme.text,
+    color: themeDefault.text,
     marginLeft: 6,
   },
   activeTypeText: {
@@ -1536,7 +1542,7 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: 14,
     fontFamily: fontFallbacks.Poppins_500Medium,
-    color: theme.text,
+    color: themeDefault.text,
     marginBottom: 8,
   },
   dateInput: {
@@ -1564,14 +1570,14 @@ const styles = StyleSheet.create({
   currencySymbol: {
     fontSize: 16,
     fontFamily: fontFallbacks.Poppins_600SemiBold,
-    color: theme.text,
+    color: themeDefault.text,
     marginRight: 5,
   },
   amountInput: {
     flex: 1,
     fontSize: 16,
     fontFamily: fontFallbacks.Poppins_500Medium,
-    color: theme.text,
+    color: themeDefault.text,
   },
   paymentMethodFullButton: {
     flexDirection: 'row',
@@ -1592,7 +1598,7 @@ const styles = StyleSheet.create({
   paymentMethodSelectedText: {
     fontSize: 16,
     fontFamily: fontFallbacks.Poppins_500Medium,
-    color: theme.primary,
+    color: themeDefault.primary,
     flex: 1,
   },
   paymentMethodText: {
@@ -1623,7 +1629,7 @@ const styles = StyleSheet.create({
   addCategoryText: {
     fontSize: 14,
     fontFamily: fontFallbacks.Poppins_500Medium,
-    color: theme.primary,
+    color: themeDefault.primary,
     marginLeft: 5,
   },
   saveButton: {
@@ -1769,11 +1775,11 @@ const styles = StyleSheet.create({
   paymentMethodOptionText: {
     fontSize: 16,
     fontFamily: fontFallbacks.Poppins_500Medium,
-    color: theme.text,
+    color: themeDefault.text,
     marginLeft: 12,
   },
   paymentMethodOptionTextSelected: {
-    color: theme.primary,
+    color: themeDefault.primary,
     fontFamily: fontFallbacks.Poppins_600SemiBold,
   },
   menuModalContainer: {

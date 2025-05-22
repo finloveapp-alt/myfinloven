@@ -618,11 +618,11 @@ export default function Registers() {
               selectedDay === day.day && day.currentMonth ? styles.selectedDayCircle : null
             ]}
           >
-            <Text
+                          <Text
               style={[
                 styles.calendarDay,
                 day.currentMonth ? styles.currentMonthDay : styles.otherMonthDay,
-                selectedDay === day.day && day.currentMonth ? styles.selectedDayText : null
+                selectedDay === day.day && day.currentMonth ? [styles.selectedDayText, { color: theme.primary }] : null
               ]}
             >
               {day.day}

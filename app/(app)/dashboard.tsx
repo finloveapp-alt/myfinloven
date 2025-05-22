@@ -108,6 +108,7 @@ export default function Dashboard() {
   const [inviting, setInviting] = useState(false);
   const [isUserInviter, setIsUserInviter] = useState(false);
   const [isInviteAvatar, setIsInviteAvatar] = useState(false); // Novo estado para marcar convite como avatar
+  const [avatarPassword, setAvatarPassword] = useState(''); // Adicionar novamente o estado para senha
   
   useEffect(() => {
     // Verifica se existe um tema definido globalmente
@@ -492,6 +493,12 @@ export default function Dashboard() {
       return;
     }
     
+    // Validar senha se for avatar
+    if (isInviteAvatar && (!avatarPassword || avatarPassword.length < 6)) {
+      Alert.alert('Erro', 'Por favor, defina uma senha com pelo menos 6 caracteres para o avatar');
+      return;
+    }
+    
     setInviting(true);
     try {
       if (!currentUser) {
@@ -505,10 +512,7 @@ export default function Dashboard() {
       if (isInviteAvatar) {
         try {
           // Para avatar, cria um usuário real no Supabase através de uma chamada direta ao backend
-          // Gerar senha aleatória para o avatar
-          const avatarPassword = Math.random().toString(36).substring(2, 10) + 
-            Math.random().toString(36).substring(2, 10);
-            
+          // Usar a senha informada pelo usuário em vez de gerar uma aleatória
           console.log('Criando usuário avatar...');
           
           // Primeiro criar uma entrada pendente na tabela couples
@@ -531,7 +535,7 @@ export default function Dashboard() {
           // Criar o avatar através do método de sign up normal
           const { data: authData, error: authError } = await supabase.auth.signUp({
             email: inviteEmail.trim().toLowerCase(),
-            password: avatarPassword,
+            password: avatarPassword, // Usar senha digitada pelo usuário
             options: {
               data: {
                 is_avatar: true,
@@ -603,6 +607,10 @@ export default function Dashboard() {
               fetchUserAndPartner();
             }}]
           );
+          
+          // Limpar a senha ao concluir com sucesso
+          setAvatarPassword('');
+          
         } catch (error) {
           console.error('Erro ao criar avatar:', error);
           Alert.alert('Erro', error.message || 'Falha ao criar o avatar');
@@ -1453,6 +1461,7 @@ export default function Dashboard() {
                 onPress={() => {
                   setInviteModalVisible(false);
                   setIsInviteAvatar(false);
+                  setAvatarPassword(''); // Limpar a senha ao fechar
                 }}
               >
                 <X size={24} color="#333" />
@@ -1503,6 +1512,23 @@ export default function Dashboard() {
                   </View>
                   <Text style={styles.checkboxLabel}>Marcar este convite como avatar</Text>
                 </TouchableOpacity>
+                
+                {/* Campo de senha para o avatar */}
+                {isInviteAvatar && (
+                  <View style={styles.inputContainer}>
+                    <Text style={styles.inputLabel}>Senha do Avatar</Text>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="Digite uma senha para o avatar"
+                      secureTextEntry={true}
+                      value={avatarPassword}
+                      onChangeText={setAvatarPassword}
+                    />
+                    <Text style={styles.passwordHint}>
+                      Esta senha será usada para acessar a conta do avatar. Mínimo de 6 caracteres.
+                    </Text>
+                  </View>
+                )}
                 
                 <TouchableOpacity
                   style={[styles.inviteButton, { backgroundColor: theme.primary }]}

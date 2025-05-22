@@ -90,6 +90,7 @@ interface UserProfile {
   avatar_url?: string;
   profile_picture_url?: string;
   account_type?: string;
+  is_avatar?: boolean; // Nova propriedade para indicar se é um avatar
 }
 
 export default function Dashboard() {
@@ -100,6 +101,7 @@ export default function Dashboard() {
   const [pressedCard, setPressedCard] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [partnerUser, setPartnerUser] = useState<UserProfile | null>(null);
+  const [partnerUsers, setPartnerUsers] = useState<UserProfile[]>([]); // Novo estado para armazenar múltiplos parceiros
   const [profilePictureModalVisible, setProfilePictureModalVisible] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
@@ -120,11 +122,11 @@ export default function Dashboard() {
       console.log('Dashboard: Aplicando tema feminino (rosa)');
     }
     
-    // Buscar informações do usuário atual e seu parceiro
+    // Buscar informações do usuário atual e seus parceiros
     fetchUserAndPartner();
   }, []);
   
-  // Função para buscar o usuário atual e seu parceiro
+  // Função para buscar o usuário atual e seus parceiros
   const fetchUserAndPartner = async () => {
     try {
       // Obter a sessão atual
@@ -191,57 +193,81 @@ export default function Dashboard() {
           profile_picture_url: userProfile.profile_picture_url || null,
           avatar_url: userProfile.profile_picture_url || (userProfile.gender?.toLowerCase() === 'homem' ? 
             'https://randomuser.me/api/portraits/men/36.jpg' : 
-            'https://randomuser.me/api/portraits/women/44.jpg')
+            'https://randomuser.me/api/portraits/women/44.jpg'),
+          is_avatar: userProfile.is_avatar || false
         });
       }
       
-      // Buscar relacionamento de casal
-      const { data: coupleData, error: coupleError } = await supabase
+      // Buscar todos os relacionamentos de casal ativos
+      const { data: couplesData, error: couplesError } = await supabase
         .from('couples')
-        .select('*')
+        .select('id, user1_id, user2_id, is_avatar')
         .or(`user1_id.eq.${userId},user2_id.eq.${userId}`)
-        .eq('status', 'active')
-        .limit(1);
+        .eq('status', 'active');
         
-      if (coupleError) {
-        console.error('Erro ao buscar relacionamento de casal:', coupleError);
+      if (couplesError) {
+        console.error('Erro ao buscar relacionamentos de casal:', couplesError);
         return;
       }
       
-      // Verificar se encontrou algum casal ativo
-      if (coupleData && coupleData.length > 0) {
-        // Usar o primeiro casal ativo encontrado
-        const activeCoupleData = coupleData[0];
+      console.log(`Encontrados ${couplesData?.length || 0} casais ativos para o usuário`);
+      
+      // Verificar se encontrou casais ativos
+      if (couplesData && couplesData.length > 0) {
+        // Array para armazenar todos os parceiros
+        const partnerProfiles: UserProfile[] = [];
         
-        // Determinar o ID do parceiro
-        const partnerId = activeCoupleData.user1_id === userId ? activeCoupleData.user2_id : activeCoupleData.user1_id;
-        
-        if (partnerId) {
-          // Buscar o perfil do parceiro
-          const { data: partnerProfile, error: partnerError } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', partnerId)
-            .single();
-            
-          if (partnerError) {
-            console.error('Erro ao buscar perfil do parceiro:', partnerError);
-            return;
-          }
+        // Para cada casal, buscar o perfil do parceiro
+        for (const coupleData of couplesData) {
+          // Determinar o ID do parceiro
+          const partnerId = coupleData.user1_id === userId ? coupleData.user2_id : coupleData.user1_id;
           
-          if (partnerProfile) {
-            setPartnerUser({
-              id: partnerProfile.id,
-              name: partnerProfile.name || 'Parceiro',
-              email: partnerProfile.email || '',
-              gender: partnerProfile.gender || '',
-              profile_picture_url: partnerProfile.profile_picture_url || null,
-              avatar_url: partnerProfile.profile_picture_url || (partnerProfile.gender?.toLowerCase() === 'homem' ? 
-                'https://randomuser.me/api/portraits/men/42.jpg' : 
-                'https://randomuser.me/api/portraits/women/33.jpg')
-            });
+          if (partnerId) {
+            // Buscar o perfil do parceiro
+            const { data: partnerProfile, error: partnerError } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', partnerId)
+              .single();
+              
+            if (partnerError) {
+              console.error(`Erro ao buscar perfil do parceiro (${partnerId}):`, partnerError);
+              continue;
+            }
+            
+            if (partnerProfile) {
+              const partnerProfileData: UserProfile = {
+                id: partnerProfile.id,
+                name: partnerProfile.name || 'Parceiro',
+                email: partnerProfile.email || '',
+                gender: partnerProfile.gender || '',
+                profile_picture_url: partnerProfile.profile_picture_url || null,
+                avatar_url: partnerProfile.profile_picture_url || (partnerProfile.gender?.toLowerCase() === 'homem' ? 
+                  'https://randomuser.me/api/portraits/men/42.jpg' : 
+                  'https://randomuser.me/api/portraits/women/33.jpg'),
+                is_avatar: coupleData.is_avatar || false
+              };
+              
+              partnerProfiles.push(partnerProfileData);
+              
+              // Se não havia parceiro principal definido ainda, define o primeiro como principal
+              if (!partnerUser && !coupleData.is_avatar) {
+                setPartnerUser(partnerProfileData);
+              }
+            }
           }
         }
+        
+        // Atualizar o estado com todos os parceiros encontrados
+        setPartnerUsers(partnerProfiles);
+        
+        // Se não conseguimos definir um parceiro principal e temos ao menos um parceiro, use o primeiro
+        if (!partnerUser && partnerProfiles.length > 0) {
+          setPartnerUser(partnerProfiles[0]);
+        }
+      } else {
+        console.log('Nenhum casal ativo encontrado para este usuário');
+        setPartnerUsers([]);
       }
     } catch (error) {
       console.error('Erro ao buscar usuários:', error);
@@ -620,7 +646,8 @@ export default function Dashboard() {
                 email: inviteEmail.trim().toLowerCase(),
                 name: `Avatar (${inviteEmail.split('@')[0]})`,
                 account_type: 'avatar',
-                gender: currentUser.gender === 'masculino' ? 'feminino' : 'masculino' // Gênero oposto ao usuário atual
+                gender: currentUser.gender === 'masculino' ? 'feminino' : 'masculino', // Gênero oposto ao usuário atual
+                is_avatar: true // Marcar explicitamente como avatar no perfil
               });
               
             if (profileError) {
@@ -847,16 +874,29 @@ export default function Dashboard() {
                 />
               )}
               
-              {partnerUser && (
-                <Image
-                  source={{ uri: partnerUser.avatar_url || (theme === themes.masculine 
-                    ? 'https://randomuser.me/api/portraits/women/33.jpg'
-                    : 'https://randomuser.me/api/portraits/men/42.jpg') }}
-                  style={styles.userAvatar}
-                />
-              )}
+              {/* Exibir todos os parceiros encontrados */}
+              {partnerUsers.map((partner, index) => (
+                <TouchableOpacity 
+                  key={`partner-${partner.id}-${index}`}
+                  onPress={() => {
+                    Alert.alert(
+                      partner.is_avatar ? 'Avatar' : 'Parceiro',
+                      `${partner.name}${partner.is_avatar ? ' (Avatar)' : ''}`
+                    );
+                  }}
+                >
+                  <Image
+                    source={{ uri: partner.avatar_url }}
+                    style={[
+                      styles.userAvatar,
+                      partner.is_avatar ? styles.avatarPartner : null
+                    ]}
+                    accessibilityLabel={`${partner.name}${partner.is_avatar ? ' (Avatar)' : ''}`}
+                  />
+                </TouchableOpacity>
+              ))}
               
-              {/* Botão de adicionar usuário apenas se o usuário atual for um convidador ou não tiver um par */}
+              {/* Botão de adicionar usuário apenas se o usuário atual for um convidador */}
               {console.log('Renderização condicional do botão +:', { 
                 currentUser: currentUser,
                 currentUserAccountType: currentUser?.account_type,
@@ -1904,6 +1944,11 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: 'white',
     marginLeft: -10,
+  },
+  avatarPartner: {
+    borderColor: '#FFD700', // Borda dourada para indicar que é um avatar
+    borderWidth: 3, // Borda mais espessa
+    opacity: 0.85, // Leve opacidade para distinguir
   },
   addUserAvatar: {
     width: 36,

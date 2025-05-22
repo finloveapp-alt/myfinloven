@@ -20,6 +20,7 @@ const themes = {
     expense: '#FF3B30',
     income: '#4CD964',
     shared: '#0073ea',
+    text: '#333333'
   },
   masculine: {
     primary: '#0073ea',
@@ -30,13 +31,21 @@ const themes = {
     expense: '#FF3B30',
     income: '#4CD964',
     shared: '#8B5CF6',
+    text: '#333333'
   }
 };
 
 // Definindo um themeDefault para ser usado no StyleSheet estático
 const themeDefault = {
-  text: '#333333',
-  primary: '#b687fe'
+  primary: '#b687fe',
+  secondary: '#8B5CF6',
+  accent: '#FF3B30',
+  background: '#f5f7fa',
+  card: '#ffffff',
+  expense: '#FF3B30',
+  income: '#4CD964',
+  shared: '#0073ea',
+  text: '#333333'
 };
 
 // Mock data para registros de transações (expandido com mais exemplos)
@@ -1212,10 +1221,11 @@ export default function Registers() {
   );
 }
 
+// Definir o StyleSheet totalmente estático sem nenhuma referência ao tema dinâmico
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    // backgroundColor será aplicado inline
   },
   mainScrollView: {
     flex: 1,
@@ -1229,6 +1239,7 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
+    // backgroundColor será aplicado inline
   },
   headerTop: {
     flexDirection: 'row',
@@ -1410,6 +1421,7 @@ const styles = StyleSheet.create({
         elevation: 4,
       },
     }),
+    // backgroundColor será aplicado inline
   },
   addTransactionButtonText: {
     fontSize: 14,
@@ -1504,7 +1516,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 20,
     fontFamily: fontFallbacks.Poppins_600SemiBold,
-    color: themeDefault.text,
+    color: '#333333',
   },
   closeButton: {
     padding: 8,
@@ -1525,15 +1537,16 @@ const styles = StyleSheet.create({
   },
   activeTypeButton: {
     borderWidth: 1,
+    // borderColor será aplicado inline
   },
   transactionTypeText: {
     fontSize: 16,
     fontFamily: fontFallbacks.Poppins_500Medium,
-    color: themeDefault.text,
+    color: '#333333',
     marginLeft: 6,
   },
   activeTypeText: {
-    color: themeDefault.primary,
+    // color será aplicado inline
     fontFamily: fontFallbacks.Poppins_600SemiBold,
   },
   inputGroup: {
@@ -1542,7 +1555,7 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: 14,
     fontFamily: fontFallbacks.Poppins_500Medium,
-    color: themeDefault.text,
+    color: '#333333',
     marginBottom: 8,
   },
   dateInput: {
@@ -1570,14 +1583,14 @@ const styles = StyleSheet.create({
   currencySymbol: {
     fontSize: 16,
     fontFamily: fontFallbacks.Poppins_600SemiBold,
-    color: themeDefault.text,
+    color: '#333333',
     marginRight: 5,
   },
   amountInput: {
     flex: 1,
     fontSize: 16,
     fontFamily: fontFallbacks.Poppins_500Medium,
-    color: themeDefault.text,
+    color: '#333333',
   },
   paymentMethodFullButton: {
     flexDirection: 'row',
@@ -1591,14 +1604,14 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
   },
   paymentMethodSelected: {
-    borderColor: theme.primary,
+    // borderColor será aplicado inline
     borderWidth: 1.5,
     backgroundColor: 'rgba(182, 135, 254, 0.05)',
   },
   paymentMethodSelectedText: {
     fontSize: 16,
     fontFamily: fontFallbacks.Poppins_500Medium,
-    color: themeDefault.primary,
+    color: '#b687fe', // Usando uma cor fixa que será atualizada inline quando necessário
     flex: 1,
   },
   paymentMethodText: {
@@ -1629,7 +1642,7 @@ const styles = StyleSheet.create({
   addCategoryText: {
     fontSize: 14,
     fontFamily: fontFallbacks.Poppins_500Medium,
-    color: themeDefault.primary,
+    color: '#b687fe', // Usando uma cor fixa que será atualizada inline quando necessário
     marginLeft: 5,
   },
   saveButton: {
@@ -1637,6 +1650,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     marginTop: 24,
+    // backgroundColor será aplicado inline
   },
   saveButtonText: {
     fontSize: 16,
@@ -1775,11 +1789,11 @@ const styles = StyleSheet.create({
   paymentMethodOptionText: {
     fontSize: 16,
     fontFamily: fontFallbacks.Poppins_500Medium,
-    color: themeDefault.text,
+    color: '#333333',
     marginLeft: 12,
   },
   paymentMethodOptionTextSelected: {
-    color: themeDefault.primary,
+    color: '#b687fe', // Usando uma cor fixa que será atualizada inline quando necessário
     fontFamily: fontFallbacks.Poppins_600SemiBold,
   },
   menuModalContainer: {
@@ -1804,6 +1818,7 @@ const styles = StyleSheet.create({
         elevation: 10,
       },
     }),
+    // backgroundColor será aplicado inline
   },
   menuHeader: {
     flexDirection: 'row',
@@ -1874,6 +1889,7 @@ const styles = StyleSheet.create({
         elevation: 3,
       },
     }),
+    // backgroundColor será aplicado inline
   },
   closeFullButtonText: {
     color: '#ffffff',
@@ -1941,5 +1957,6 @@ const styles = StyleSheet.create({
         elevation: 5,
       },
     }),
+    // backgroundColor será aplicado inline
   },
 }); 

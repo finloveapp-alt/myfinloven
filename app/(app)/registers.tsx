@@ -1533,7 +1533,7 @@ const styles = StyleSheet.create({
     marginLeft: 6,
   },
   activeTypeText: {
-    color: theme.primary,
+    color: themeDefault.primary,
     fontFamily: fontFallbacks.Poppins_600SemiBold,
   },
   inputGroup: {

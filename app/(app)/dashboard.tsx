@@ -201,40 +201,46 @@ export default function Dashboard() {
         .select('*')
         .or(`user1_id.eq.${userId},user2_id.eq.${userId}`)
         .eq('status', 'active')
-        .single();
+        .limit(1);
         
-      if (coupleError && coupleError.code !== 'PGRST116') { // PGRST116 é o código para "nenhum resultado" no PostgREST
+      if (coupleError) {
         console.error('Erro ao buscar relacionamento de casal:', coupleError);
         return;
       }
       
-      if (coupleData) {
+      // Verificar se encontrou algum casal ativo
+      if (coupleData && coupleData.length > 0) {
+        // Usar o primeiro casal ativo encontrado
+        const activeCoupleData = coupleData[0];
+        
         // Determinar o ID do parceiro
-        const partnerId = coupleData.user1_id === userId ? coupleData.user2_id : coupleData.user1_id;
+        const partnerId = activeCoupleData.user1_id === userId ? activeCoupleData.user2_id : activeCoupleData.user1_id;
         
-        // Buscar o perfil do parceiro
-        const { data: partnerProfile, error: partnerError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', partnerId)
-          .single();
+        if (partnerId) {
+          // Buscar o perfil do parceiro
+          const { data: partnerProfile, error: partnerError } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', partnerId)
+            .single();
+            
+          if (partnerError) {
+            console.error('Erro ao buscar perfil do parceiro:', partnerError);
+            return;
+          }
           
-        if (partnerError) {
-          console.error('Erro ao buscar perfil do parceiro:', partnerError);
-          return;
-        }
-        
-        if (partnerProfile) {
-          setPartnerUser({
-            id: partnerProfile.id,
-            name: partnerProfile.name || 'Parceiro',
-            email: partnerProfile.email || '',
-            gender: partnerProfile.gender || '',
-            profile_picture_url: partnerProfile.profile_picture_url || null,
-            avatar_url: partnerProfile.profile_picture_url || (partnerProfile.gender?.toLowerCase() === 'homem' ? 
-              'https://randomuser.me/api/portraits/men/42.jpg' : 
-              'https://randomuser.me/api/portraits/women/33.jpg')
-          });
+          if (partnerProfile) {
+            setPartnerUser({
+              id: partnerProfile.id,
+              name: partnerProfile.name || 'Parceiro',
+              email: partnerProfile.email || '',
+              gender: partnerProfile.gender || '',
+              profile_picture_url: partnerProfile.profile_picture_url || null,
+              avatar_url: partnerProfile.profile_picture_url || (partnerProfile.gender?.toLowerCase() === 'homem' ? 
+                'https://randomuser.me/api/portraits/men/42.jpg' : 
+                'https://randomuser.me/api/portraits/women/33.jpg')
+            });
+          }
         }
       }
     } catch (error) {
@@ -571,13 +577,13 @@ export default function Dashboard() {
                 .select('id, status')
                 .or(`user1_id.eq.${avatarUserId},user2_id.eq.${avatarUserId}`)
                 .not('status', 'eq', 'rejected')
-                .maybeSingle();
+                .limit(1);
               
               if (coupleCheckError) {
                 console.error('Erro ao verificar casal existente:', coupleCheckError);
               }
               
-              if (existingCouple && existingCouple.status === 'active') {
+              if (existingCouple && existingCouple.length > 0 && existingCouple[0].status === 'active') {
                 throw new Error('Este avatar já está vinculado a outro usuário.');
               }
               

@@ -515,22 +515,23 @@ export default function LoginForm() {
             .from('couples')
             .select('*')
             .or(`user1_id.eq.${data.user.id},user2_id.eq.${data.user.id}`)
-            .maybeSingle();
+            .order('created_at', { ascending: false })
+            .limit(1);
             
           if (coupleError) {
             console.error('Erro ao verificar associação de casal:', coupleError);
-          } else if (coupleData) {
-            console.log('Associação de casal encontrada:', coupleData);
+          } else if (coupleData && coupleData.length > 0) {
+            console.log('Associação de casal encontrada:', coupleData[0]);
             
             // Verificar se é um convite pendente
-            if (coupleData.status === 'pending') {
+            if (coupleData[0].status === 'pending') {
               console.log('Atualizando status do casal para active');
               
               // Atualizar status para active
               const { error: updateError } = await supabase
                 .from('couples')
                 .update({ status: 'active' })
-                .eq('id', coupleData.id);
+                .eq('id', coupleData[0].id);
                 
               if (updateError) {
                 console.error('Erro ao atualizar status do casal:', updateError);

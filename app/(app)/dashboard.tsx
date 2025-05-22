@@ -532,7 +532,10 @@ export default function Dashboard() {
             throw new Error('Falha ao criar registro inicial para o avatar');
           }
           
-          // Criar o avatar através do método de sign up normal
+          // Variável para armazenar o ID do usuário avatar
+          let avatarUserId;
+          
+          // Tentar criar o avatar através do método de sign up normal
           const { data: authData, error: authError } = await supabase.auth.signUp({
             email: inviteEmail.trim().toLowerCase(),
             password: avatarPassword, // Usar senha digitada pelo usuário
@@ -546,32 +549,87 @@ export default function Dashboard() {
           });
           
           if (authError) {
-            throw new Error(`Erro ao criar conta para avatar: ${authError.message}`);
+            // Se o erro for de email já em uso, tentar fazer login com as credenciais fornecidas
+            if (authError.message.includes('Email already registered')) {
+              console.log('Email já registrado, tentando fazer login...');
+              const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+                email: inviteEmail.trim().toLowerCase(),
+                password: avatarPassword
+              });
+              
+              if (signInError) {
+                throw new Error(`Erro ao autenticar com email existente: ${signInError.message}. Verifique a senha ou use outro email.`);
+              }
+              
+              // Login bem sucedido, obter o ID do usuário
+              avatarUserId = signInData.user.id;
+              console.log('Login bem sucedido com usuário existente:', avatarUserId);
+              
+              // Verificar se este usuário já está em um casal
+              const { data: existingCouple, error: coupleCheckError } = await supabase
+                .from('couples')
+                .select('id, status')
+                .or(`user1_id.eq.${avatarUserId},user2_id.eq.${avatarUserId}`)
+                .not('status', 'eq', 'rejected')
+                .maybeSingle();
+              
+              if (coupleCheckError) {
+                console.error('Erro ao verificar casal existente:', coupleCheckError);
+              }
+              
+              if (existingCouple && existingCouple.status === 'active') {
+                throw new Error('Este avatar já está vinculado a outro usuário.');
+              }
+              
+              // Fazer logout para não afetar a sessão atual
+              await supabase.auth.signOut();
+            } else {
+              throw new Error(`Erro ao criar conta para avatar: ${authError.message}`);
+            }
+          } else {
+            // Signup bem sucedido
+            avatarUserId = authData.user.id;
+            console.log('Usuário avatar criado:', avatarUserId);
           }
           
-          console.log('Usuário avatar sendo criado...', authData?.user?.id);
-          
-          // Criar perfil para o avatar
-          const { error: profileError } = await supabase
+          // Verificar se o perfil já existe antes de criar
+          const { data: existingProfile, error: profileCheckError } = await supabase
             .from('profiles')
-            .insert({
-              id: authData.user.id,
-              email: inviteEmail.trim().toLowerCase(),
-              name: `Avatar (${inviteEmail.split('@')[0]})`,
-              account_type: 'avatar',
-              gender: currentUser.gender === 'masculino' ? 'feminino' : 'masculino' // Gênero oposto ao usuário atual
-            });
-            
-          if (profileError) {
-            console.error('Erro ao criar perfil do avatar:', profileError);
-            throw new Error('Falha ao criar perfil do avatar');
+            .select('id')
+            .eq('id', avatarUserId)
+            .single();
+          
+          if (profileCheckError && profileCheckError.code !== 'PGRST116') {
+            // PGRST116 significa que não encontrou, que é o esperado
+            console.error('Erro ao verificar perfil existente:', profileCheckError);
+          }
+          
+          // Só criar o perfil se ele não existir
+          if (!existingProfile) {
+            console.log('Criando perfil para o avatar...');
+            const { error: profileError } = await supabase
+              .from('profiles')
+              .insert({
+                id: avatarUserId,
+                email: inviteEmail.trim().toLowerCase(),
+                name: `Avatar (${inviteEmail.split('@')[0]})`,
+                account_type: 'avatar',
+                gender: currentUser.gender === 'masculino' ? 'feminino' : 'masculino' // Gênero oposto ao usuário atual
+              });
+              
+            if (profileError) {
+              console.error('Erro ao criar perfil do avatar:', profileError);
+              throw new Error('Falha ao criar perfil do avatar');
+            }
+          } else {
+            console.log('Perfil do avatar já existe, pulando criação');
           }
           
           // Atualizar o registro couples com o user2_id
           const { error: updateError } = await supabase
             .from('couples')
             .update({
-              user2_id: authData.user.id,
+              user2_id: avatarUserId,
               status: 'active'
             })
             .eq('id', coupleData.id);
@@ -588,7 +646,7 @@ export default function Dashboard() {
               'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
             },
             body: JSON.stringify({
-              avatarId: authData.user.id,
+              avatarId: avatarUserId,
               avatarEmail: inviteEmail.trim().toLowerCase()
             })
           });
@@ -603,6 +661,7 @@ export default function Dashboard() {
             [{ text: 'OK', onPress: () => {
               setInviteModalVisible(false);
               setIsInviteAvatar(false);
+              setAvatarPassword('');
               // Atualizar os dados do usuário e parceiro
               fetchUserAndPartner();
             }}]

@@ -179,6 +179,14 @@ const months = [
   'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
 ];
 
+// Lista de contas demo
+const demoAccounts = [
+  { id: '1', name: 'Nubank', type: 'Conta Corrente', icon: '💜' },
+  { id: '2', name: 'Santander', type: 'Conta Poupança', icon: '🔴' },
+  { id: '3', name: 'Caixa', type: 'Conta Corrente', icon: '🏦' },
+  { id: '4', name: 'Inter', type: 'Conta Digital', icon: '🟠' }
+];
+
 export default function Registers() {
   const router = useRouter();
   const currentDate = new Date();
@@ -197,6 +205,7 @@ export default function Registers() {
   const [selectedCategory, setSelectedCategory] = useState('');
   const [recurrenceType, setRecurrenceType] = useState('Não recorrente');
   const [selectedAccount, setSelectedAccount] = useState('');
+  const [accountsVisible, setAccountsVisible] = useState(false);
   const [calendarVisible, setCalendarVisible] = useState(false);
   const [pickerMonth, setPickerMonth] = useState(currentDate.getMonth());
   const [pickerYear, setPickerYear] = useState(currentDate.getFullYear());
@@ -351,6 +360,7 @@ export default function Registers() {
     setModalVisible(false);
     setCalendarVisible(false);
     setPaymentMethodsVisible(false);
+    setAccountsVisible(false);
   };
 
   // Função para salvar a nova transação
@@ -680,6 +690,24 @@ export default function Registers() {
   const selectPaymentMethod = (method: string) => {
     setPaymentMethod(method);
     setPaymentMethodsVisible(false);
+  };
+
+  // Funções para o seletor de contas
+  const toggleAccounts = () => {
+    setAccountsVisible(!accountsVisible);
+    
+    // Fecha outros dropdowns se estiverem abertos
+    if (paymentMethodsVisible) {
+      setPaymentMethodsVisible(false);
+    }
+    if (calendarVisible) {
+      setCalendarVisible(false);
+    }
+  };
+
+  const selectAccount = (account: { id: string, name: string, type: string, icon: string }) => {
+    setSelectedAccount(account.name);
+    setAccountsVisible(false);
   };
 
   return (
@@ -1024,14 +1052,54 @@ export default function Registers() {
             </View>
 
             {/* Conta */}
-            <View style={styles.inputGroup}>
+            <View style={[styles.inputGroup, { zIndex: 9 }]}>
               <Text style={styles.inputLabel}>Conta</Text>
-              <TouchableOpacity style={styles.selectInput}>
-                <Text style={styles.selectPlaceholder}>
-                  {selectedAccount || 'Selecione'}
-                </Text>
+              <TouchableOpacity 
+                style={[
+                  styles.selectInput,
+                  selectedAccount ? { borderColor: theme.primary, borderWidth: 1.5 } : null
+                ]} 
+                onPress={toggleAccounts}
+              >
+                {selectedAccount ? (
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Text style={[styles.selectPlaceholder, { color: theme.primary, fontFamily: fontFallbacks.Poppins_500Medium }]}>
+                      {selectedAccount}
+                    </Text>
+                  </View>
+                ) : (
+                  <Text style={styles.selectPlaceholder}>Selecione</Text>
+                )}
                 <ChevronRight size={20} color="#666" style={{ transform: [{ rotate: '90deg' }] as any }} />
               </TouchableOpacity>
+              
+              {accountsVisible && (
+                <View style={styles.paymentMethodsDropdown}>
+                  {demoAccounts.map((account) => (
+                    <TouchableOpacity 
+                      key={account.id}
+                      style={[
+                        styles.paymentMethodOption,
+                        selectedAccount === account.name && styles.paymentMethodOptionSelected,
+                        account.id === demoAccounts[demoAccounts.length - 1].id && {borderBottomWidth: 0}
+                      ]} 
+                      onPress={() => selectAccount(account)}
+                    >
+                      <Text style={{ fontSize: 20, marginRight: 10 }}>{account.icon}</Text>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[
+                          styles.paymentMethodOptionText,
+                          selectedAccount === account.name && styles.paymentMethodOptionTextSelected
+                        ]}>{account.name}</Text>
+                        <Text style={{ fontSize: 12, color: '#777', fontFamily: fontFallbacks.Poppins_400Regular }}>
+                          {account.type}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+              
               <TouchableOpacity style={styles.addCategoryButton}>
                 <PlusCircle size={16} color={theme.primary} />
                 <Text style={styles.addCategoryText}>Adicionar Nova Conta</Text>

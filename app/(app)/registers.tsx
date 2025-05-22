@@ -903,7 +903,7 @@ export default function Registers() {
               </View>
             </View>
 
-            <View style={styles.inputGroup}>
+            <View style={[styles.inputGroup, { zIndex: 10 }]}>
               <Text style={styles.inputLabel}>Forma de Pagamento</Text>
               <TouchableOpacity 
                 style={[
@@ -1503,6 +1503,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 20,
     width: '100%',
     maxHeight: '90%',
+    zIndex: 1,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -1774,7 +1775,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 8,
-    zIndex: 999,
+    zIndex: 9999,
   },
   paymentMethodOption: {
     flexDirection: 'row',

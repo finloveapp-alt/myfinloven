@@ -1,17 +1,36 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Dimensions, Platform, Modal, TextInput } from 'react-native';
 import { ChevronLeft, ChevronRight, Search, ArrowLeft, Filter, Plus, PlusCircle, X, Calendar, ArrowRight, ArrowDown, DollarSign, CreditCard, RefreshCw, BarChart, Menu, Home, Bell, Receipt, Wallet, Info, ExternalLink } from 'lucide-react-native';
 import { StatusBar } from 'expo-status-bar';
 import BottomNavigation from '@/components/BottomNavigation';
 import { router, useRouter } from 'expo-router';
 import { fontFallbacks } from '@/utils/styles';
+import { supabase } from '@/lib/supabase';
 
 const { width } = Dimensions.get('window');
-const theme = {
-  primary: '#b687fe',
-  secondary: '#0073ea',
-  card: '#ffffff',
-  text: '#131313',
+
+// Definição de temas
+const themes = {
+  feminine: {
+    primary: '#b687fe',
+    secondary: '#8B5CF6',
+    accent: '#FF3B30',
+    background: '#f5f7fa',
+    card: '#ffffff',
+    expense: '#FF3B30',
+    income: '#4CD964',
+    shared: '#0073ea',
+  },
+  masculine: {
+    primary: '#0073ea',
+    secondary: '#3c79e6',
+    accent: '#FF3B30',
+    background: '#f5f7fa',
+    card: '#ffffff',
+    expense: '#FF3B30',
+    income: '#4CD964',
+    shared: '#8B5CF6',
+  }
 };
 
 // Mock data para registros de transações (expandido com mais exemplos)
@@ -148,6 +167,7 @@ const months = [
 export default function Registers() {
   const router = useRouter();
   const currentDate = new Date();
+  const [theme, setTheme] = useState(themes.feminine); // Iniciar com tema feminino como padrão
   const [currentMonth, setCurrentMonth] = useState(currentDate.getMonth()); // Mês atual (0-indexed)
   const [currentYear, setCurrentYear] = useState(currentDate.getFullYear()); // Ano atual
   const [selectedDay, setSelectedDay] = useState(currentDate.getDate()); // Dia atual
@@ -168,6 +188,143 @@ export default function Registers() {
   const [pickerDay, setPickerDay] = useState(currentDate.getDate());
   const [paymentMethod, setPaymentMethod] = useState('');
   const [paymentMethodsVisible, setPaymentMethodsVisible] = useState(false);
+
+  // useEffect para carregar o tema com base no gênero do usuário
+  useEffect(() => {
+    // Buscar informações do usuário atual
+    fetchUserTheme();
+  }, []);
+  
+  // Função para buscar o tema baseado no perfil do usuário
+  const fetchUserTheme = async () => {
+    try {
+      // Obter a sessão atual
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError) {
+        console.error('Erro ao obter sessão:', sessionError);
+        return;
+      }
+      
+      if (!session?.user) {
+        console.log('Nenhuma sessão de usuário encontrada');
+        return;
+      }
+      
+      const userId = session.user.id;
+      
+      // Buscar o perfil do usuário atual
+      const { data: userProfile, error: userError } = await supabase
+        .from('profiles')
+        .select('gender')
+        .eq('id', userId)
+        .single();
+        
+      if (userError) {
+        console.error('Erro ao buscar perfil do usuário:', userError);
+        return;
+      }
+      
+      console.log('Perfil do usuário obtido do banco:', userProfile);
+      
+      // Definir o tema com base no gênero do usuário
+      if (userProfile && userProfile.gender) {
+        const gender = userProfile.gender.toLowerCase();
+        
+        if (gender === 'masculino' || gender === 'homem' || gender === 'male' || gender === 'm') {
+          console.log('Aplicando tema masculino (azul) com base no perfil');
+          setTheme(themes.masculine);
+          global.dashboardTheme = 'masculine';
+        } else if (gender === 'feminino' || gender === 'mulher' || gender === 'female' || gender === 'f') {
+          console.log('Aplicando tema feminino (rosa) com base no perfil');
+          setTheme(themes.feminine);
+          global.dashboardTheme = 'feminine';
+        } else {
+          // Se o gênero não for reconhecido, tentar obter dos metadados da sessão
+          const userMetadata = session.user.user_metadata;
+          const metadataGender = userMetadata?.gender || '';
+          
+          console.log('Verificando gênero dos metadados:', metadataGender);
+          
+          if (metadataGender && typeof metadataGender === 'string') {
+            const metaGenderLower = metadataGender.toLowerCase();
+            
+            if (metaGenderLower === 'masculino' || metaGenderLower === 'homem' || 
+                metaGenderLower === 'male' || metaGenderLower === 'm') {
+              console.log('Aplicando tema masculino (azul) com base nos metadados');
+              setTheme(themes.masculine);
+              global.dashboardTheme = 'masculine';
+            } else if (metaGenderLower === 'feminino' || metaGenderLower === 'mulher' || 
+                       metaGenderLower === 'female' || metaGenderLower === 'f') {
+              console.log('Aplicando tema feminino (rosa) com base nos metadados');
+              setTheme(themes.feminine);
+              global.dashboardTheme = 'feminine';
+            } else {
+              // Usar o tema global ou padrão se o gênero nos metadados também não for reconhecido
+              if (global.dashboardTheme === 'masculine') {
+                setTheme(themes.masculine);
+                console.log('Aplicando tema masculino (azul) da variável global');
+              } else {
+                setTheme(themes.feminine);
+                console.log('Aplicando tema feminino (rosa) por padrão ou da variável global');
+              }
+            }
+          } else {
+            // Usar o tema global ou padrão se não houver gênero nos metadados
+            if (global.dashboardTheme === 'masculine') {
+              setTheme(themes.masculine);
+              console.log('Aplicando tema masculino (azul) da variável global');
+            } else {
+              setTheme(themes.feminine);
+              console.log('Aplicando tema feminino (rosa) por padrão ou da variável global');
+            }
+          }
+        }
+      } else {
+        // Se não encontrou perfil ou gênero no perfil, tentar obter dos metadados da sessão
+        const userMetadata = session.user.user_metadata;
+        const metadataGender = userMetadata?.gender || '';
+        
+        console.log('Perfil não encontrado. Verificando gênero dos metadados:', metadataGender);
+        
+        if (metadataGender && typeof metadataGender === 'string') {
+          const metaGenderLower = metadataGender.toLowerCase();
+          
+          if (metaGenderLower === 'masculino' || metaGenderLower === 'homem' || 
+              metaGenderLower === 'male' || metaGenderLower === 'm') {
+            console.log('Aplicando tema masculino (azul) com base nos metadados');
+            setTheme(themes.masculine);
+            global.dashboardTheme = 'masculine';
+          } else if (metaGenderLower === 'feminino' || metaGenderLower === 'mulher' || 
+                     metaGenderLower === 'female' || metaGenderLower === 'f') {
+            console.log('Aplicando tema feminino (rosa) com base nos metadados');
+            setTheme(themes.feminine);
+            global.dashboardTheme = 'feminine';
+          } else {
+            // Usar o tema global ou padrão se o gênero nos metadados não for reconhecido
+            if (global.dashboardTheme === 'masculine') {
+              setTheme(themes.masculine);
+              console.log('Aplicando tema masculino (azul) da variável global');
+            } else {
+              setTheme(themes.feminine);
+              console.log('Aplicando tema feminino (rosa) por padrão ou da variável global');
+            }
+          }
+        } else {
+          // Usar o tema global ou padrão se não houver gênero nos metadados
+          if (global.dashboardTheme === 'masculine') {
+            setTheme(themes.masculine);
+            console.log('Aplicando tema masculino (azul) da variável global');
+          } else {
+            setTheme(themes.feminine);
+            console.log('Aplicando tema feminino (rosa) por padrão ou da variável global');
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Erro ao definir tema:', error);
+    }
+  };
 
   // Função para abrir o modal
   const openAddTransactionModal = () => {
@@ -511,7 +668,7 @@ export default function Registers() {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
       <StatusBar style="light" />
 
       <ScrollView 
@@ -519,7 +676,7 @@ export default function Registers() {
         showsVerticalScrollIndicator={true}
         contentContainerStyle={styles.scrollContent}
       >
-        <View style={styles.header}>
+        <View style={[styles.header, { backgroundColor: theme.primary }]}>
           <View style={styles.headerTop}>
             <TouchableOpacity 
               onPress={() => router.push('/(app)/dashboard')}
@@ -579,9 +736,12 @@ export default function Registers() {
 
         <View style={styles.recordsHeaderContainer}>
           <Text style={styles.recordsTitle}>Todos os Registros</Text>
-          <TouchableOpacity style={styles.addButtonInline} onPress={openAddTransactionModal}>
-            <PlusCircle size={22} color="#FFF" />
-            <Text style={styles.addButtonText}>Adicionar</Text>
+          <TouchableOpacity 
+            style={[styles.addTransactionButton, { backgroundColor: theme.primary }]}
+            onPress={openAddTransactionModal}
+          >
+            <Plus size={24} color="#FFF" />
+            <Text style={styles.addTransactionButtonText}>Nova Transação</Text>
           </TouchableOpacity>
         </View>
 
@@ -623,7 +783,7 @@ export default function Registers() {
         visible={modalVisible}
         onRequestClose={closeModal}
       >
-        <View style={styles.modalContainer}>
+        <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Nova Transação</Text>
@@ -632,51 +792,45 @@ export default function Registers() {
               </TouchableOpacity>
             </View>
 
-            {/* Seletor de Tipo de Transação */}
-            <View style={styles.transactionTypeSelector}>
-              <TouchableOpacity 
+            {/* Buttons for transaction type */}
+            <View style={styles.transactionTypeContainer}>
+              <TouchableOpacity
                 style={[
-                  styles.typeButton, 
-                  transactionType === 'income' && styles.activeTypeButton,
-                  {backgroundColor: transactionType === 'income' ? theme.primary : 'transparent'}
-                ]}
-                onPress={() => setTransactionType('income')}
-              >
-                <Plus size={20} color={transactionType === 'income' ? '#fff' : theme.text} />
-                <Text style={[
-                  styles.typeButtonText,
-                  transactionType === 'income' && {color: '#fff'}
-                ]}>Receita</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={[
-                  styles.typeButton, 
-                  transactionType === 'expense' && styles.activeTypeButton,
-                  {backgroundColor: transactionType === 'expense' ? theme.primary : 'transparent'}
+                  styles.transactionTypeButton,
+                  transactionType === 'expense' && [styles.activeTypeButton, { borderColor: theme.expense }]
                 ]}
                 onPress={() => setTransactionType('expense')}
               >
-                <ArrowDown size={20} color={transactionType === 'expense' ? '#fff' : theme.text} />
                 <Text style={[
-                  styles.typeButtonText,
-                  transactionType === 'expense' && {color: '#fff'}
+                  styles.transactionTypeText,
+                  transactionType === 'expense' && [styles.activeTypeText, { color: theme.expense }]
                 ]}>Despesa</Text>
               </TouchableOpacity>
               
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={[
-                  styles.typeButton, 
-                  transactionType === 'transfer' && styles.activeTypeButton,
-                  {backgroundColor: transactionType === 'transfer' ? theme.primary : 'transparent'}
+                  styles.transactionTypeButton,
+                  transactionType === 'income' && [styles.activeTypeButton, { borderColor: theme.income }]
+                ]}
+                onPress={() => setTransactionType('income')}
+              >
+                <Text style={[
+                  styles.transactionTypeText,
+                  transactionType === 'income' && [styles.activeTypeText, { color: theme.income }]
+                ]}>Receita</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[
+                  styles.transactionTypeButton,
+                  transactionType === 'transfer' && [styles.activeTypeButton, { borderColor: theme.shared }]
                 ]}
                 onPress={() => setTransactionType('transfer')}
               >
-                <ArrowRight size={20} color={transactionType === 'transfer' ? '#fff' : theme.text} />
                 <Text style={[
-                  styles.typeButtonText,
-                  transactionType === 'transfer' && {color: '#fff'}
-                ]}>Transf.</Text>
+                  styles.transactionTypeText,
+                  transactionType === 'transfer' && [styles.activeTypeText, { color: theme.shared }]
+                ]}>Transferência</Text>
               </TouchableOpacity>
             </View>
 
@@ -869,9 +1023,12 @@ export default function Registers() {
               </TouchableOpacity>
             </View>
 
-            {/* Botão Salvar */}
-            <TouchableOpacity style={styles.saveButton} onPress={saveTransaction}>
-              <Text style={styles.saveButtonText}>Salvar</Text>
+            {/* Save Button */}
+            <TouchableOpacity
+              style={[styles.saveButton, { backgroundColor: theme.primary }]}
+              onPress={saveTransaction}
+            >
+              <Text style={styles.saveButtonText}>Salvar Transação</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -1027,7 +1184,7 @@ export default function Registers() {
           style={styles.addButton}
           onPress={openAddTransactionModal}
         >
-          <View style={styles.addButtonInner}>
+          <View style={[styles.addButtonInner, { backgroundColor: theme.primary }]}>
             <PlusCircle size={32} color="#fff" />
           </View>
         </TouchableOpacity>
@@ -1066,7 +1223,6 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
-    backgroundColor: '#b687fe',
   },
   headerTop: {
     flexDirection: 'row',
@@ -1230,19 +1386,30 @@ const styles = StyleSheet.create({
     marginTop: 16,
     marginBottom: 12,
   },
-  addButtonInline: {
+  addTransactionButton: {
     flexDirection: 'row',
-    backgroundColor: '#0073ea',
     paddingVertical: 10,
     paddingHorizontal: 16,
-    borderRadius: 10,
+    borderRadius: 30,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-    elevation: 4,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
+  },
+  addTransactionButtonText: {
+    fontSize: 14,
+    fontFamily: fontFallbacks.Poppins_600SemiBold,
+    color: '#FFF',
+    marginLeft: 6,
   },
   recordsList: {
     backgroundColor: '#fff',
@@ -1306,7 +1473,7 @@ const styles = StyleSheet.create({
     color: '#888',
     fontFamily: fontFallbacks.Poppins_400Regular,
   },
-  modalContainer: {
+  modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'flex-end',
@@ -1336,12 +1503,12 @@ const styles = StyleSheet.create({
   closeButton: {
     padding: 8,
   },
-  transactionTypeSelector: {
+  transactionTypeContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 24,
   },
-  typeButton: {
+  transactionTypeButton: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
@@ -1351,13 +1518,17 @@ const styles = StyleSheet.create({
     marginHorizontal: 5,
   },
   activeTypeButton: {
-    borderColor: theme.primary,
+    borderWidth: 1,
   },
-  typeButtonText: {
+  transactionTypeText: {
     fontSize: 16,
     fontFamily: fontFallbacks.Poppins_500Medium,
     color: theme.text,
     marginLeft: 6,
+  },
+  activeTypeText: {
+    color: theme.primary,
+    fontFamily: fontFallbacks.Poppins_600SemiBold,
   },
   inputGroup: {
     marginBottom: 16,
@@ -1456,22 +1627,15 @@ const styles = StyleSheet.create({
     marginLeft: 5,
   },
   saveButton: {
-    padding: 16,
-    backgroundColor: theme.primary,
-    borderRadius: 8,
+    paddingVertical: 16,
+    borderRadius: 12,
     alignItems: 'center',
-    marginTop: 10,
+    marginTop: 24,
   },
   saveButtonText: {
     fontSize: 16,
     fontFamily: fontFallbacks.Poppins_600SemiBold,
     color: '#fff',
-  },
-  addButtonText: {
-    fontSize: 14,
-    fontFamily: fontFallbacks.Poppins_600SemiBold,
-    color: '#FFF',
-    marginLeft: 6,
   },
   floatingAddButton: {
     position: 'absolute',
@@ -1758,8 +1922,18 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: '#b687fe',
     justifyContent: 'center',
     alignItems: 'center',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.2,
+        shadowRadius: 6,
+      },
+      android: {
+        elevation: 5,
+      },
+    }),
   },
 }); 

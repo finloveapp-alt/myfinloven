@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   View, 
   Text, 
@@ -18,21 +18,45 @@ import { router, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import BottomNavigation from '@/components/BottomNavigation';
 import { fontFallbacks } from '@/utils/styles';
+import { supabase } from '@/lib/supabase';
 
 const { width } = Dimensions.get('window');
 const cardWidth = width * 0.85;
 
-const theme = {
+// Definição dos temas baseados no gênero
+const themes = {
+  feminine: {
+    primary: '#b687fe',
+    primaryGradient: ['#b687fe', '#9157ec'],
+    secondary: '#0073ea',
+    secondaryGradient: ['#0073ea', '#0056b3'],
+    card: '#ffffff',
+    text: '#333333'
+  },
+  masculine: {
+    primary: '#0073ea',
+    primaryGradient: ['#0073ea', '#0056b3'],
+    secondary: '#b687fe',
+    secondaryGradient: ['#b687fe', '#9157ec'],
+    card: '#ffffff',
+    text: '#333333'
+  }
+};
+
+// Definindo um themeDefault para ser usado no StyleSheet estático
+const themeDefault = {
   primary: '#b687fe',
   primaryGradient: ['#b687fe', '#9157ec'],
   secondary: '#0073ea',
   secondaryGradient: ['#0073ea', '#0056b3'],
   card: '#ffffff',
+  text: '#333333'
 };
 
 export default function Accounts() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState('Compartilhadas');
+  const [theme, setTheme] = useState(themes.feminine); // Iniciar com tema feminino como padrão
   
   // Estados para controlar a visibilidade dos modais
   const [newAccountModalVisible, setNewAccountModalVisible] = useState(false);
@@ -59,6 +83,143 @@ export default function Accounts() {
   // Estado para o modal de detalhes da conta
   const [accountDetailsModalVisible, setAccountDetailsModalVisible] = useState(false);
   const [selectedAccount, setSelectedAccount] = useState<any>(null);
+
+  // useEffect para carregar o tema com base no gênero do usuário
+  useEffect(() => {
+    // Buscar informações do usuário atual
+    fetchUserTheme();
+  }, []);
+  
+  // Função para buscar o tema baseado no perfil do usuário
+  const fetchUserTheme = async () => {
+    try {
+      // Obter a sessão atual
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError) {
+        console.error('Erro ao obter sessão:', sessionError);
+        return;
+      }
+      
+      if (!session?.user) {
+        console.log('Nenhuma sessão de usuário encontrada');
+        return;
+      }
+      
+      const userId = session.user.id;
+      
+      // Buscar o perfil do usuário atual
+      const { data: userProfile, error: userError } = await supabase
+        .from('profiles')
+        .select('gender')
+        .eq('id', userId)
+        .single();
+        
+      if (userError) {
+        console.error('Erro ao buscar perfil do usuário:', userError);
+        return;
+      }
+      
+      console.log('Perfil do usuário obtido do banco:', userProfile);
+      
+      // Definir o tema com base no gênero do usuário
+      if (userProfile && userProfile.gender) {
+        const gender = userProfile.gender.toLowerCase();
+        
+        if (gender === 'masculino' || gender === 'homem' || gender === 'male' || gender === 'm') {
+          console.log('Aplicando tema masculino (azul) com base no perfil');
+          setTheme(themes.masculine);
+          global.dashboardTheme = 'masculine';
+        } else if (gender === 'feminino' || gender === 'mulher' || gender === 'female' || gender === 'f') {
+          console.log('Aplicando tema feminino (rosa) com base no perfil');
+          setTheme(themes.feminine);
+          global.dashboardTheme = 'feminine';
+        } else {
+          // Se o gênero não for reconhecido, tentar obter dos metadados da sessão
+          const userMetadata = session.user.user_metadata;
+          const metadataGender = userMetadata?.gender || '';
+          
+          console.log('Verificando gênero dos metadados:', metadataGender);
+          
+          if (metadataGender && typeof metadataGender === 'string') {
+            const metaGenderLower = metadataGender.toLowerCase();
+            
+            if (metaGenderLower === 'masculino' || metaGenderLower === 'homem' || 
+                metaGenderLower === 'male' || metaGenderLower === 'm') {
+              console.log('Aplicando tema masculino (azul) com base nos metadados');
+              setTheme(themes.masculine);
+              global.dashboardTheme = 'masculine';
+            } else if (metaGenderLower === 'feminino' || metaGenderLower === 'mulher' || 
+                       metaGenderLower === 'female' || metaGenderLower === 'f') {
+              console.log('Aplicando tema feminino (rosa) com base nos metadados');
+              setTheme(themes.feminine);
+              global.dashboardTheme = 'feminine';
+            } else {
+              // Usar o tema global ou padrão se o gênero nos metadados também não for reconhecido
+              if (global.dashboardTheme === 'masculine') {
+                setTheme(themes.masculine);
+                console.log('Aplicando tema masculino (azul) da variável global');
+              } else {
+                setTheme(themes.feminine);
+                console.log('Aplicando tema feminino (rosa) por padrão ou da variável global');
+              }
+            }
+          } else {
+            // Usar o tema global ou padrão se não houver gênero nos metadados
+            if (global.dashboardTheme === 'masculine') {
+              setTheme(themes.masculine);
+              console.log('Aplicando tema masculino (azul) da variável global');
+            } else {
+              setTheme(themes.feminine);
+              console.log('Aplicando tema feminino (rosa) por padrão ou da variável global');
+            }
+          }
+        }
+      } else {
+        // Se não encontrou perfil ou gênero no perfil, tentar obter dos metadados da sessão
+        const userMetadata = session.user.user_metadata;
+        const metadataGender = userMetadata?.gender || '';
+        
+        console.log('Perfil não encontrado. Verificando gênero dos metadados:', metadataGender);
+        
+        if (metadataGender && typeof metadataGender === 'string') {
+          const metaGenderLower = metadataGender.toLowerCase();
+          
+          if (metaGenderLower === 'masculino' || metaGenderLower === 'homem' || 
+              metaGenderLower === 'male' || metaGenderLower === 'm') {
+            console.log('Aplicando tema masculino (azul) com base nos metadados');
+            setTheme(themes.masculine);
+            global.dashboardTheme = 'masculine';
+          } else if (metaGenderLower === 'feminino' || metaGenderLower === 'mulher' || 
+                     metaGenderLower === 'female' || metaGenderLower === 'f') {
+            console.log('Aplicando tema feminino (rosa) com base nos metadados');
+            setTheme(themes.feminine);
+            global.dashboardTheme = 'feminine';
+          } else {
+            // Usar o tema global ou padrão se o gênero nos metadados não for reconhecido
+            if (global.dashboardTheme === 'masculine') {
+              setTheme(themes.masculine);
+              console.log('Aplicando tema masculino (azul) da variável global');
+            } else {
+              setTheme(themes.feminine);
+              console.log('Aplicando tema feminino (rosa) por padrão ou da variável global');
+            }
+          }
+        } else {
+          // Usar o tema global ou padrão se não houver gênero nos metadados
+          if (global.dashboardTheme === 'masculine') {
+            setTheme(themes.masculine);
+            console.log('Aplicando tema masculino (azul) da variável global');
+          } else {
+            setTheme(themes.feminine);
+            console.log('Aplicando tema feminino (rosa) por padrão ou da variável global');
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Erro ao definir tema:', error);
+    }
+  };
 
   const handleBack = () => {
     router.back();
@@ -374,7 +535,7 @@ export default function Accounts() {
       
       {/* Cabeçalho unificado com degradê */}
       <LinearGradient
-        colors={['#b687fe', '#7d41e0']}
+        colors={theme.primaryGradient}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.unifiedHeader}
@@ -509,8 +670,8 @@ export default function Accounts() {
               style={styles.actionButton}
               onPress={() => setNewAccountModalVisible(true)}
             >
-              <View style={[styles.actionIcon, { backgroundColor: 'rgba(182, 135, 254, 0.2)' }]}>
-                <Wallet size={24} color="#b687fe" />
+              <View style={[styles.actionIcon, { backgroundColor: `rgba(${parseInt(theme.primary.slice(1, 3), 16)}, ${parseInt(theme.primary.slice(3, 5), 16)}, ${parseInt(theme.primary.slice(5, 7), 16)}, 0.2)` }]}>
+                <Wallet size={24} color={theme.primary} />
               </View>
               <Text style={styles.actionText}>Nova Conta</Text>
             </TouchableOpacity>
@@ -519,8 +680,8 @@ export default function Accounts() {
               style={styles.actionButton}
               onPress={() => setDepositModalVisible(true)}
             >
-              <View style={[styles.actionIcon, { backgroundColor: 'rgba(0, 115, 234, 0.2)' }]}>
-                <DollarSign size={24} color="#0073ea" />
+              <View style={[styles.actionIcon, { backgroundColor: `rgba(${parseInt(theme.secondary.slice(1, 3), 16)}, ${parseInt(theme.secondary.slice(3, 5), 16)}, ${parseInt(theme.secondary.slice(5, 7), 16)}, 0.2)` }]}>
+                <DollarSign size={24} color={theme.secondary} />
               </View>
               <Text style={styles.actionText}>Depositar</Text>
             </TouchableOpacity>

@@ -513,6 +513,14 @@ export default function Accounts() {
     setAccountDetailsModalVisible(true);
   };
   
+  // Função utilitária para criar uma cor de fundo semitransparente com base na cor do tema
+  const getThemeBackgroundColor = (color: string, opacity: number) => {
+    const r = parseInt(color.slice(1, 3), 16);
+    const g = parseInt(color.slice(3, 5), 16);
+    const b = parseInt(color.slice(5, 7), 16);
+    return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+  };
+  
   // Gerar dados para o gráfico de débito e crédito
   const generateChartData = () => {
     return [
@@ -1209,9 +1217,13 @@ export default function Accounts() {
                     <View style={styles.personInfo}>
                       <View style={[
                         styles.personAvatar, 
-                        { backgroundColor: person === 'Maria' ? 'rgba(182, 135, 254, 0.2)' : 'rgba(0, 115, 234, 0.2)' }
+                        { 
+                          backgroundColor: person === 'Maria' 
+                            ? `rgba(${parseInt(theme.primary.slice(1, 3), 16)}, ${parseInt(theme.primary.slice(3, 5), 16)}, ${parseInt(theme.primary.slice(5, 7), 16)}, 0.2)` 
+                            : `rgba(${parseInt(theme.secondary.slice(1, 3), 16)}, ${parseInt(theme.secondary.slice(3, 5), 16)}, ${parseInt(theme.secondary.slice(5, 7), 16)}, 0.2)` 
+                        }
                       ]}>
-                        <User size={20} color={person === 'Maria' ? '#b687fe' : '#0073ea'} />
+                        <User size={20} color={person === 'Maria' ? theme.primary : theme.secondary} />
                       </View>
                       <Text style={styles.personName}>{person}</Text>
                     </View>
@@ -1253,7 +1265,7 @@ export default function Accounts() {
                     router.replace('/(app)/dashboard');
                   }}
                 >
-                  <View style={[styles.menuIconContainer, { backgroundColor: 'rgba(182, 135, 254, 0.15)' }]}>
+                  <View style={[styles.menuIconContainer, { backgroundColor: getThemeBackgroundColor(theme.primary, 0.15) }]}>
                     <Home size={24} color={theme.primary} />
                   </View>
                   <Text style={[styles.menuItemTitle, { color: '#333' }]}>Dashboard</Text>
@@ -1267,7 +1279,7 @@ export default function Accounts() {
                     // Lógica para adicionar nova transação
                   }}
                 >
-                  <View style={[styles.menuIconContainer, { backgroundColor: 'rgba(182, 135, 254, 0.15)' }]}>
+                  <View style={[styles.menuIconContainer, { backgroundColor: getThemeBackgroundColor(theme.primary, 0.15) }]}>
                     <PlusCircle size={24} color={theme.primary} />
                   </View>
                   <Text style={[styles.menuItemTitle, { color: '#333' }]}>Novo Registro</Text>
@@ -1275,7 +1287,7 @@ export default function Accounts() {
                 </TouchableOpacity>
                 
                 <TouchableOpacity style={styles.menuItem}>
-                  <View style={[styles.menuIconContainer, { backgroundColor: 'rgba(182, 135, 254, 0.15)' }]}>
+                  <View style={[styles.menuIconContainer, { backgroundColor: getThemeBackgroundColor(theme.primary, 0.15) }]}>
                     <Bell size={24} color={theme.primary} />
                   </View>
                   <Text style={[styles.menuItemTitle, { color: '#333' }]}>Notificações</Text>
@@ -1285,7 +1297,7 @@ export default function Accounts() {
               
               <View style={styles.menuRow}>
                 <TouchableOpacity style={styles.menuItem}>
-                  <View style={[styles.menuIconContainer, { backgroundColor: 'rgba(182, 135, 254, 0.15)' }]}>
+                  <View style={[styles.menuIconContainer, { backgroundColor: getThemeBackgroundColor(theme.primary, 0.15) }]}>
                     <BarChart size={24} color={theme.primary} />
                   </View>
                   <Text style={[styles.menuItemTitle, { color: '#333' }]}>Planejamento</Text>
@@ -1299,7 +1311,7 @@ export default function Accounts() {
                     router.replace('/(app)/cards');
                   }}
                 >
-                  <View style={[styles.menuIconContainer, { backgroundColor: 'rgba(182, 135, 254, 0.15)' }]}>
+                  <View style={[styles.menuIconContainer, { backgroundColor: getThemeBackgroundColor(theme.primary, 0.15) }]}>
                     <Wallet size={24} color={theme.primary} />
                   </View>
                   <Text style={[styles.menuItemTitle, { color: '#333' }]}>Cartões</Text>
@@ -1313,7 +1325,7 @@ export default function Accounts() {
                     router.replace('/(app)/bill-payments');
                   }}
                 >
-                  <View style={[styles.menuIconContainer, { backgroundColor: 'rgba(182, 135, 254, 0.15)' }]}>
+                  <View style={[styles.menuIconContainer, { backgroundColor: getThemeBackgroundColor(theme.primary, 0.15) }]}>
                     <Receipt size={24} color={theme.primary} />
                   </View>
                   <Text style={[styles.menuItemTitle, { color: '#333' }]}>Contas a Pagar</Text>
@@ -1323,7 +1335,7 @@ export default function Accounts() {
               
               <View style={styles.menuRow}>
                 <TouchableOpacity style={styles.menuItem}>
-                  <View style={[styles.menuIconContainer, { backgroundColor: 'rgba(182, 135, 254, 0.15)' }]}>
+                  <View style={[styles.menuIconContainer, { backgroundColor: getThemeBackgroundColor(theme.primary, 0.15) }]}>
                     <Info size={24} color={theme.primary} />
                   </View>
                   <Text style={[styles.menuItemTitle, { color: '#333' }]}>Sobre</Text>
@@ -1337,7 +1349,7 @@ export default function Accounts() {
                     router.replace('/(auth)/login');
                   }}
                 >
-                  <View style={[styles.menuIconContainer, { backgroundColor: 'rgba(182, 135, 254, 0.15)' }]}>
+                  <View style={[styles.menuIconContainer, { backgroundColor: getThemeBackgroundColor(theme.primary, 0.15) }]}>
                     <ExternalLink size={24} color={theme.primary} />
                   </View>
                   <Text style={[styles.menuItemTitle, { color: '#333' }]}>Logout</Text>
@@ -1495,7 +1507,7 @@ const styles = StyleSheet.create({
     }),
   },
   activeTab: {
-    backgroundColor: 'rgba(182, 135, 254, 0.1)',
+    backgroundColor: `rgba(${parseInt(themeDefault.primary.slice(1, 3), 16)}, ${parseInt(themeDefault.primary.slice(3, 5), 16)}, ${parseInt(themeDefault.primary.slice(5, 7), 16)}, 0.1)`,
   },
   tabText: {
     marginLeft: 8,
@@ -1701,7 +1713,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   pickerOptionSelected: {
-    backgroundColor: 'rgba(182, 135, 254, 0.2)',
+    backgroundColor: `rgba(${parseInt(themeDefault.primary.slice(1, 3), 16)}, ${parseInt(themeDefault.primary.slice(3, 5), 16)}, ${parseInt(themeDefault.primary.slice(5, 7), 16)}, 0.2)`,
   },
   pickerOptionText: {
     fontSize: 14,
@@ -1709,7 +1721,7 @@ const styles = StyleSheet.create({
     color: '#666',
   },
   pickerOptionTextSelected: {
-    color: '#b687fe',
+    color: themeDefault.primary,
   },
   modalButton: {
     borderRadius: 12,
@@ -1738,9 +1750,9 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   accountPickerItemSelected: {
-    backgroundColor: 'rgba(182, 135, 254, 0.1)',
+    backgroundColor: `rgba(${parseInt(themeDefault.primary.slice(1, 3), 16)}, ${parseInt(themeDefault.primary.slice(3, 5), 16)}, ${parseInt(themeDefault.primary.slice(5, 7), 16)}, 0.1)`,
     borderWidth: 1,
-    borderColor: 'rgba(182, 135, 254, 0.3)',
+    borderColor: `rgba(${parseInt(themeDefault.primary.slice(1, 3), 16)}, ${parseInt(themeDefault.primary.slice(3, 5), 16)}, ${parseInt(themeDefault.primary.slice(5, 7), 16)}, 0.3)`,
   },
   accountPickerIcon: {
     width: 40,
@@ -1786,9 +1798,9 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   sharePersonSelected: {
-    backgroundColor: 'rgba(182, 135, 254, 0.1)',
+    backgroundColor: `rgba(${parseInt(themeDefault.primary.slice(1, 3), 16)}, ${parseInt(themeDefault.primary.slice(3, 5), 16)}, ${parseInt(themeDefault.primary.slice(5, 7), 16)}, 0.1)`,
     borderWidth: 1,
-    borderColor: 'rgba(182, 135, 254, 0.3)',
+    borderColor: `rgba(${parseInt(themeDefault.primary.slice(1, 3), 16)}, ${parseInt(themeDefault.primary.slice(3, 5), 16)}, ${parseInt(themeDefault.primary.slice(5, 7), 16)}, 0.3)`,
   },
   sharePersonAvatar: {
     width: 40,

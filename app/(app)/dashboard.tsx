@@ -503,127 +503,172 @@ export default function Dashboard() {
         Math.random().toString(36).substring(2, 15);
       
       if (isInviteAvatar) {
-        // Para avatar, cria um usuário real no Supabase
-        // Gerar senha aleatória para o avatar
-        const avatarPassword = Math.random().toString(36).substring(2, 10) + 
-          Math.random().toString(36).substring(2, 10);
+        try {
+          // Para avatar, cria um usuário real no Supabase através de uma chamada direta ao backend
+          // Gerar senha aleatória para o avatar
+          const avatarPassword = Math.random().toString(36).substring(2, 10) + 
+            Math.random().toString(36).substring(2, 10);
+            
+          console.log('Criando usuário avatar...');
           
-        console.log('Criando usuário avatar...');
-        
-        // Usar a função RPC que criamos no banco de dados
-        const { data: newUserId, error: createError } = await supabase
-          .rpc('create_avatar_user', {
-            avatar_email: inviteEmail.trim().toLowerCase(),
-            avatar_password: avatarPassword,
-            creator_id: currentUser.id
-          });
-        
-        if (createError) {
-          console.error('Erro ao criar usuário avatar:', createError);
-          throw new Error(`Falha ao criar avatar: ${createError.message}`);
-        }
-        
-        console.log('Usuário avatar criado:', newUserId);
-        
-        // Criar perfil para o avatar
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .insert({
-            id: newUserId,
+          // Primeiro criar uma entrada pendente na tabela couples
+          const { data: coupleData, error: coupleError } = await supabase
+            .from('couples')
+            .insert({
+              user1_id: currentUser.id,
+              invitation_token: invitationToken,
+              invitation_email: inviteEmail.trim().toLowerCase(),
+              status: 'pending',
+              is_avatar: true
+            })
+            .select('id')
+            .single();
+            
+          if (coupleError) {
+            throw new Error('Falha ao criar registro inicial para o avatar');
+          }
+          
+          // Criar o avatar através do método de sign up normal
+          const { data: authData, error: authError } = await supabase.auth.signUp({
             email: inviteEmail.trim().toLowerCase(),
-            name: `Avatar (${inviteEmail.split('@')[0]})`,
-            account_type: 'avatar',
-            gender: currentUser.gender === 'masculino' ? 'feminino' : 'masculino' // Gênero oposto ao usuário atual
+            password: avatarPassword,
+            options: {
+              data: {
+                is_avatar: true,
+                created_by: currentUser.id,
+                couple_id: coupleData.id
+              }
+            }
           });
           
-        if (profileError) {
-          console.error('Erro ao criar perfil do avatar:', profileError);
-          throw new Error('Falha ao criar perfil do avatar');
-        }
-        
-        // Criar o couple com o usuário e o avatar
-        const { data: coupleData, error: coupleError } = await supabase
-          .from('couples')
-          .insert({
-            user1_id: currentUser.id,
-            user2_id: newUserId,
-            invitation_token: invitationToken,
-            invitation_email: inviteEmail.trim().toLowerCase(),
-            status: 'active', // Já ativado automaticamente
-            is_avatar: true
-          })
-          .select('id')
-          .single();
+          if (authError) {
+            throw new Error(`Erro ao criar conta para avatar: ${authError.message}`);
+          }
           
-        if (coupleError) {
-          console.error('Erro ao criar relacionamento do avatar:', coupleError);
-          throw new Error('Falha ao criar relacionamento do avatar');
+          console.log('Usuário avatar sendo criado...', authData?.user?.id);
+          
+          // Criar perfil para o avatar
+          const { error: profileError } = await supabase
+            .from('profiles')
+            .insert({
+              id: authData.user.id,
+              email: inviteEmail.trim().toLowerCase(),
+              name: `Avatar (${inviteEmail.split('@')[0]})`,
+              account_type: 'avatar',
+              gender: currentUser.gender === 'masculino' ? 'feminino' : 'masculino' // Gênero oposto ao usuário atual
+            });
+            
+          if (profileError) {
+            console.error('Erro ao criar perfil do avatar:', profileError);
+            throw new Error('Falha ao criar perfil do avatar');
+          }
+          
+          // Atualizar o registro couples com o user2_id
+          const { error: updateError } = await supabase
+            .from('couples')
+            .update({
+              user2_id: authData.user.id,
+              status: 'active'
+            })
+            .eq('id', coupleData.id);
+            
+          if (updateError) {
+            throw new Error('Falha ao atualizar o relacionamento do avatar');
+          }
+          
+          // Enviar uma solicitação para confirmar o email automaticamente através de uma Edge Function
+          const confirmResponse = await fetch(`${supabase.supabaseUrl}/functions/v1/confirm-avatar-email`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
+            },
+            body: JSON.stringify({
+              avatarId: authData.user.id,
+              avatarEmail: inviteEmail.trim().toLowerCase()
+            })
+          });
+          
+          if (!confirmResponse.ok) {
+            console.warn('Aviso: Não foi possível confirmar o email do avatar automaticamente');
+          }
+          
+          Alert.alert(
+            'Avatar Criado',
+            `O avatar "${inviteEmail}" foi criado com sucesso e já está vinculado à sua conta.`,
+            [{ text: 'OK', onPress: () => {
+              setInviteModalVisible(false);
+              setIsInviteAvatar(false);
+              // Atualizar os dados do usuário e parceiro
+              fetchUserAndPartner();
+            }}]
+          );
+        } catch (error) {
+          console.error('Erro ao criar avatar:', error);
+          Alert.alert('Erro', error.message || 'Falha ao criar o avatar');
+          setInviting(false);
+          return;
         }
-        
-        Alert.alert(
-          'Avatar Criado',
-          `O avatar "${inviteEmail}" foi criado com sucesso e já está vinculado à sua conta.`,
-          [{ text: 'OK', onPress: () => {
-            setInviteModalVisible(false);
-            setIsInviteAvatar(false);
-            // Atualizar os dados do usuário e parceiro
-            fetchUserAndPartner();
-          }}]
-        );
       } else {
         // Fluxo normal para convites de usuários reais
-        const { data: coupleData, error: coupleError } = await supabase
-          .from('couples')
-          .insert({
-            user1_id: currentUser.id,
-            invitation_token: invitationToken,
-            invitation_email: inviteEmail.trim().toLowerCase(),
-            status: 'pending',
-            is_avatar: false
-          })
-          .select('id')
-          .single();
+        try {
+          const { data: coupleData, error: coupleError } = await supabase
+            .from('couples')
+            .insert({
+              user1_id: currentUser.id,
+              invitation_token: invitationToken,
+              invitation_email: inviteEmail.trim().toLowerCase(),
+              status: 'pending',
+              is_avatar: false
+            })
+            .select('id')
+            .single();
+            
+          if (coupleError) {
+            throw new Error('Falha ao criar registro. Verifique se o email é válido.');
+          }
           
-        if (coupleError) {
-          throw new Error('Falha ao criar registro. Verifique se o email é válido.');
+          // Enviar convite por email para usuários reais
+          const inviteResponse = await fetch(`${supabase.supabaseUrl}/functions/v1/send-couple-invitation`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              partnerEmail: inviteEmail.trim().toLowerCase(),
+              inviterName: currentUser.name || 'Seu parceiro',
+              inviterId: currentUser.id,
+              invitationToken: invitationToken,
+              coupleId: coupleData.id
+            })
+          });
+          
+          if (!inviteResponse.ok) {
+            const errorData = await inviteResponse.json();
+            throw new Error(`Falha ao enviar convite: ${errorData.error || 'Erro desconhecido'}`);
+          }
+          
+          Alert.alert(
+            'Convite Enviado',
+            `Um convite foi enviado para ${inviteEmail}. Seu convidado receberá instruções para aceitar o convite.`,
+            [{ text: 'OK', onPress: () => {
+              setInviteModalVisible(false);
+              setIsInviteAvatar(false);
+            }}]
+          );
+        } catch (error) {
+          console.error('Erro ao enviar convite:', error);
+          Alert.alert('Erro', error.message || 'Falha ao enviar o convite');
+          setInviting(false);
+          return;
         }
-        
-        // Enviar convite por email para usuários reais
-        const inviteResponse = await fetch(`${supabase.supabaseUrl}/functions/v1/send-couple-invitation`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            partnerEmail: inviteEmail.trim().toLowerCase(),
-            inviterName: currentUser.name || 'Seu parceiro',
-            inviterId: currentUser.id,
-            invitationToken: invitationToken,
-            coupleId: coupleData.id
-          })
-        });
-        
-        if (!inviteResponse.ok) {
-          const errorData = await inviteResponse.json();
-          throw new Error(`Falha ao enviar convite: ${errorData.error || 'Erro desconhecido'}`);
-        }
-        
-        Alert.alert(
-          'Convite Enviado',
-          `Um convite foi enviado para ${inviteEmail}. Seu convidado receberá instruções para aceitar o convite.`,
-          [{ text: 'OK', onPress: () => {
-            setInviteModalVisible(false);
-            setIsInviteAvatar(false);
-          }}]
-        );
       }
       
       setInviteEmail('');
-      
+      setInviting(false);
     } catch (error) {
       console.error('Erro ao processar operação:', error);
       Alert.alert('Erro', error.message || 'Falha ao processar a operação. Por favor, tente novamente.');
-    } finally {
       setInviting(false);
     }
   };

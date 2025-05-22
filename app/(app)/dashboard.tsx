@@ -107,6 +107,7 @@ export default function Dashboard() {
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviting, setInviting] = useState(false);
   const [isUserInviter, setIsUserInviter] = useState(false);
+  const [isInviteAvatar, setIsInviteAvatar] = useState(false); // Novo estado para marcar convite como avatar
   
   useEffect(() => {
     // Verifica se existe um tema definido globalmente
@@ -508,7 +509,8 @@ export default function Dashboard() {
           user1_id: currentUser.id,
           invitation_token: invitationToken,
           invitation_email: inviteEmail.trim().toLowerCase(),
-          status: 'pending'
+          status: 'pending',
+          is_avatar: isInviteAvatar // Adicionar campo para indicar se é um avatar
         })
         .select('id')
         .single();
@@ -528,7 +530,8 @@ export default function Dashboard() {
           inviterName: currentUser.name || 'Seu parceiro',
           inviterId: currentUser.id,
           invitationToken: invitationToken,
-          coupleId: coupleData.id
+          coupleId: coupleData.id,
+          isAvatar: isInviteAvatar // Incluir informação se é avatar no corpo da requisição
         })
       });
       
@@ -540,7 +543,10 @@ export default function Dashboard() {
       Alert.alert(
         'Convite Enviado',
         `Um convite foi enviado para ${inviteEmail}. Seu convidado receberá instruções para aceitar o convite.`,
-        [{ text: 'OK', onPress: () => setInviteModalVisible(false) }]
+        [{ text: 'OK', onPress: () => {
+          setInviteModalVisible(false);
+          setIsInviteAvatar(false); // Resetar o estado após enviar
+        }}]
       );
       
       setInviteEmail('');
@@ -1356,6 +1362,17 @@ export default function Dashboard() {
                     onChangeText={setInviteEmail}
                   />
                 </View>
+                
+                {/* Adicionar opção de avatar */}
+                <TouchableOpacity 
+                  style={styles.checkboxContainer}
+                  onPress={() => setIsInviteAvatar(!isInviteAvatar)}
+                >
+                  <View style={[styles.checkbox, isInviteAvatar ? { backgroundColor: theme.primary, borderColor: theme.primary } : {}]}>
+                    {isInviteAvatar && <Check size={16} color="#fff" />}
+                  </View>
+                  <Text style={styles.checkboxLabel}>Marcar este convite como avatar</Text>
+                </TouchableOpacity>
                 
                 <TouchableOpacity
                   style={[styles.inviteButton, { backgroundColor: theme.primary }]}
@@ -2606,5 +2623,26 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontFamily: fontFallbacks.Poppins_600SemiBold,
+  },
+  checkboxContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 15,
+    marginBottom: 15,
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderWidth: 2,
+    borderColor: '#666',
+    borderRadius: 4,
+    marginRight: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  checkboxLabel: {
+    fontSize: 16,
+    fontFamily: fontFallbacks.Poppins_400Regular,
+    color: '#333',
   },
 }); 

@@ -516,54 +516,59 @@ export default function Dashboard() {
           user1_id: currentUser.id,
           invitation_token: invitationToken,
           invitation_email: inviteEmail.trim().toLowerCase(),
-          status: 'pending',
+          status: isInviteAvatar ? 'avatar' : 'pending', // Status diferente para avatar
           is_avatar: isInviteAvatar,
-          avatar_password: isInviteAvatar ? avatarPassword : null // Salvar a senha apenas se for avatar
+          avatar_password: isInviteAvatar ? avatarPassword : null
         })
         .select('id')
         .single();
         
       if (coupleError) {
-        throw new Error('Falha ao criar convite. Verifique se o email é válido.');
+        throw new Error('Falha ao criar registro. Verifique se o email é válido.');
       }
       
-      // Enviar convite por email usando a Edge Function
-      const inviteResponse = await fetch(`${supabase.supabaseUrl}/functions/v1/send-couple-invitation`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          partnerEmail: inviteEmail.trim().toLowerCase(),
-          inviterName: currentUser.name || 'Seu parceiro',
-          inviterId: currentUser.id,
-          invitationToken: invitationToken,
-          coupleId: coupleData.id,
-          isAvatar: isInviteAvatar,
-          avatarPassword: isInviteAvatar ? avatarPassword : null // Incluir senha apenas se for avatar
-        })
-      });
-      
-      if (!inviteResponse.ok) {
-        const errorData = await inviteResponse.json();
-        throw new Error(`Falha ao enviar convite: ${errorData.error || 'Erro desconhecido'}`);
+      // Enviar convite por email APENAS se NÃO for avatar
+      if (!isInviteAvatar) {
+        const inviteResponse = await fetch(`${supabase.supabaseUrl}/functions/v1/send-couple-invitation`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            partnerEmail: inviteEmail.trim().toLowerCase(),
+            inviterName: currentUser.name || 'Seu parceiro',
+            inviterId: currentUser.id,
+            invitationToken: invitationToken,
+            coupleId: coupleData.id
+          })
+        });
+        
+        if (!inviteResponse.ok) {
+          const errorData = await inviteResponse.json();
+          throw new Error(`Falha ao enviar convite: ${errorData.error || 'Erro desconhecido'}`);
+        }
       }
+      
+      // Texto da mensagem baseado se é avatar ou convite normal
+      const mensagem = isInviteAvatar 
+        ? `O avatar "${inviteEmail}" foi criado com sucesso.`
+        : `Um convite foi enviado para ${inviteEmail}. Seu convidado receberá instruções para aceitar o convite.`;
       
       Alert.alert(
-        'Convite Enviado',
-        `Um convite foi enviado para ${inviteEmail}. Seu convidado receberá instruções para aceitar o convite.`,
+        isInviteAvatar ? 'Avatar Criado' : 'Convite Enviado',
+        mensagem,
         [{ text: 'OK', onPress: () => {
           setInviteModalVisible(false);
           setIsInviteAvatar(false);
-          setAvatarPassword(''); // Limpar a senha ao fechar o modal
+          setAvatarPassword('');
         }}]
       );
       
       setInviteEmail('');
       
     } catch (error) {
-      console.error('Erro ao enviar convite:', error);
-      Alert.alert('Erro', error.message || 'Falha ao enviar convite. Por favor, tente novamente.');
+      console.error('Erro ao processar operação:', error);
+      Alert.alert('Erro', error.message || 'Falha ao processar a operação. Por favor, tente novamente.');
     } finally {
       setInviting(false);
     }
@@ -1341,7 +1346,9 @@ export default function Dashboard() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Convidar Usuário</Text>
+              <Text style={styles.modalTitle}>
+                {isInviteAvatar ? 'Criar Avatar' : 'Convidar Usuário'}
+              </Text>
               <TouchableOpacity 
                 style={styles.closeButton}
                 onPress={() => {
@@ -1357,19 +1364,25 @@ export default function Dashboard() {
             {inviting ? (
               <View style={styles.uploadingContainer}>
                 <ActivityIndicator size="large" color={theme.primary} />
-                <Text style={styles.uploadingText}>Enviando convite...</Text>
+                <Text style={styles.uploadingText}>
+                  {isInviteAvatar ? 'Criando avatar...' : 'Enviando convite...'}
+                </Text>
               </View>
             ) : (
               <>
                 <Text style={styles.modalSubtitle}>
-                  Convide alguém para compartilhar finanças e organizar o orçamento juntos.
+                  {isInviteAvatar 
+                    ? 'Crie um avatar para representar uma conta virtual no sistema.'
+                    : 'Convide alguém para compartilhar finanças e organizar o orçamento juntos.'}
                 </Text>
                 
                 <View style={styles.inputContainer}>
-                  <Text style={styles.inputLabel}>Email do Convidado</Text>
+                  <Text style={styles.inputLabel}>
+                    {isInviteAvatar ? 'Email do Avatar' : 'Email do Convidado'}
+                  </Text>
                   <TextInput
                     style={styles.input}
-                    placeholder="Digite o email"
+                    placeholder={isInviteAvatar ? "Digite o email do avatar" : "Digite o email"}
                     keyboardType="email-address"
                     autoCapitalize="none"
                     value={inviteEmail}
@@ -1409,7 +1422,9 @@ export default function Dashboard() {
                   style={[styles.inviteButton, { backgroundColor: theme.primary }]}
                   onPress={handleSendInvitation}
                 >
-                  <Text style={styles.inviteButtonText}>Enviar Convite</Text>
+                  <Text style={styles.inviteButtonText}>
+                    {isInviteAvatar ? 'Criar Avatar' : 'Enviar Convite'}
+                  </Text>
                 </TouchableOpacity>
               </>
             )}

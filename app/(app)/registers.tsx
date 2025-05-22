@@ -474,7 +474,7 @@ export default function Registers() {
               style={[
                 styles.pickerCalendarDay,
                 day.currentMonth ? styles.pickerCurrentMonthDay : styles.pickerOtherMonthDay,
-                pickerDay === day.day && day.currentMonth ? styles.pickerSelectedDayText : null
+                pickerDay === day.day && day.currentMonth ? [styles.pickerSelectedDayText, { color: theme.primary }] : null
               ]}
             >
               {day.day}
@@ -863,7 +863,7 @@ export default function Registers() {
               {calendarVisible && (
                 <View style={styles.calendarPickerContainer}>
                   <View
-                    style={styles.calendarPickerHeader}
+                    style={[styles.calendarPickerHeader, { backgroundColor: theme.primary }]}
                   >
                     <View style={styles.calendarPickerMonthSelector}>
                       <TouchableOpacity onPress={goToPreviousPickerMonth} style={styles.calendarPickerArrow}>
@@ -1320,7 +1320,7 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.4)',
   },
   selectedDayText: {
-    color: '#6930c3',
+    // color será aplicada inline baseada no tema
     fontFamily: fontFallbacks.Poppins_600SemiBold,
   },
   currentMonthCell: {},
@@ -1723,7 +1723,7 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.4)',
   },
   pickerSelectedDayText: {
-    color: '#6930c3',
+    // color será aplicada inline baseada no tema
     fontFamily: fontFallbacks.Poppins_600SemiBold,
   },
   calendarPickerContainer: {
@@ -1740,7 +1740,7 @@ const styles = StyleSheet.create({
   calendarPickerHeader: {
     padding: 16,
     width: '100%',
-    backgroundColor: '#b687fe',
+    // backgroundColor será aplicado inline com base no tema
   },
   calendarPickerMonthSelector: {
     flexDirection: 'row',

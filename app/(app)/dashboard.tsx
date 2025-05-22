@@ -108,7 +108,6 @@ export default function Dashboard() {
   const [inviting, setInviting] = useState(false);
   const [isUserInviter, setIsUserInviter] = useState(false);
   const [isInviteAvatar, setIsInviteAvatar] = useState(false); // Novo estado para marcar convite como avatar
-  const [avatarPassword, setAvatarPassword] = useState(''); // Nova state para a senha do avatar
   
   useEffect(() => {
     // Verifica se existe um tema definido globalmente
@@ -493,12 +492,6 @@ export default function Dashboard() {
       return;
     }
     
-    // Validar senha se for avatar
-    if (isInviteAvatar && (!avatarPassword || avatarPassword.length < 6)) {
-      Alert.alert('Erro', 'Por favor, defina uma senha com pelo menos 6 caracteres para o avatar');
-      return;
-    }
-    
     setInviting(true);
     try {
       if (!currentUser) {
@@ -509,26 +502,93 @@ export default function Dashboard() {
       const invitationToken = Math.random().toString(36).substring(2, 15) + 
         Math.random().toString(36).substring(2, 15);
       
-      // Criar registro na tabela couples
-      const { data: coupleData, error: coupleError } = await supabase
-        .from('couples')
-        .insert({
-          user1_id: currentUser.id,
-          invitation_token: invitationToken,
-          invitation_email: inviteEmail.trim().toLowerCase(),
-          status: isInviteAvatar ? 'avatar' : 'pending', // Status diferente para avatar
-          is_avatar: isInviteAvatar,
-          avatar_password: isInviteAvatar ? avatarPassword : null
-        })
-        .select('id')
-        .single();
+      if (isInviteAvatar) {
+        // Para avatar, cria um usuário real no Supabase
+        // Gerar senha aleatória para o avatar
+        const avatarPassword = Math.random().toString(36).substring(2, 10) + 
+          Math.random().toString(36).substring(2, 10);
+          
+        console.log('Criando usuário avatar...');
         
-      if (coupleError) {
-        throw new Error('Falha ao criar registro. Verifique se o email é válido.');
-      }
-      
-      // Enviar convite por email APENAS se NÃO for avatar
-      if (!isInviteAvatar) {
+        // Usar a função RPC que criamos no banco de dados
+        const { data: newUserId, error: createError } = await supabase
+          .rpc('create_avatar_user', {
+            avatar_email: inviteEmail.trim().toLowerCase(),
+            avatar_password: avatarPassword,
+            creator_id: currentUser.id
+          });
+        
+        if (createError) {
+          console.error('Erro ao criar usuário avatar:', createError);
+          throw new Error(`Falha ao criar avatar: ${createError.message}`);
+        }
+        
+        console.log('Usuário avatar criado:', newUserId);
+        
+        // Criar perfil para o avatar
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .insert({
+            id: newUserId,
+            email: inviteEmail.trim().toLowerCase(),
+            name: `Avatar (${inviteEmail.split('@')[0]})`,
+            account_type: 'avatar',
+            gender: currentUser.gender === 'masculino' ? 'feminino' : 'masculino' // Gênero oposto ao usuário atual
+          });
+          
+        if (profileError) {
+          console.error('Erro ao criar perfil do avatar:', profileError);
+          throw new Error('Falha ao criar perfil do avatar');
+        }
+        
+        // Criar o couple com o usuário e o avatar
+        const { data: coupleData, error: coupleError } = await supabase
+          .from('couples')
+          .insert({
+            user1_id: currentUser.id,
+            user2_id: newUserId,
+            invitation_token: invitationToken,
+            invitation_email: inviteEmail.trim().toLowerCase(),
+            status: 'active', // Já ativado automaticamente
+            is_avatar: true
+          })
+          .select('id')
+          .single();
+          
+        if (coupleError) {
+          console.error('Erro ao criar relacionamento do avatar:', coupleError);
+          throw new Error('Falha ao criar relacionamento do avatar');
+        }
+        
+        Alert.alert(
+          'Avatar Criado',
+          `O avatar "${inviteEmail}" foi criado com sucesso e já está vinculado à sua conta.`,
+          [{ text: 'OK', onPress: () => {
+            setInviteModalVisible(false);
+            setIsInviteAvatar(false);
+            // Atualizar os dados do usuário e parceiro
+            fetchUserAndPartner();
+          }}]
+        );
+      } else {
+        // Fluxo normal para convites de usuários reais
+        const { data: coupleData, error: coupleError } = await supabase
+          .from('couples')
+          .insert({
+            user1_id: currentUser.id,
+            invitation_token: invitationToken,
+            invitation_email: inviteEmail.trim().toLowerCase(),
+            status: 'pending',
+            is_avatar: false
+          })
+          .select('id')
+          .single();
+          
+        if (coupleError) {
+          throw new Error('Falha ao criar registro. Verifique se o email é válido.');
+        }
+        
+        // Enviar convite por email para usuários reais
         const inviteResponse = await fetch(`${supabase.supabaseUrl}/functions/v1/send-couple-invitation`, {
           method: 'POST',
           headers: {
@@ -547,22 +607,16 @@ export default function Dashboard() {
           const errorData = await inviteResponse.json();
           throw new Error(`Falha ao enviar convite: ${errorData.error || 'Erro desconhecido'}`);
         }
+        
+        Alert.alert(
+          'Convite Enviado',
+          `Um convite foi enviado para ${inviteEmail}. Seu convidado receberá instruções para aceitar o convite.`,
+          [{ text: 'OK', onPress: () => {
+            setInviteModalVisible(false);
+            setIsInviteAvatar(false);
+          }}]
+        );
       }
-      
-      // Texto da mensagem baseado se é avatar ou convite normal
-      const mensagem = isInviteAvatar 
-        ? `O avatar "${inviteEmail}" foi criado com sucesso.`
-        : `Um convite foi enviado para ${inviteEmail}. Seu convidado receberá instruções para aceitar o convite.`;
-      
-      Alert.alert(
-        isInviteAvatar ? 'Avatar Criado' : 'Convite Enviado',
-        mensagem,
-        [{ text: 'OK', onPress: () => {
-          setInviteModalVisible(false);
-          setIsInviteAvatar(false);
-          setAvatarPassword('');
-        }}]
-      );
       
       setInviteEmail('');
       
@@ -1354,7 +1408,6 @@ export default function Dashboard() {
                 onPress={() => {
                   setInviteModalVisible(false);
                   setIsInviteAvatar(false);
-                  setAvatarPassword('');
                 }}
               >
                 <X size={24} color="#333" />
@@ -1372,7 +1425,7 @@ export default function Dashboard() {
               <>
                 <Text style={styles.modalSubtitle}>
                   {isInviteAvatar 
-                    ? 'Crie um avatar para representar uma conta virtual no sistema.'
+                    ? 'Crie um avatar para representar uma conta virtual no sistema. O avatar será vinculado diretamente à sua conta.'
                     : 'Convide alguém para compartilhar finanças e organizar o orçamento juntos.'}
                 </Text>
                 
@@ -1388,6 +1441,11 @@ export default function Dashboard() {
                     value={inviteEmail}
                     onChangeText={setInviteEmail}
                   />
+                  {isInviteAvatar && (
+                    <Text style={styles.passwordHint}>
+                      O avatar será criado automaticamente e vinculado à sua conta.
+                    </Text>
+                  )}
                 </View>
                 
                 {/* Adicionar opção de avatar */}
@@ -1400,23 +1458,6 @@ export default function Dashboard() {
                   </View>
                   <Text style={styles.checkboxLabel}>Marcar este convite como avatar</Text>
                 </TouchableOpacity>
-                
-                {/* Campo de senha que aparece apenas quando isInviteAvatar é true */}
-                {isInviteAvatar && (
-                  <View style={styles.inputContainer}>
-                    <Text style={styles.inputLabel}>Senha do Avatar</Text>
-                    <TextInput
-                      style={styles.input}
-                      placeholder="Digite uma senha para o avatar"
-                      secureTextEntry={true}
-                      value={avatarPassword}
-                      onChangeText={setAvatarPassword}
-                    />
-                    <Text style={styles.passwordHint}>
-                      Esta senha será usada para acessar o avatar. Mínimo de 6 caracteres.
-                    </Text>
-                  </View>
-                )}
                 
                 <TouchableOpacity
                   style={[styles.inviteButton, { backgroundColor: theme.primary }]}

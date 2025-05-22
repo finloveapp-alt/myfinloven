@@ -1404,6 +1404,7 @@ export default function Accounts() {
   );
 }
 
+// Criando um stylesheet estático usando themeDefault
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -1503,7 +1504,7 @@ const styles = StyleSheet.create({
     color: '#777',
   },
   activeTabText: {
-    color: theme.primary,
+    color: themeDefault.primary,
   },
   tabAvatar: {
     width: 24,
@@ -1539,7 +1540,7 @@ const styles = StyleSheet.create({
     marginLeft: 4,
     fontSize: 14,
     fontFamily: fontFallbacks.Poppins_500Medium,
-    color: theme.primary,
+    color: themeDefault.primary,
   },
   accountCard: {
     flexDirection: 'row',
@@ -1717,7 +1718,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   primaryButton: {
-    backgroundColor: '#b687fe',
+    backgroundColor: themeDefault.primary,
   },
   modalButtonText: {
     fontSize: 16,
@@ -2183,7 +2184,7 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: '#b687fe',
+    backgroundColor: themeDefault.primary,
     justifyContent: 'center',
     alignItems: 'center',
   },

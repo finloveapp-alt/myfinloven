@@ -827,13 +827,18 @@ export default function Registers() {
         onRequestClose={closeModal}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+                    <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Nova Transação</Text>
               <TouchableOpacity style={styles.closeButton} onPress={closeModal}>
                 <X size={20} color={themeDefault.text} />
               </TouchableOpacity>
             </View>
+            
+            <ScrollView
+              showsVerticalScrollIndicator={true}
+              contentContainerStyle={{ paddingBottom: 20 }}
+            >
 
             {/* Buttons for transaction type */}
             <View style={styles.transactionTypeContainer}>
@@ -1113,6 +1118,7 @@ export default function Registers() {
             >
               <Text style={styles.saveButtonText}>Salvar Transação</Text>
             </TouchableOpacity>
+            </ScrollView>
           </View>
         </View>
       </Modal>

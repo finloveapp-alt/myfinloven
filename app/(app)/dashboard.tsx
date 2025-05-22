@@ -113,15 +113,6 @@ export default function Dashboard() {
   const [avatarPassword, setAvatarPassword] = useState(''); // Adicionar novamente o estado para senha
   
   useEffect(() => {
-    // Verifica se existe um tema definido globalmente
-    if (global.dashboardTheme === 'masculine') {
-      setTheme(themes.masculine);
-      console.log('Dashboard: Aplicando tema masculino (azul)');
-    } else {
-      setTheme(themes.feminine);
-      console.log('Dashboard: Aplicando tema feminino (rosa)');
-    }
-    
     // Buscar informações do usuário atual e seus parceiros
     fetchUserAndPartner();
   }, []);
@@ -157,6 +148,101 @@ export default function Dashboard() {
       }
       
       console.log('Perfil do usuário obtido do banco:', userProfile);
+      
+      // Definir o tema com base no gênero do usuário
+      if (userProfile && userProfile.gender) {
+        const gender = userProfile.gender.toLowerCase();
+        
+        if (gender === 'masculino' || gender === 'homem' || gender === 'male' || gender === 'm') {
+          console.log('Aplicando tema masculino (azul) com base no perfil');
+          setTheme(themes.masculine);
+          global.dashboardTheme = 'masculine';
+        } else if (gender === 'feminino' || gender === 'mulher' || gender === 'female' || gender === 'f') {
+          console.log('Aplicando tema feminino (rosa) com base no perfil');
+          setTheme(themes.feminine);
+          global.dashboardTheme = 'feminine';
+        } else {
+          // Se o gênero no perfil não for reconhecido, tentar obter dos metadados da sessão
+          const userMetadata = session.user.user_metadata;
+          const metadataGender = userMetadata?.gender || '';
+          
+          console.log('Verificando gênero dos metadados:', metadataGender);
+          
+          if (metadataGender && typeof metadataGender === 'string') {
+            const metaGenderLower = metadataGender.toLowerCase();
+            
+            if (metaGenderLower === 'masculino' || metaGenderLower === 'homem' || 
+                metaGenderLower === 'male' || metaGenderLower === 'm') {
+              console.log('Aplicando tema masculino (azul) com base nos metadados');
+              setTheme(themes.masculine);
+              global.dashboardTheme = 'masculine';
+            } else if (metaGenderLower === 'feminino' || metaGenderLower === 'mulher' || 
+                       metaGenderLower === 'female' || metaGenderLower === 'f') {
+              console.log('Aplicando tema feminino (rosa) com base nos metadados');
+              setTheme(themes.feminine);
+              global.dashboardTheme = 'feminine';
+            } else {
+              // Usar o tema global ou padrão se o gênero nos metadados também não for reconhecido
+              if (global.dashboardTheme === 'masculine') {
+                setTheme(themes.masculine);
+                console.log('Aplicando tema masculino (azul) da variável global');
+              } else {
+                setTheme(themes.feminine);
+                console.log('Aplicando tema feminino (rosa) por padrão ou da variável global');
+              }
+            }
+          } else {
+            // Usar o tema global ou padrão se não houver gênero nos metadados
+            if (global.dashboardTheme === 'masculine') {
+              setTheme(themes.masculine);
+              console.log('Aplicando tema masculino (azul) da variável global');
+            } else {
+              setTheme(themes.feminine);
+              console.log('Aplicando tema feminino (rosa) por padrão ou da variável global');
+            }
+          }
+        }
+      } else {
+        // Se não encontrou perfil ou gênero no perfil, tentar obter dos metadados da sessão
+        const userMetadata = session.user.user_metadata;
+        const metadataGender = userMetadata?.gender || '';
+        
+        console.log('Perfil não encontrado. Verificando gênero dos metadados:', metadataGender);
+        
+        if (metadataGender && typeof metadataGender === 'string') {
+          const metaGenderLower = metadataGender.toLowerCase();
+          
+          if (metaGenderLower === 'masculino' || metaGenderLower === 'homem' || 
+              metaGenderLower === 'male' || metaGenderLower === 'm') {
+            console.log('Aplicando tema masculino (azul) com base nos metadados');
+            setTheme(themes.masculine);
+            global.dashboardTheme = 'masculine';
+          } else if (metaGenderLower === 'feminino' || metaGenderLower === 'mulher' || 
+                     metaGenderLower === 'female' || metaGenderLower === 'f') {
+            console.log('Aplicando tema feminino (rosa) com base nos metadados');
+            setTheme(themes.feminine);
+            global.dashboardTheme = 'feminine';
+          } else {
+            // Usar o tema global ou padrão se o gênero nos metadados não for reconhecido
+            if (global.dashboardTheme === 'masculine') {
+              setTheme(themes.masculine);
+              console.log('Aplicando tema masculino (azul) da variável global');
+            } else {
+              setTheme(themes.feminine);
+              console.log('Aplicando tema feminino (rosa) por padrão ou da variável global');
+            }
+          }
+        } else {
+          // Usar o tema global ou padrão se não houver gênero nos metadados
+          if (global.dashboardTheme === 'masculine') {
+            setTheme(themes.masculine);
+            console.log('Aplicando tema masculino (azul) da variável global');
+          } else {
+            setTheme(themes.feminine);
+            console.log('Aplicando tema feminino (rosa) por padrão ou da variável global');
+          }
+        }
+      }
       
       // Verificar se o usuário é um convidador (user1_id em algum registro de couples)
       const { data: userAsInviter, error: inviterError } = await supabase

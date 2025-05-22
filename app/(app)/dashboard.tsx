@@ -108,6 +108,7 @@ export default function Dashboard() {
   const [inviting, setInviting] = useState(false);
   const [isUserInviter, setIsUserInviter] = useState(false);
   const [isInviteAvatar, setIsInviteAvatar] = useState(false); // Novo estado para marcar convite como avatar
+  const [avatarPassword, setAvatarPassword] = useState(''); // Nova state para a senha do avatar
   
   useEffect(() => {
     // Verifica se existe um tema definido globalmente
@@ -492,6 +493,12 @@ export default function Dashboard() {
       return;
     }
     
+    // Validar senha se for avatar
+    if (isInviteAvatar && (!avatarPassword || avatarPassword.length < 6)) {
+      Alert.alert('Erro', 'Por favor, defina uma senha com pelo menos 6 caracteres para o avatar');
+      return;
+    }
+    
     setInviting(true);
     try {
       if (!currentUser) {
@@ -510,7 +517,8 @@ export default function Dashboard() {
           invitation_token: invitationToken,
           invitation_email: inviteEmail.trim().toLowerCase(),
           status: 'pending',
-          is_avatar: isInviteAvatar // Adicionar campo para indicar se é um avatar
+          is_avatar: isInviteAvatar,
+          avatar_password: isInviteAvatar ? avatarPassword : null // Salvar a senha apenas se for avatar
         })
         .select('id')
         .single();
@@ -531,7 +539,8 @@ export default function Dashboard() {
           inviterId: currentUser.id,
           invitationToken: invitationToken,
           coupleId: coupleData.id,
-          isAvatar: isInviteAvatar // Incluir informação se é avatar no corpo da requisição
+          isAvatar: isInviteAvatar,
+          avatarPassword: isInviteAvatar ? avatarPassword : null // Incluir senha apenas se for avatar
         })
       });
       
@@ -545,7 +554,8 @@ export default function Dashboard() {
         `Um convite foi enviado para ${inviteEmail}. Seu convidado receberá instruções para aceitar o convite.`,
         [{ text: 'OK', onPress: () => {
           setInviteModalVisible(false);
-          setIsInviteAvatar(false); // Resetar o estado após enviar
+          setIsInviteAvatar(false);
+          setAvatarPassword(''); // Limpar a senha ao fechar o modal
         }}]
       );
       
@@ -1334,7 +1344,11 @@ export default function Dashboard() {
               <Text style={styles.modalTitle}>Convidar Usuário</Text>
               <TouchableOpacity 
                 style={styles.closeButton}
-                onPress={() => setInviteModalVisible(false)}
+                onPress={() => {
+                  setInviteModalVisible(false);
+                  setIsInviteAvatar(false);
+                  setAvatarPassword('');
+                }}
               >
                 <X size={24} color="#333" />
               </TouchableOpacity>
@@ -1373,6 +1387,23 @@ export default function Dashboard() {
                   </View>
                   <Text style={styles.checkboxLabel}>Marcar este convite como avatar</Text>
                 </TouchableOpacity>
+                
+                {/* Campo de senha que aparece apenas quando isInviteAvatar é true */}
+                {isInviteAvatar && (
+                  <View style={styles.inputContainer}>
+                    <Text style={styles.inputLabel}>Senha do Avatar</Text>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="Digite uma senha para o avatar"
+                      secureTextEntry={true}
+                      value={avatarPassword}
+                      onChangeText={setAvatarPassword}
+                    />
+                    <Text style={styles.passwordHint}>
+                      Esta senha será usada para acessar o avatar. Mínimo de 6 caracteres.
+                    </Text>
+                  </View>
+                )}
                 
                 <TouchableOpacity
                   style={[styles.inviteButton, { backgroundColor: theme.primary }]}
@@ -2644,5 +2675,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: fontFallbacks.Poppins_400Regular,
     color: '#333',
+  },
+  passwordHint: {
+    fontSize: 12,
+    fontFamily: fontFallbacks.Poppins_400Regular,
+    color: '#666',
+    marginTop: 6,
+    fontStyle: 'italic',
   },
 }); 

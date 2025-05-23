@@ -1439,7 +1439,7 @@ export default function Accounts() {
           style={styles.floatingAddButton}
           onPress={() => setNewAccountModalVisible(true)}
         >
-          <View style={styles.floatingButtonInner}>
+          <View style={[styles.floatingButtonInner, { backgroundColor: theme.primary }]}>
             <PlusCircle size={32} color="#fff" />
           </View>
         </TouchableOpacity>
@@ -2233,7 +2233,7 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: theme.primary,
+    backgroundColor: themeDefault.primary,
     justifyContent: 'center',
     alignItems: 'center',
   },

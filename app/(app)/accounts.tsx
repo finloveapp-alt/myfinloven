@@ -575,7 +575,10 @@ export default function Accounts() {
           <TouchableOpacity 
             style={[
               styles.tab, 
-              activeTab === 'Compartilhadas' && styles.activeTab
+              activeTab === 'Compartilhadas' && [
+                styles.activeTab,
+                { backgroundColor: `rgba(${parseInt(theme.primary.slice(1, 3), 16)}, ${parseInt(theme.primary.slice(3, 5), 16)}, ${parseInt(theme.primary.slice(5, 7), 16)}, 0.1)` }
+              ]
             ]}
             onPress={() => setActiveTab('Compartilhadas')}
           >
@@ -589,7 +592,10 @@ export default function Accounts() {
           <TouchableOpacity 
             style={[
               styles.tab, 
-              activeTab === 'Maria' && styles.activeTab
+              activeTab === 'Maria' && [
+                styles.activeTab,
+                { backgroundColor: `rgba(${parseInt(theme.primary.slice(1, 3), 16)}, ${parseInt(theme.primary.slice(3, 5), 16)}, ${parseInt(theme.primary.slice(5, 7), 16)}, 0.1)` }
+              ]
             ]}
             onPress={() => setActiveTab('Maria')}
           >
@@ -599,14 +605,17 @@ export default function Accounts() {
             />
             <Text style={[
               styles.tabText,
-              activeTab === 'Maria' && styles.activeTabText
+              activeTab === 'Maria' && { color: theme.primary }
             ]}>Maria</Text>
           </TouchableOpacity>
           
           <TouchableOpacity 
             style={[
               styles.tab, 
-              activeTab === 'João' && styles.activeTab
+              activeTab === 'João' && [
+                styles.activeTab,
+                { backgroundColor: `rgba(${parseInt(theme.primary.slice(1, 3), 16)}, ${parseInt(theme.primary.slice(3, 5), 16)}, ${parseInt(theme.primary.slice(5, 7), 16)}, 0.1)` }
+              ]
             ]}
             onPress={() => setActiveTab('João')}
           >
@@ -616,7 +625,7 @@ export default function Accounts() {
             />
             <Text style={[
               styles.tabText,
-              activeTab === 'João' && styles.activeTabText
+              activeTab === 'João' && { color: theme.primary }
             ]}>João</Text>
           </TouchableOpacity>
         </ScrollView>
@@ -1507,7 +1516,7 @@ const styles = StyleSheet.create({
     }),
   },
   activeTab: {
-    backgroundColor: `rgba(${parseInt(themeDefault.primary.slice(1, 3), 16)}, ${parseInt(themeDefault.primary.slice(3, 5), 16)}, ${parseInt(themeDefault.primary.slice(5, 7), 16)}, 0.1)`,
+    // Mantendo este estilo vazio para compatibilidade com outras partes do código
   },
   tabText: {
     marginLeft: 8,

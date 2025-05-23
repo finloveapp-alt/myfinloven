@@ -218,6 +218,9 @@ export default function Registers() {
   const [errorMessage, setErrorMessage] = useState(''); // Novo estado para mensagens de erro
   const [userAccounts, setUserAccounts] = useState<any[]>([]); // Estado para armazenar as contas do usuário
   const [currentUser, setCurrentUser] = useState<any>(null); // Estado para armazenar o usuário atual
+  const [transactions, setTransactions] = useState<any[]>([]); // Novo estado para armazenar transações
+  const [isLoading, setIsLoading] = useState(false); // Estado para indicar carregamento das transações
+  const [accountsMap, setAccountsMap] = useState<{[key: string]: any}>({}); // Mapa para acessar detalhes das contas rapidamente
 
   // useEffect para carregar o tema com base no gênero do usuário
   useEffect(() => {
@@ -225,7 +228,14 @@ export default function Registers() {
     fetchUserTheme();
     // Buscar contas do usuário
     fetchUserAccounts();
+    // Buscar transações do usuário
+    fetchTransactions();
   }, []);
+
+  // useEffect para atualizar as transações quando o usuário seleciona outro dia/mês/ano
+  useEffect(() => {
+    fetchTransactions();
+  }, [selectedDay, currentMonth, currentYear]);
   
   // Função para buscar o tema baseado no perfil do usuário
   const fetchUserTheme = async () => {
@@ -390,11 +400,82 @@ export default function Registers() {
       
       if (accounts && accounts.length > 0) {
         setUserAccounts(accounts);
+        
+        // Criar um mapa de contas para acesso rápido por ID
+        const accountsMapObj: {[key: string]: any} = {};
+        accounts.forEach(account => {
+          accountsMapObj[account.id] = account;
+        });
+        setAccountsMap(accountsMapObj);
       } else {
         console.log('Nenhuma conta encontrada para o usuário');
       }
     } catch (error) {
       console.error('Erro ao buscar contas:', error);
+    }
+  };
+
+  // Função para buscar transações do banco de dados
+  const fetchTransactions = async () => {
+    try {
+      setIsLoading(true);
+      
+      // Obter a sessão atual
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError) {
+        console.error('Erro ao obter sessão:', sessionError);
+        setIsLoading(false);
+        return;
+      }
+      
+      if (!session?.user) {
+        console.log('Nenhuma sessão de usuário encontrada');
+        setIsLoading(false);
+        return;
+      }
+      
+      const userId = session.user.id;
+      
+      // Construir o intervalo de datas para filtrar as transações
+      const startDate = new Date(currentYear, currentMonth, selectedDay);
+      startDate.setHours(0, 0, 0, 0);
+      
+      const endDate = new Date(currentYear, currentMonth, selectedDay);
+      endDate.setHours(23, 59, 59, 999);
+      
+      // Consultar transações no intervalo de datas
+      const { data: userTransactions, error: transactionsError } = await supabase
+        .from('transactions')
+        .select(`
+          *,
+          accounts:account_id(name, type, color),
+          owner:owner_id(name),
+          partner:partner_id(name)
+        `)
+        .gte('transaction_date', startDate.toISOString())
+        .lte('transaction_date', endDate.toISOString())
+        .or(`owner_id.eq.${userId},partner_id.eq.${userId}`)
+        .order('transaction_date', { ascending: false });
+      
+      if (transactionsError) {
+        console.error('Erro ao buscar transações:', transactionsError);
+        setIsLoading(false);
+        return;
+      }
+      
+      console.log('Transações encontradas:', userTransactions);
+      
+      if (userTransactions) {
+        setTransactions(userTransactions);
+      } else {
+        setTransactions([]);
+      }
+      
+      setIsLoading(false);
+    } catch (error) {
+      console.error('Erro ao buscar transações:', error);
+      setIsLoading(false);
     }
   };
 
@@ -502,8 +583,9 @@ export default function Registers() {
       
       console.log('Transação salva com sucesso:', data);
       
-      // Atualizar a lista de transações (em uma implementação real você atualizaria a lista)
-      // Por enquanto, apenas fechamos o modal
+      // Atualizar a lista de transações
+      fetchTransactions();
+      
       setIsSaving(false);
       closeModal();
       
@@ -804,10 +886,8 @@ export default function Registers() {
 
   // Filtrar registros pelo dia selecionado
   const filteredRecords = React.useMemo(() => {
-    // Em uma implementação real, você compararia as datas reais
-    // Para simular, vamos fingir que os registros são do dia selecionado
-    return records.filter(record => true);
-  }, [selectedDay, currentMonth, currentYear]);
+    return transactions;
+  }, [transactions]);
 
   // Calcular totais de receitas e despesas
   const { incomeTotal, expenseTotal } = React.useMemo(() => {
@@ -815,10 +895,11 @@ export default function Registers() {
     let expense = 0;
     
     filteredRecords.forEach(record => {
-      if (record.type === 'income') {
-        income += record.amount;
-      } else if (record.type === 'expense') {
-        expense += record.amount;
+      const amount = parseFloat(record.amount);
+      if (amount > 0) {
+        income += amount;
+      } else if (amount < 0) {
+        expense += Math.abs(amount);
       }
     });
     
@@ -944,26 +1025,83 @@ export default function Registers() {
 
         <View style={styles.recordsContainer}>
           <View style={styles.recordsList}>
-            {filteredRecords.map(record => (
-              <TouchableOpacity key={record.id} style={styles.recordItem}>
-                <View style={styles.recordIcon}>
-                  <Text style={styles.recordIconText}>{record.icon}</Text>
-                </View>
-                <View style={styles.recordInfo}>
-                  <Text style={styles.recordName}>{record.name}</Text>
-                  <Text style={styles.recordDetail}>{record.category} • {record.person}</Text>
-                </View>
-                <View style={styles.recordAmount}>
-                  <Text style={[
-                    styles.recordAmountText,
-                    record.type === 'income' ? styles.incomeText : styles.expenseText
-                  ]}>
-                    R$ {record.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </Text>
-                  {record.recurrent && <Text style={styles.recordFrequency}>/mês</Text>}
-                </View>
-              </TouchableOpacity>
-            ))}
+            {isLoading ? (
+              <View style={styles.loadingContainer}>
+                <Text style={styles.loadingText}>Carregando transações...</Text>
+              </View>
+            ) : filteredRecords.length > 0 ? (
+              filteredRecords.map(record => {
+                // Determinar o ícone com base na categoria ou tipo de transação
+                let icon = '💰'; // Ícone padrão
+                if (record.category) {
+                  // Mapeamento básico de categorias para ícones
+                  const categoryIcons: {[key: string]: string} = {
+                    'Alimentação': '🍽️',
+                    'Transporte': '🚗',
+                    'Saúde': '💊',
+                    'Educação': '📚',
+                    'Lazer': '🎮',
+                    'Moradia': '🏠',
+                    'Vestuário': '👕',
+                    'Trabalho': '💼',
+                    'Investimento': '📈',
+                    'Assinatura': '📱',
+                    'Entretenimento': '🎬'
+                  };
+                  icon = categoryIcons[record.category] || '📋';
+                } else if (record.transaction_type === 'income') {
+                  icon = '💵';
+                } else if (record.transaction_type === 'expense') {
+                  icon = '💸';
+                } else if (record.transaction_type === 'transfer') {
+                  icon = '🔄';
+                }
+                
+                // Formatar a data para exibição
+                const transactionDate = new Date(record.transaction_date);
+                const formattedDate = `${String(transactionDate.getDate()).padStart(2, '0')}/${String(transactionDate.getMonth() + 1).padStart(2, '0')}/${transactionDate.getFullYear()}`;
+                const formattedTime = `${String(transactionDate.getHours()).padStart(2, '0')}:${String(transactionDate.getMinutes()).padStart(2, '0')}`;
+                
+                // Determinar proprietário da transação para exibição
+                let person = "Você";
+                if (record.partner && record.partner.name && record.owner_id !== currentUser?.id) {
+                  person = record.partner.name;
+                } else if (record.owner && record.owner.name && record.owner_id !== currentUser?.id) {
+                  person = record.owner.name;
+                }
+                
+                // Verificar se o valor é positivo (receita) ou negativo (despesa)
+                const isIncome = parseFloat(record.amount) > 0;
+                const isRecurrent = record.recurrence_type !== 'Não recorrente';
+                
+                return (
+                  <TouchableOpacity key={record.id} style={styles.recordItem}>
+                    <View style={styles.recordIcon}>
+                      <Text style={styles.recordIconText}>{icon}</Text>
+                    </View>
+                    <View style={styles.recordInfo}>
+                      <Text style={styles.recordName}>{record.description}</Text>
+                      <Text style={styles.recordDetail}>
+                        {record.category || 'Sem categoria'} • {person} • {formattedDate}
+                      </Text>
+                    </View>
+                    <View style={styles.recordAmount}>
+                      <Text style={[
+                        styles.recordAmountText,
+                        isIncome ? styles.incomeText : styles.expenseText
+                      ]}>
+                        {isIncome ? '+ ' : '- '}R$ {Math.abs(parseFloat(record.amount)).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </Text>
+                      {isRecurrent && <Text style={styles.recordFrequency}>/mês</Text>}
+                    </View>
+                  </TouchableOpacity>
+                );
+              })
+            ) : (
+              <View style={styles.emptyStateContainer}>
+                <Text style={styles.emptyStateText}>Nenhuma transação encontrada para esta data.</Text>
+              </View>
+            )}
           </View>
         </View>
       </ScrollView>
@@ -2247,5 +2385,26 @@ const styles = StyleSheet.create({
   },
   saveButtonDisabled: {
     opacity: 0.7,
+  },
+  loadingContainer: {
+    padding: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    fontSize: 16,
+    color: '#666',
+    fontFamily: fontFallbacks.Poppins_400Regular,
+  },
+  emptyStateContainer: {
+    padding: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyStateText: {
+    fontSize: 16,
+    color: '#666',
+    fontFamily: fontFallbacks.Poppins_400Regular,
+    textAlign: 'center',
   },
 }); 

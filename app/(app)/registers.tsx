@@ -1052,7 +1052,7 @@ export default function Registers() {
               </TouchableOpacity>
               <TouchableOpacity style={styles.addCategoryButton}>
                 <PlusCircle size={16} color={theme.primary} />
-                <Text style={styles.addCategoryText}>Adicionar Nova Categoria</Text>
+                <Text style={[styles.addCategoryText, { color: theme.primary }]}>Adicionar Nova Categoria</Text>
               </TouchableOpacity>
             </View>
 
@@ -1107,7 +1107,7 @@ export default function Registers() {
               
               <TouchableOpacity style={styles.addCategoryButton}>
                 <PlusCircle size={16} color={theme.primary} />
-                <Text style={styles.addCategoryText}>Adicionar Nova Conta</Text>
+                <Text style={[styles.addCategoryText, { color: theme.primary }]}>Adicionar Nova Conta</Text>
               </TouchableOpacity>
             </View>
 
@@ -1686,7 +1686,6 @@ const styles = StyleSheet.create({
   paymentMethodSelectedText: {
     fontSize: 16,
     fontFamily: fontFallbacks.Poppins_500Medium,
-    color: '#b687fe', // Usando uma cor fixa que será atualizada inline quando necessário
     flex: 1,
   },
   paymentMethodText: {
@@ -1717,7 +1716,6 @@ const styles = StyleSheet.create({
   addCategoryText: {
     fontSize: 14,
     fontFamily: fontFallbacks.Poppins_500Medium,
-    color: '#b687fe', // Usando uma cor fixa que será atualizada inline quando necessário
     marginLeft: 5,
   },
   saveButton: {

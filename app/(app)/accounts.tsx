@@ -78,7 +78,8 @@ export default function Accounts() {
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [users, setUsers] = useState<any[]>([]);
   const [userAccounts, setUserAccounts] = useState<{[key: string]: any[]}>({
-    'Compartilhadas': []
+    'Compartilhadas': [],
+    'Pessoal': []
   });
   const [isLoading, setIsLoading] = useState(true);
   
@@ -216,7 +217,8 @@ export default function Accounts() {
       
       // Organizar contas por tipo de propriedade (compartilhadas ou individuais)
       const accountsByUser: {[key: string]: any[]} = {
-        'Compartilhadas': []
+        'Compartilhadas': [],
+        'Pessoal': []
       };
       
       // Adicionar usuários atuais ao objeto de contas
@@ -261,6 +263,11 @@ export default function Accounts() {
                 accountsByUser[ownerProfile.name] = [];
               }
               accountsByUser[ownerProfile.name].push(processedAccount);
+              
+              // Se a conta pertence ao usuário atual, adicionar também na categoria "Pessoal"
+              if (isOwner) {
+                accountsByUser['Pessoal'].push(processedAccount);
+              }
             }
           }
         });
@@ -279,12 +286,20 @@ export default function Accounts() {
       setUserAccounts(accountsByUser);
       
       // Definir a primeira aba ativa
-      if (relatedUsers && relatedUsers.length > 0) {
+      if (accountsByUser['Pessoal'] && accountsByUser['Pessoal'].length > 0) {
+        // Se houver contas pessoais, mostrar a aba Pessoal primeiro
+        setActiveTab('Pessoal');
+      } else if (accountsByUser['Compartilhadas'] && accountsByUser['Compartilhadas'].length > 0) {
+        // Se houver contas compartilhadas, mostrar a aba Compartilhadas
+        setActiveTab('Compartilhadas');
+      } else if (relatedUsers && relatedUsers.length > 0) {
+        // Se não houver contas próprias, mas houver usuários relacionados, mostrar a aba do primeiro usuário
         setActiveTab(relatedUsers[0].name);
       } else if (currentUserData && currentUserData.name) {
+        // Se não houver outras opções, mostrar o nome do usuário atual
         setActiveTab(currentUserData.name);
       } else {
-        // Se não houver usuários relacionados, mostrar apenas as contas compartilhadas
+        // Caso extremo - sem nome de usuário
         setActiveTab('Compartilhadas');
       }
       
@@ -923,6 +938,24 @@ export default function Accounts() {
               styles.tabText,
               activeTab === 'Compartilhadas' && { color: theme.primary }
             ]}>Compartilhadas</Text>
+          </TouchableOpacity>
+          
+          {/* Tab Pessoal */}
+          <TouchableOpacity 
+            style={[
+              styles.tab, 
+              activeTab === 'Pessoal' && [
+                styles.activeTab,
+                { backgroundColor: `rgba(${parseInt(theme.primary.slice(1, 3), 16)}, ${parseInt(theme.primary.slice(3, 5), 16)}, ${parseInt(theme.primary.slice(5, 7), 16)}, 0.1)` }
+              ]
+            ]}
+            onPress={() => setActiveTab('Pessoal')}
+          >
+            <Wallet size={18} color={activeTab === 'Pessoal' ? theme.primary : '#777'} />
+            <Text style={[
+              styles.tabText,
+              activeTab === 'Pessoal' && { color: theme.primary }
+            ]}>Pessoal</Text>
           </TouchableOpacity>
           
           {/* Renderização dinâmica das abas de usuários */}

@@ -1151,7 +1151,7 @@ export default function Accounts() {
             <View style={styles.pickerContainer}>
               <Text style={styles.pickerLabel}>Proprietário</Text>
               <View style={styles.pickerOptions}>
-                {['Compartilhadas', ...(users.length > 0 ? users.map(user => user.name) : [currentUser?.name || 'Você'])].map((owner) => (
+                {['Compartilhadas', ...(users.length > 0 ? users.map(user => user.name || 'Avatar') : [currentUser?.name || 'Avatar'])].map((owner) => (
                   <TouchableOpacity 
                     key={owner}
                     style={[

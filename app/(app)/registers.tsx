@@ -198,6 +198,7 @@ export default function Registers() {
   const [menuModalVisible, setMenuModalVisible] = useState(false);
   const [transactionType, setTransactionType] = useState('expense'); // 'expense', 'income', 'transfer'
   const [amount, setAmount] = useState('');
+  const [description, setDescription] = useState(''); // Nova propriedade para descrição da transação
   const [selectedDate, setSelectedDate] = useState(
     `${String(currentDate.getDate()).padStart(2, '0')}/${String(currentDate.getMonth() + 1).padStart(2, '0')}/${currentDate.getFullYear()}`
   );
@@ -205,6 +206,7 @@ export default function Registers() {
   const [selectedCategory, setSelectedCategory] = useState('');
   const [recurrenceType, setRecurrenceType] = useState('Não recorrente');
   const [selectedAccount, setSelectedAccount] = useState('');
+  const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null); // Novo estado para armazenar o ID da conta
   const [accountsVisible, setAccountsVisible] = useState(false);
   const [calendarVisible, setCalendarVisible] = useState(false);
   const [pickerMonth, setPickerMonth] = useState(currentDate.getMonth());
@@ -212,11 +214,17 @@ export default function Registers() {
   const [pickerDay, setPickerDay] = useState(currentDate.getDate());
   const [paymentMethod, setPaymentMethod] = useState('');
   const [paymentMethodsVisible, setPaymentMethodsVisible] = useState(false);
+  const [isSaving, setIsSaving] = useState(false); // Novo estado para controlar o estado de salvamento
+  const [errorMessage, setErrorMessage] = useState(''); // Novo estado para mensagens de erro
+  const [userAccounts, setUserAccounts] = useState<any[]>([]); // Estado para armazenar as contas do usuário
+  const [currentUser, setCurrentUser] = useState<any>(null); // Estado para armazenar o usuário atual
 
   // useEffect para carregar o tema com base no gênero do usuário
   useEffect(() => {
     // Buscar informações do usuário atual
     fetchUserTheme();
+    // Buscar contas do usuário
+    fetchUserAccounts();
   }, []);
   
   // Função para buscar o tema baseado no perfil do usuário
@@ -350,8 +358,63 @@ export default function Registers() {
     }
   };
 
+  // Função para buscar as contas do usuário
+  const fetchUserAccounts = async () => {
+    try {
+      // Obter a sessão atual
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError) {
+        console.error('Erro ao obter sessão:', sessionError);
+        return;
+      }
+      
+      if (!session?.user) {
+        console.log('Nenhuma sessão de usuário encontrada');
+        return;
+      }
+      
+      const userId = session.user.id;
+      setCurrentUser({ id: userId });
+      
+      // Buscar as contas do usuário (próprias ou compartilhadas)
+      const { data: accounts, error: accountsError } = await supabase
+        .from('accounts')
+        .select('*')
+        .or(`owner_id.eq.${userId},partner_id.eq.${userId}`);
+        
+      if (accountsError) {
+        console.error('Erro ao buscar contas do usuário:', accountsError);
+        return;
+      }
+      
+      if (accounts && accounts.length > 0) {
+        setUserAccounts(accounts);
+      } else {
+        console.log('Nenhuma conta encontrada para o usuário');
+      }
+    } catch (error) {
+      console.error('Erro ao buscar contas:', error);
+    }
+  };
+
   // Função para abrir o modal
   const openAddTransactionModal = () => {
+    // Resetar os estados
+    setTransactionType('expense');
+    setAmount('');
+    setDescription('');
+    setSelectedDate(
+      `${String(currentDate.getDate()).padStart(2, '0')}/${String(currentDate.getMonth() + 1).padStart(2, '0')}/${currentDate.getFullYear()}`
+    );
+    setSelectedCard('');
+    setSelectedCategory('');
+    setRecurrenceType('Não recorrente');
+    setSelectedAccount('');
+    setSelectedAccountId(null);
+    setPaymentMethod('');
+    setErrorMessage('');
+    
     setModalVisible(true);
   };
 
@@ -364,10 +427,94 @@ export default function Registers() {
   };
 
   // Função para salvar a nova transação
-  const saveTransaction = () => {
-    // Aqui você implementaria a lógica para salvar a transação
-    // Por enquanto apenas fechamos o modal
-    closeModal();
+  const saveTransaction = async () => {
+    try {
+      setErrorMessage('');
+      setIsSaving(true);
+      
+      // Validações básicas
+      if (!description.trim()) {
+        setErrorMessage('Por favor, informe uma descrição para a transação.');
+        setIsSaving(false);
+        return;
+      }
+      
+      if (!amount || isNaN(parseFloat(amount.replace(',', '.')))) {
+        setErrorMessage('Por favor, informe um valor válido.');
+        setIsSaving(false);
+        return;
+      }
+      
+      if (!selectedAccountId) {
+        setErrorMessage('Por favor, selecione uma conta.');
+        setIsSaving(false);
+        return;
+      }
+      
+      // Obter a sessão atual para o ID do usuário
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) {
+        setErrorMessage('Usuário não autenticado.');
+        setIsSaving(false);
+        return;
+      }
+      
+      const userId = session.user.id;
+      
+      // Preparar o valor conforme o tipo de transação
+      let transactionAmount = parseFloat(amount.replace(',', '.'));
+      if (transactionType === 'expense') {
+        transactionAmount = -Math.abs(transactionAmount); // Garantir que será negativo
+      } else if (transactionType === 'income') {
+        transactionAmount = Math.abs(transactionAmount); // Garantir que será positivo
+      }
+      
+      // Converter a data selecionada para o formato ISO
+      const parsedDate = parseDate(selectedDate);
+      
+      // Preparar os dados da transação
+      const transactionData = {
+        description,
+        amount: transactionAmount,
+        transaction_date: parsedDate.toISOString(),
+        transaction_type: transactionType,
+        account_id: selectedAccountId,
+        payment_method: paymentMethod || null,
+        category: selectedCategory || null,
+        recurrence_type: recurrenceType,
+        owner_id: userId,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+      
+      // Inserir a transação no banco de dados
+      const { data, error } = await supabase
+        .from('transactions')
+        .insert([transactionData])
+        .select();
+      
+      if (error) {
+        console.error('Erro ao salvar transação:', error);
+        setErrorMessage(`Erro ao salvar: ${error.message}`);
+        setIsSaving(false);
+        return;
+      }
+      
+      console.log('Transação salva com sucesso:', data);
+      
+      // Atualizar a lista de transações (em uma implementação real você atualizaria a lista)
+      // Por enquanto, apenas fechamos o modal
+      setIsSaving(false);
+      closeModal();
+      
+      // Opcional: Exibir um alerta de sucesso
+      alert('Transação registrada com sucesso!');
+      
+    } catch (error) {
+      console.error('Erro ao salvar transação:', error);
+      setErrorMessage('Ocorreu um erro ao salvar a transação. Por favor, tente novamente.');
+      setIsSaving(false);
+    }
   };
 
   // Funções para o calendário do modal de transação
@@ -705,9 +852,16 @@ export default function Registers() {
     }
   };
 
-  const selectAccount = (account: { id: string, name: string, type: string, icon: string }) => {
+  const selectAccount = (account: any) => {
     setSelectedAccount(account.name);
+    setSelectedAccountId(account.id); // Armazenar o ID da conta
     setAccountsVisible(false);
+  };
+
+  // Converter data no formato DD/MM/YYYY para objeto Date
+  const parseDate = (dateString: string) => {
+    const [day, month, year] = dateString.split('/').map(Number);
+    return new Date(year, month - 1, day);
   };
 
   return (
@@ -880,6 +1034,18 @@ export default function Registers() {
                   transactionType === 'transfer' && [styles.activeTypeText, { color: theme.shared }]
                 ]}>Transferência</Text>
               </TouchableOpacity>
+            </View>
+
+            {/* Campo de Descrição */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Descrição</Text>
+              <TextInput
+                style={styles.textInput}
+                value={description}
+                onChangeText={setDescription}
+                placeholder="Ex: Mercado, Salário, Aluguel"
+                placeholderTextColor="#999"
+              />
             </View>
 
             {/* Seletor de Data */}
@@ -1080,43 +1246,70 @@ export default function Registers() {
               
               {accountsVisible && (
                 <View style={styles.paymentMethodsDropdown}>
-                  {demoAccounts.map((account) => (
+                  {userAccounts.length > 0 ? userAccounts.map((account) => (
                     <TouchableOpacity 
                       key={account.id}
                       style={[
                         styles.paymentMethodOption,
-                        selectedAccount === account.name && styles.paymentMethodOptionSelected,
-                        account.id === demoAccounts[demoAccounts.length - 1].id && {borderBottomWidth: 0}
+                        selectedAccountId === account.id && styles.paymentMethodOptionSelected,
+                        account.id === userAccounts[userAccounts.length - 1].id && {borderBottomWidth: 0}
                       ]} 
                       onPress={() => selectAccount(account)}
                     >
-                      <Text style={{ fontSize: 20, marginRight: 10 }}>{account.icon}</Text>
+                      {/* Emoji baseado no tipo de conta */}
+                      <Text style={{ fontSize: 20, marginRight: 10 }}>
+                        {account.type === 'Conta Corrente' ? '🏦' : 
+                         account.type === 'Poupança' ? '💰' : 
+                         account.type === 'Investimento' ? '📈' : 
+                         account.type === 'Dinheiro Físico' ? '💵' : '💳'}
+                      </Text>
                       <View style={{ flex: 1 }}>
                         <Text style={[
                           styles.paymentMethodOptionText,
-                          selectedAccount === account.name && styles.paymentMethodOptionTextSelected
+                          selectedAccountId === account.id && styles.paymentMethodOptionTextSelected
                         ]}>{account.name}</Text>
                         <Text style={{ fontSize: 12, color: '#777', fontFamily: fontFallbacks.Poppins_400Regular }}>
                           {account.type}
                         </Text>
                       </View>
                     </TouchableOpacity>
-                  ))}
+                  )) : (
+                    <View style={styles.paymentMethodOption}>
+                      <Text style={styles.paymentMethodOptionText}>Nenhuma conta encontrada</Text>
+                    </View>
+                  )}
                 </View>
               )}
               
-              <TouchableOpacity style={styles.addCategoryButton}>
+              <TouchableOpacity 
+                style={styles.addCategoryButton}
+                onPress={() => router.push('/(app)/accounts')}
+              >
                 <PlusCircle size={16} color={theme.primary} />
                 <Text style={[styles.addCategoryText, { color: theme.primary }]}>Adicionar Nova Conta</Text>
               </TouchableOpacity>
             </View>
 
+            {/* Mensagem de erro */}
+            {errorMessage ? (
+              <View style={styles.errorContainer}>
+                <Text style={styles.errorText}>{errorMessage}</Text>
+              </View>
+            ) : null}
+
             {/* Save Button */}
             <TouchableOpacity
-              style={[styles.saveButton, { backgroundColor: theme.primary }]}
+              style={[
+                styles.saveButton, 
+                { backgroundColor: theme.primary },
+                isSaving && styles.saveButtonDisabled
+              ]}
               onPress={saveTransaction}
+              disabled={isSaving}
             >
-              <Text style={styles.saveButtonText}>Salvar Transação</Text>
+              <Text style={styles.saveButtonText}>
+                {isSaving ? 'Salvando...' : 'Salvar Transação'}
+              </Text>
             </TouchableOpacity>
             </ScrollView>
           </View>
@@ -2031,5 +2224,28 @@ const styles = StyleSheet.create({
       },
     }),
     // backgroundColor será aplicado inline
+  },
+  textInput: {
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    fontFamily: fontFallbacks.Poppins_400Regular,
+    color: '#333333',
+  },
+  errorContainer: {
+    backgroundColor: 'rgba(255, 59, 48, 0.1)',
+    padding: 10,
+    borderRadius: 8,
+    marginBottom: 16,
+  },
+  errorText: {
+    color: '#FF3B30',
+    fontSize: 14,
+    fontFamily: fontFallbacks.Poppins_400Regular,
+  },
+  saveButtonDisabled: {
+    opacity: 0.7,
   },
 }); 

@@ -123,7 +123,7 @@ export default function Accounts() {
       // Buscar o usuário atual
       const { data: currentUserData, error: currentUserError } = await supabase
         .from('profiles')
-        .select('*')
+        .select('id, first_name, last_name, avatar_url, gender')
         .eq('id', currentUserId)
         .single();
         
@@ -161,12 +161,13 @@ export default function Accounts() {
         if (partnerIds.length > 0) {
           const { data: partnerProfiles, error: partnersError } = await supabase
             .from('profiles')
-            .select('*')
+            .select('id, first_name, last_name, avatar_url, gender, email')
             .in('id', partnerIds);
             
           if (partnersError) {
             console.error('Erro ao buscar perfis dos parceiros:', partnersError);
           } else if (partnerProfiles) {
+            console.log('Perfis dos parceiros:', partnerProfiles);
             // Adicionar usuários únicos à lista
             partnerProfiles.forEach(profile => {
               if (!relatedUserIds.has(profile.id)) {
@@ -753,8 +754,9 @@ export default function Accounts() {
               >
                 <Image 
                   source={{ 
-                    uri: user.avatar_url || 
-                         (user.gender?.toLowerCase().includes('f') 
+                    uri: user.avatar_url
+                         ? user.avatar_url
+                         : (user.gender?.toLowerCase().includes('f') 
                            ? 'https://randomuser.me/api/portraits/women/44.jpg' 
                            : 'https://randomuser.me/api/portraits/men/42.jpg') 
                   }}
@@ -763,7 +765,7 @@ export default function Accounts() {
                 <Text style={[
                   styles.tabText,
                   activeTab === user.first_name && { color: theme.primary }
-                ]}>{user.first_name}</Text>
+                ]}>{user.first_name || 'Usuário'}</Text>
               </TouchableOpacity>
             ))
           ) : !isLoading && (
@@ -1194,14 +1196,15 @@ export default function Accounts() {
                 >
                   <Image 
                     source={{ 
-                      uri: user.avatar_url || 
-                          (user.gender?.toLowerCase().includes('f') 
+                      uri: user.avatar_url
+                          ? user.avatar_url
+                          : (user.gender?.toLowerCase().includes('f') 
                             ? 'https://randomuser.me/api/portraits/women/44.jpg' 
                             : 'https://randomuser.me/api/portraits/men/42.jpg') 
                     }}
                     style={styles.sharePersonAvatar}
                   />
-                  <Text style={styles.sharePersonName}>{user.first_name}</Text>
+                  <Text style={styles.sharePersonName}>{user.first_name} {user.last_name}</Text>
                   {shareWithPerson === user.first_name && (
                     <Check size={20} color={theme.primary} />
                   )}

@@ -10,7 +10,8 @@ import {
   Platform,
   Modal,
   TextInput,
-  Alert
+  Alert,
+  ActivityIndicator
 } from 'react-native';
 import { ArrowLeft, CreditCard, Plus, ChevronRight, Wallet, Landmark, PiggyBank, DollarSign, Users, X, Check, Calendar, Settings, ArrowUpRight, ArrowDownRight, Music, Phone, User, BarChart, Menu, Receipt, PlusCircle, Home, Bell, Info, ExternalLink } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -58,6 +59,12 @@ export default function Accounts() {
   const [activeTab, setActiveTab] = useState('Compartilhadas');
   const [theme, setTheme] = useState(themes.feminine); // Iniciar com tema feminino como padrão
   
+  // Estados para armazenar usuários e contas
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [users, setUsers] = useState<any[]>([]);
+  const [userAccounts, setUserAccounts] = useState<{[key: string]: any[]}>({});
+  const [isLoading, setIsLoading] = useState(true);
+  
   // Estados para controlar a visibilidade dos modais
   const [newAccountModalVisible, setNewAccountModalVisible] = useState(false);
   const [depositModalVisible, setDepositModalVisible] = useState(false);
@@ -88,7 +95,90 @@ export default function Accounts() {
   useEffect(() => {
     // Buscar informações do usuário atual
     fetchUserTheme();
+    fetchUsersAndAccounts();
   }, []);
+  
+  // Função para buscar usuários e suas contas
+  const fetchUsersAndAccounts = async () => {
+    try {
+      setIsLoading(true);
+      
+      // Obter a sessão atual para identificar o usuário logado
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError) {
+        console.error('Erro ao obter sessão:', sessionError);
+        setIsLoading(false);
+        return;
+      }
+      
+      if (!session?.user) {
+        console.log('Nenhuma sessão de usuário encontrada');
+        setIsLoading(false);
+        return;
+      }
+      
+      const currentUserId = session.user.id;
+      
+      // Buscar o usuário atual
+      const { data: currentUserData, error: currentUserError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', currentUserId)
+        .single();
+        
+      if (currentUserError) {
+        console.error('Erro ao buscar usuário atual:', currentUserError);
+      } else {
+        setCurrentUser(currentUserData);
+      }
+      
+      // Buscar outros usuários convidados (na implementação real, você buscaria usuários relacionados)
+      const { data: usersData, error: usersError } = await supabase
+        .from('profiles')
+        .select('*')
+        .neq('id', currentUserId);
+        
+      if (usersError) {
+        console.error('Erro ao buscar usuários:', usersError);
+      } else {
+        setUsers(usersData || []);
+        
+        // Inicializar o objeto de contas dos usuários
+        const accountsByUser: {[key: string]: any[]} = {};
+        accountsByUser['Compartilhadas'] = sharedAccounts;
+        
+        // Inicializar contas para cada usuário
+        // Na implementação real, você buscaria contas específicas para cada usuário
+        usersData?.forEach(user => {
+          accountsByUser[user.first_name] = user.gender?.toLowerCase().includes('f') 
+            ? [...mariaAccounts] 
+            : [...joaoAccounts];
+          
+          // Atualizar os nomes das contas para refletir o nome do usuário
+          accountsByUser[user.first_name].forEach(account => {
+            if (account.name === 'Conta Pessoal') {
+              account.name = `Conta de ${user.first_name}`;
+            } else if (account.name === 'Minha Carteira') {
+              account.name = `Carteira de ${user.first_name}`;
+            }
+          });
+        });
+        
+        setUserAccounts(accountsByUser);
+        
+        // Definir a primeira aba ativa
+        if (usersData && usersData.length > 0) {
+          setActiveTab(usersData[0].first_name);
+        }
+      }
+      
+      setIsLoading(false);
+    } catch (error) {
+      console.error('Erro ao buscar usuários e contas:', error);
+      setIsLoading(false);
+    }
+  };
   
   // Função para buscar o tema baseado no perfil do usuário
   const fetchUserTheme = async () => {
@@ -307,16 +397,10 @@ export default function Accounts() {
   
   // Determina quais contas exibir com base na aba selecionada
   const displayAccounts = () => {
-    switch(activeTab) {
-      case 'Compartilhadas':
-        return sharedAccounts;
-      case 'Maria':
-        return mariaAccounts;
-      case 'João':
-        return joaoAccounts;
-      default:
-        return sharedAccounts;
-    }
+    if (isLoading) return [];
+    
+    // Usar as contas dos usuários reais
+    return userAccounts[activeTab] || [];
   };
   
   // Calcula o saldo total das contas exibidas
@@ -426,7 +510,13 @@ export default function Accounts() {
 
   // Função para determinar o nome da outra pessoa com base no usuário atual
   const getOtherPersonName = () => {
-    return activeTab === 'Maria' ? 'João' : 'Maria';
+    if (users.length === 0 || activeTab === 'Compartilhadas') {
+      return '';
+    }
+    
+    // Se o usuário atual for o ativo, retornar o primeiro usuário diferente
+    const otherUsers = users.filter(user => user.first_name !== activeTab);
+    return otherUsers.length > 0 ? otherUsers[0].first_name : '';
   };
 
   // Dados fictícios de transações para cada conta
@@ -560,8 +650,15 @@ export default function Accounts() {
         
         <View style={styles.balanceContent}>
           <Text style={styles.balanceLabel}>Saldo Total</Text>
-          <Text style={styles.balanceAmount}>R$ {calculateTotalBalance(displayAccounts())}</Text>
-          <Text style={styles.balanceSubtext}>{displayAccounts().length} Contas • {activeTab}</Text>
+          <Text style={styles.balanceAmount}>
+            {isLoading ? 'Carregando...' : `R$ ${calculateTotalBalance(displayAccounts())}`}
+          </Text>
+          <Text style={styles.balanceSubtext}>
+            {isLoading 
+              ? 'Carregando contas...' 
+              : `${displayAccounts().length} Contas • ${activeTab}`
+            }
+          </Text>
         </View>
       </LinearGradient>
 
@@ -572,6 +669,7 @@ export default function Accounts() {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.tabsScroll}
         >
+          {/* Tab Compartilhadas */}
           <TouchableOpacity 
             style={[
               styles.tab, 
@@ -589,45 +687,34 @@ export default function Accounts() {
             ]}>Compartilhadas</Text>
           </TouchableOpacity>
           
-          <TouchableOpacity 
-            style={[
-              styles.tab, 
-              activeTab === 'Maria' && [
-                styles.activeTab,
-                { backgroundColor: `rgba(${parseInt(theme.primary.slice(1, 3), 16)}, ${parseInt(theme.primary.slice(3, 5), 16)}, ${parseInt(theme.primary.slice(5, 7), 16)}, 0.1)` }
-              ]
-            ]}
-            onPress={() => setActiveTab('Maria')}
-          >
-            <Image 
-              source={{ uri: 'https://randomuser.me/api/portraits/women/44.jpg' }}
-              style={styles.tabAvatar}
-            />
-            <Text style={[
-              styles.tabText,
-              activeTab === 'Maria' && { color: theme.primary }
-            ]}>Maria</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={[
-              styles.tab, 
-              activeTab === 'João' && [
-                styles.activeTab,
-                { backgroundColor: `rgba(${parseInt(theme.primary.slice(1, 3), 16)}, ${parseInt(theme.primary.slice(3, 5), 16)}, ${parseInt(theme.primary.slice(5, 7), 16)}, 0.1)` }
-              ]
-            ]}
-            onPress={() => setActiveTab('João')}
-          >
-            <Image 
-              source={{ uri: 'https://randomuser.me/api/portraits/men/42.jpg' }}
-              style={styles.tabAvatar}
-            />
-            <Text style={[
-              styles.tabText,
-              activeTab === 'João' && { color: theme.primary }
-            ]}>João</Text>
-          </TouchableOpacity>
+          {/* Renderização dinâmica das abas de usuários */}
+          {!isLoading && users.map((user) => (
+            <TouchableOpacity 
+              key={user.id}
+              style={[
+                styles.tab, 
+                activeTab === user.first_name && [
+                  styles.activeTab,
+                  { backgroundColor: `rgba(${parseInt(theme.primary.slice(1, 3), 16)}, ${parseInt(theme.primary.slice(3, 5), 16)}, ${parseInt(theme.primary.slice(5, 7), 16)}, 0.1)` }
+                ]
+              ]}
+              onPress={() => setActiveTab(user.first_name)}
+            >
+              <Image 
+                source={{ 
+                  uri: user.avatar_url || 
+                       (user.gender?.toLowerCase().includes('f') 
+                         ? 'https://randomuser.me/api/portraits/women/44.jpg' 
+                         : 'https://randomuser.me/api/portraits/men/42.jpg') 
+                }}
+                style={styles.tabAvatar}
+              />
+              <Text style={[
+                styles.tabText,
+                activeTab === user.first_name && { color: theme.primary }
+              ]}>{user.first_name}</Text>
+            </TouchableOpacity>
+          ))}
         </ScrollView>
       </View>
 
@@ -637,93 +724,102 @@ export default function Accounts() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.accountsSection}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Suas Contas</Text>
-            
-            <TouchableOpacity 
-              style={styles.addButton}
-              onPress={() => setNewAccountModalVisible(true)}
-            >
-              <Plus size={18} color={theme.primary} />
-              <Text style={[styles.addButtonText, { color: theme.primary }]}>Adicionar Conta</Text>
-            </TouchableOpacity>
+        {isLoading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={theme.primary} />
+            <Text style={[styles.loadingText, {color: theme.primary}]}>Carregando contas...</Text>
           </View>
+        ) : (
+          <>
+            <View style={styles.accountsSection}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Suas Contas</Text>
+                
+                <TouchableOpacity 
+                  style={styles.addButton}
+                  onPress={() => setNewAccountModalVisible(true)}
+                >
+                  <Plus size={18} color={theme.primary} />
+                  <Text style={[styles.addButtonText, { color: theme.primary }]}>Adicionar Conta</Text>
+                </TouchableOpacity>
+              </View>
 
-          {displayAccounts().map((account) => (
-            <TouchableOpacity 
-              key={account.id} 
-              style={styles.accountCard}
-              onPress={() => handleOpenAccountDetails(account)}
-            >
-              <View style={[styles.accountIcon, { backgroundColor: account.color }]}>
-                {account.icon}
-              </View>
-              
-              <View style={styles.accountInfo}>
-                <Text style={styles.accountName}>{account.name}</Text>
-                <Text style={styles.accountType}>
-                  {account.type}{account.bank ? ` • ${account.bank}` : ''}
-                </Text>
-                <Text style={styles.accountDate}>
-                  Última transação: {account.lastTransaction}
-                </Text>
-              </View>
-              
-              <View style={styles.accountBalance}>
-                <Text style={styles.accountBalanceText}>{account.balance}</Text>
-                <ChevronRight size={16} color="#999" />
-              </View>
-            </TouchableOpacity>
-          ))}
-        </View>
+              {displayAccounts().map((account) => (
+                <TouchableOpacity 
+                  key={account.id} 
+                  style={styles.accountCard}
+                  onPress={() => handleOpenAccountDetails(account)}
+                >
+                  <View style={[styles.accountIcon, { backgroundColor: account.color }]}>
+                    {account.icon}
+                  </View>
+                  
+                  <View style={styles.accountInfo}>
+                    <Text style={styles.accountName}>{account.name}</Text>
+                    <Text style={styles.accountType}>
+                      {account.type}{account.bank ? ` • ${account.bank}` : ''}
+                    </Text>
+                    <Text style={styles.accountDate}>
+                      Última transação: {account.lastTransaction}
+                    </Text>
+                  </View>
+                  
+                  <View style={styles.accountBalance}>
+                    <Text style={styles.accountBalanceText}>{account.balance}</Text>
+                    <ChevronRight size={16} color="#999" />
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
 
-        {/* Quick Actions Section */}
-        <View style={styles.actionsSection}>
-          <Text style={styles.sectionTitle}>Ações Rápidas</Text>
-          
-          <View style={styles.actionsGrid}>
-            <TouchableOpacity 
-              style={styles.actionButton}
-              onPress={() => setNewAccountModalVisible(true)}
-            >
-              <View style={[styles.actionIcon, { backgroundColor: `rgba(${parseInt(theme.primary.slice(1, 3), 16)}, ${parseInt(theme.primary.slice(3, 5), 16)}, ${parseInt(theme.primary.slice(5, 7), 16)}, 0.2)` }]}>
-                <Wallet size={24} color={theme.primary} />
+            {/* Quick Actions Section */}
+            <View style={styles.actionsSection}>
+              <Text style={styles.sectionTitle}>Ações Rápidas</Text>
+              
+              <View style={styles.actionsGrid}>
+                <TouchableOpacity 
+                  style={styles.actionButton}
+                  onPress={() => setNewAccountModalVisible(true)}
+                >
+                  <View style={[styles.actionIcon, { backgroundColor: `rgba(${parseInt(theme.primary.slice(1, 3), 16)}, ${parseInt(theme.primary.slice(3, 5), 16)}, ${parseInt(theme.primary.slice(5, 7), 16)}, 0.2)` }]}>
+                    <Wallet size={24} color={theme.primary} />
+                  </View>
+                  <Text style={styles.actionText}>Nova Conta</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={styles.actionButton}
+                  onPress={() => setDepositModalVisible(true)}
+                >
+                  <View style={[styles.actionIcon, { backgroundColor: `rgba(${parseInt(theme.secondary.slice(1, 3), 16)}, ${parseInt(theme.secondary.slice(3, 5), 16)}, ${parseInt(theme.secondary.slice(5, 7), 16)}, 0.2)` }]}>
+                    <DollarSign size={24} color={theme.secondary} />
+                  </View>
+                  <Text style={styles.actionText}>Depositar</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={styles.actionButton}
+                  onPress={() => setSavingsModalVisible(true)}
+                >
+                  <View style={[styles.actionIcon, { backgroundColor: 'rgba(76, 217, 100, 0.2)' }]}>
+                    <PiggyBank size={24} color="#4CD964" />
+                  </View>
+                  <Text style={styles.actionText}>Poupar</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={styles.actionButton}
+                  onPress={() => setShareModalVisible(true)}
+                >
+                  <View style={[styles.actionIcon, { backgroundColor: 'rgba(255, 179, 0, 0.2)' }]}>
+                    <Users size={24} color="#FFB300" />
+                  </View>
+                  <Text style={styles.actionText}>Compartilhar</Text>
+                </TouchableOpacity>
               </View>
-              <Text style={styles.actionText}>Nova Conta</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={styles.actionButton}
-              onPress={() => setDepositModalVisible(true)}
-            >
-              <View style={[styles.actionIcon, { backgroundColor: `rgba(${parseInt(theme.secondary.slice(1, 3), 16)}, ${parseInt(theme.secondary.slice(3, 5), 16)}, ${parseInt(theme.secondary.slice(5, 7), 16)}, 0.2)` }]}>
-                <DollarSign size={24} color={theme.secondary} />
-              </View>
-              <Text style={styles.actionText}>Depositar</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={styles.actionButton}
-              onPress={() => setSavingsModalVisible(true)}
-            >
-              <View style={[styles.actionIcon, { backgroundColor: 'rgba(76, 217, 100, 0.2)' }]}>
-                <PiggyBank size={24} color="#4CD964" />
-              </View>
-              <Text style={styles.actionText}>Poupar</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={styles.actionButton}
-              onPress={() => setShareModalVisible(true)}
-            >
-              <View style={[styles.actionIcon, { backgroundColor: 'rgba(255, 179, 0, 0.2)' }]}>
-                <Users size={24} color="#FFB300" />
-              </View>
-              <Text style={styles.actionText}>Compartilhar</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+            </View>
+          </>
+        )}
       </ScrollView>
 
       {/* Modal: Nova Conta */}
@@ -804,7 +900,7 @@ export default function Accounts() {
             <View style={styles.pickerContainer}>
               <Text style={styles.pickerLabel}>Proprietário</Text>
               <View style={styles.pickerOptions}>
-                {['Maria', 'João', 'Compartilhada'].map((owner) => (
+                {['Compartilhadas', ...users.map(user => user.first_name)].map((owner) => (
                   <TouchableOpacity 
                     key={owner}
                     style={[
@@ -1022,33 +1118,42 @@ export default function Accounts() {
 
             <View style={styles.pickerContainer}>
               <Text style={styles.pickerLabel}>Compartilhar com</Text>
-              <TouchableOpacity 
-                style={[
-                  styles.sharePerson, 
-                  shareWithPerson === getOtherPersonName() && [
-                    styles.sharePersonSelected,
-                    { 
-                      backgroundColor: `rgba(${parseInt(theme.primary.slice(1, 3), 16)}, ${parseInt(theme.primary.slice(3, 5), 16)}, ${parseInt(theme.primary.slice(5, 7), 16)}, 0.1)`,
-                      borderWidth: 1,
-                      borderColor: `rgba(${parseInt(theme.primary.slice(1, 3), 16)}, ${parseInt(theme.primary.slice(3, 5), 16)}, ${parseInt(theme.primary.slice(5, 7), 16)}, 0.3)`
-                    }
-                  ]
-                ]}
-                onPress={() => setShareWithPerson(getOtherPersonName())}
-              >
-                <Image 
-                  source={{ 
-                    uri: activeTab === 'Maria' 
-                      ? 'https://randomuser.me/api/portraits/men/42.jpg'
-                      : 'https://randomuser.me/api/portraits/women/44.jpg' 
-                  }}
-                  style={styles.sharePersonAvatar}
-                />
-                <Text style={styles.sharePersonName}>{getOtherPersonName()}</Text>
-                {shareWithPerson === getOtherPersonName() && (
-                  <Check size={20} color={theme.primary} />
-                )}
-              </TouchableOpacity>
+              {users.filter(user => user.first_name !== activeTab).map(user => (
+                <TouchableOpacity 
+                  key={user.id}
+                  style={[
+                    styles.sharePerson, 
+                    shareWithPerson === user.first_name && [
+                      styles.sharePersonSelected,
+                      { 
+                        backgroundColor: `rgba(${parseInt(theme.primary.slice(1, 3), 16)}, ${parseInt(theme.primary.slice(3, 5), 16)}, ${parseInt(theme.primary.slice(5, 7), 16)}, 0.1)`,
+                        borderWidth: 1,
+                        borderColor: `rgba(${parseInt(theme.primary.slice(1, 3), 16)}, ${parseInt(theme.primary.slice(3, 5), 16)}, ${parseInt(theme.primary.slice(5, 7), 16)}, 0.3)`
+                      }
+                    ]
+                  ]}
+                  onPress={() => setShareWithPerson(user.first_name)}
+                >
+                  <Image 
+                    source={{ 
+                      uri: user.avatar_url || 
+                          (user.gender?.toLowerCase().includes('f') 
+                            ? 'https://randomuser.me/api/portraits/women/44.jpg' 
+                            : 'https://randomuser.me/api/portraits/men/42.jpg') 
+                    }}
+                    style={styles.sharePersonAvatar}
+                  />
+                  <Text style={styles.sharePersonName}>{user.first_name}</Text>
+                  {shareWithPerson === user.first_name && (
+                    <Check size={20} color={theme.primary} />
+                  )}
+                </TouchableOpacity>
+              ))}
+              {users.filter(user => user.first_name !== activeTab).length === 0 && (
+                <Text style={styles.infoText}>
+                  Não há usuários disponíveis para compartilhar.
+                </Text>
+              )}
             </View>
 
             <View style={styles.infoBox}>
@@ -2236,5 +2341,16 @@ const styles = StyleSheet.create({
     backgroundColor: themeDefault.primary,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 50,
+  },
+  loadingText: {
+    fontSize: 16,
+    fontFamily: fontFallbacks.Poppins_500Medium,
+    marginTop: 12,
   },
 }); 

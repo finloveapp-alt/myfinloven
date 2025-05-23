@@ -227,6 +227,7 @@ export default function Registers() {
   const [selectedPartnerId, setSelectedPartnerId] = useState<string | null>(null); // Estado para armazenar o ID do parceiro selecionado
   const [userPartners, setUserPartners] = useState<any[]>([]); // Estado para armazenar os parceiros do usuário
   const [partnersVisible, setPartnersVisible] = useState(false); // Estado para controlar a visibilidade da lista de parceiros
+  const [monthTransactions, setMonthTransactions] = useState<{[key: string]: {income: boolean, expense: boolean, transfer: boolean}}>({});
   
   // Lista de ícones disponíveis para seleção
   const availableIcons = [
@@ -268,11 +269,16 @@ export default function Registers() {
     fetchUserPartners();
   }, []);
 
-  // useEffect para atualizar as transações quando o usuário seleciona outro dia/mês/ano
+  // useEffect para atualizar as transações quando o usuário seleciona outro dia
   useEffect(() => {
     fetchTransactions();
   }, [selectedDay, currentMonth, currentYear]);
   
+  // useEffect para buscar todas as transações do mês quando o mês/ano mudar
+  useEffect(() => {
+    fetchMonthTransactions();
+  }, [currentMonth, currentYear]);
+
   // Função para buscar o tema baseado no perfil do usuário
   const fetchUserTheme = async () => {
     try {
@@ -871,6 +877,11 @@ export default function Registers() {
 
     // Agrupar os dias em semanas
     days.forEach((day, index) => {
+      // Verificar se este dia tem transações (apenas se for do mês atual do picker)
+      const isCurrentMonthDay = day.currentMonth && pickerMonth === currentMonth && pickerYear === currentYear;
+      const dayKey = day.day.toString();
+      const hasTransactions = isCurrentMonthDay && monthTransactions[dayKey];
+      
       cells.push(
         <TouchableOpacity
           key={`picker-day-${index}`}
@@ -896,6 +907,21 @@ export default function Registers() {
             >
               {day.day}
             </Text>
+            
+            {/* Indicadores de transações */}
+            {hasTransactions && (
+              <View style={styles.pickerTransactionIndicatorsContainer}>
+                {hasTransactions.income && (
+                  <View style={[styles.transactionIndicator, styles.incomeIndicator]} />
+                )}
+                {hasTransactions.expense && (
+                  <View style={[styles.transactionIndicator, styles.expenseIndicator]} />
+                )}
+                {hasTransactions.transfer && (
+                  <View style={[styles.transactionIndicator, styles.transferIndicator]} />
+                )}
+              </View>
+            )}
           </View>
         </TouchableOpacity>
       );
@@ -1019,6 +1045,10 @@ export default function Registers() {
 
     // Agrupar os dias em semanas
     days.forEach((day, index) => {
+      // Verificar se este dia tem transações
+      const dayKey = day.day.toString();
+      const hasTransactions = day.currentMonth && monthTransactions[dayKey];
+      
       cells.push(
         <TouchableOpacity
           key={`day-${index}`}
@@ -1035,7 +1065,7 @@ export default function Registers() {
               selectedDay === day.day && day.currentMonth ? styles.selectedDayCircle : null
             ]}
           >
-                          <Text
+            <Text
               style={[
                 styles.calendarDay,
                 day.currentMonth ? styles.currentMonthDay : styles.otherMonthDay,
@@ -1044,6 +1074,21 @@ export default function Registers() {
             >
               {day.day}
             </Text>
+            
+            {/* Indicadores de transações */}
+            {hasTransactions && (
+              <View style={styles.transactionIndicatorsContainer}>
+                {hasTransactions.income && (
+                  <View style={[styles.transactionIndicator, styles.incomeIndicator]} />
+                )}
+                {hasTransactions.expense && (
+                  <View style={[styles.transactionIndicator, styles.expenseIndicator]} />
+                )}
+                {hasTransactions.transfer && (
+                  <View style={[styles.transactionIndicator, styles.transferIndicator]} />
+                )}
+              </View>
+            )}
           </View>
         </TouchableOpacity>
       );
@@ -1123,6 +1168,81 @@ export default function Registers() {
     return new Date(year, month - 1, day);
   };
 
+  // Função para buscar todas as transações do mês
+  const fetchMonthTransactions = async () => {
+    try {
+      // Obter a sessão atual
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError) {
+        console.error('Erro ao obter sessão:', sessionError);
+        return;
+      }
+      
+      if (!session?.user) {
+        console.log('Nenhuma sessão de usuário encontrada');
+        return;
+      }
+      
+      const userId = session.user.id;
+      
+      // Construir o intervalo de datas para o mês inteiro
+      const startDate = new Date(currentYear, currentMonth, 1);
+      startDate.setHours(0, 0, 0, 0);
+      
+      const endDate = new Date(currentYear, currentMonth + 1, 0);
+      endDate.setHours(23, 59, 59, 999);
+      
+      // Consultar todas as transações do mês
+      const { data: monthData, error: transactionsError } = await supabase
+        .from('transactions')
+        .select('transaction_date, transaction_type, amount')
+        .gte('transaction_date', startDate.toISOString())
+        .lte('transaction_date', endDate.toISOString())
+        .or(`owner_id.eq.${userId},partner_id.eq.${userId}`);
+      
+      if (transactionsError) {
+        console.error('Erro ao buscar transações do mês:', transactionsError);
+        return;
+      }
+      
+      // Processar os dados para criar um mapa de dias com transações
+      const transactionsByDay: {[key: string]: {income: boolean, expense: boolean, transfer: boolean}} = {};
+      
+      if (monthData && monthData.length > 0) {
+        monthData.forEach(transaction => {
+          const date = new Date(transaction.transaction_date);
+          const day = date.getDate();
+          const key = day.toString();
+          
+          // Inicializar o objeto para este dia se ainda não existir
+          if (!transactionsByDay[key]) {
+            transactionsByDay[key] = {
+              income: false,
+              expense: false,
+              transfer: false
+            };
+          }
+          
+          // Marcar o tipo de transação
+          if (transaction.transaction_type === 'income' || parseFloat(transaction.amount) > 0) {
+            transactionsByDay[key].income = true;
+          } else if (transaction.transaction_type === 'expense' || parseFloat(transaction.amount) < 0) {
+            transactionsByDay[key].expense = true;
+          } else if (transaction.transaction_type === 'transfer') {
+            transactionsByDay[key].transfer = true;
+          }
+        });
+      }
+      
+      setMonthTransactions(transactionsByDay);
+      console.log('Transações do mês por dia:', transactionsByDay);
+      
+    } catch (error) {
+      console.error('Erro ao buscar transações do mês:', error);
+    }
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <StatusBar style="light" />
@@ -1162,6 +1282,21 @@ export default function Registers() {
 
           <View style={styles.calendarContainer}>
             {renderCalendarGrid()}
+          </View>
+
+          <View style={styles.calendarLegendContainer}>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendIndicator, styles.incomeIndicator]} />
+              <Text style={styles.legendText}>Receita</Text>
+            </View>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendIndicator, styles.expenseIndicator]} />
+              <Text style={styles.legendText}>Despesa</Text>
+            </View>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendIndicator, styles.transferIndicator]} />
+              <Text style={styles.legendText}>Transf.</Text>
+            </View>
           </View>
         </View>
 
@@ -2874,5 +3009,59 @@ const styles = StyleSheet.create({
   },
   selectedPartnerOptionText: {
     fontFamily: fontFallbacks.Poppins_600SemiBold,
+  },
+  transactionIndicatorsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    position: 'absolute',
+    bottom: -4,
+    left: 0,
+    right: 0,
+  },
+  transactionIndicator: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+    marginHorizontal: 1,
+  },
+  incomeIndicator: {
+    backgroundColor: '#4CD964', // Verde para receitas
+  },
+  expenseIndicator: {
+    backgroundColor: '#FF3B30', // Vermelho para despesas
+  },
+  transferIndicator: {
+    backgroundColor: '#FFCC00', // Amarelo para transferências
+  },
+  pickerTransactionIndicatorsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    position: 'absolute',
+    bottom: -4,
+    left: 0,
+    right: 0,
+  },
+  calendarLegendContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingTop: 5,
+    paddingBottom: 10,
+  },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 10,
+  },
+  legendIndicator: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 5,
+  },
+  legendText: {
+    color: '#FFF',
+    fontSize: 12,
+    fontFamily: fontFallbacks.Poppins_400Regular,
   },
 }); 

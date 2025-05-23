@@ -221,6 +221,36 @@ export default function Registers() {
   const [transactions, setTransactions] = useState<any[]>([]); // Novo estado para armazenar transações
   const [isLoading, setIsLoading] = useState(false); // Estado para indicar carregamento das transações
   const [accountsMap, setAccountsMap] = useState<{[key: string]: any}>({}); // Mapa para acessar detalhes das contas rapidamente
+  const [selectedIcon, setSelectedIcon] = useState(''); // Estado para armazenar o ícone selecionado
+  const [iconsVisible, setIconsVisible] = useState(false); // Estado para controlar a visibilidade do seletor de ícones
+  
+  // Lista de ícones disponíveis para seleção
+  const availableIcons = [
+    { emoji: '🍎', category: 'Alimentação' },
+    { emoji: '🍕', category: 'Alimentação' },
+    { emoji: '🍔', category: 'Alimentação' },
+    { emoji: '🛒', category: 'Compras' },
+    { emoji: '🏠', category: 'Moradia' },
+    { emoji: '💡', category: 'Utilidades' },
+    { emoji: '💻', category: 'Trabalho' },
+    { emoji: '📱', category: 'Tecnologia' },
+    { emoji: '🚗', category: 'Transporte' },
+    { emoji: '⛽', category: 'Transporte' },
+    { emoji: '🎓', category: 'Educação' },
+    { emoji: '📚', category: 'Educação' },
+    { emoji: '🏥', category: 'Saúde' },
+    { emoji: '💊', category: 'Saúde' },
+    { emoji: '🎬', category: 'Entretenimento' },
+    { emoji: '🎮', category: 'Entretenimento' },
+    { emoji: '📺', category: 'Entretenimento' },
+    { emoji: '🎵', category: 'Entretenimento' },
+    { emoji: '💰', category: 'Dinheiro' },
+    { emoji: '💸', category: 'Dinheiro' },
+    { emoji: '💳', category: 'Cartão' },
+    { emoji: '🏦', category: 'Banco' },
+    { emoji: '✈️', category: 'Viagem' },
+    { emoji: '🏨', category: 'Hospedagem' }
+  ];
 
   // useEffect para carregar o tema com base no gênero do usuário
   useEffect(() => {
@@ -495,6 +525,7 @@ export default function Registers() {
     setSelectedAccountId(null);
     setPaymentMethod('');
     setErrorMessage('');
+    setSelectedIcon(''); // Resetar o ícone selecionado
     
     setModalVisible(true);
   };
@@ -505,6 +536,29 @@ export default function Registers() {
     setCalendarVisible(false);
     setPaymentMethodsVisible(false);
     setAccountsVisible(false);
+    setIconsVisible(false); // Fechar o seletor de ícones
+  };
+
+  // Função para alternar a visibilidade do seletor de ícones
+  const toggleIcons = () => {
+    setIconsVisible(!iconsVisible);
+    
+    // Fechar outros dropdowns se estiverem abertos
+    if (paymentMethodsVisible) {
+      setPaymentMethodsVisible(false);
+    }
+    if (calendarVisible) {
+      setCalendarVisible(false);
+    }
+    if (accountsVisible) {
+      setAccountsVisible(false);
+    }
+  };
+
+  // Função para selecionar um ícone
+  const selectIcon = (icon: string) => {
+    setSelectedIcon(icon);
+    setIconsVisible(false);
   };
 
   // Função para salvar a nova transação
@@ -565,7 +619,8 @@ export default function Registers() {
         recurrence_type: recurrenceType,
         owner_id: userId,
         created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
+        icon: selectedIcon || null // Incluir o ícone selecionado nos dados da transação
       };
       
       // Inserir a transação no banco de dados
@@ -1033,7 +1088,13 @@ export default function Registers() {
               filteredRecords.map(record => {
                 // Determinar o ícone com base na categoria ou tipo de transação
                 let icon = '💰'; // Ícone padrão
-                if (record.category) {
+                
+                // Se a transação tem um ícone definido, use-o
+                if (record.icon) {
+                  icon = record.icon;
+                } 
+                // Caso contrário, determine o ícone com base na categoria ou tipo
+                else if (record.category) {
                   // Mapeamento básico de categorias para ícones
                   const categoryIcons: {[key: string]: string} = {
                     'Alimentação': '🍽️',
@@ -1184,6 +1245,49 @@ export default function Registers() {
                 placeholder="Ex: Mercado, Salário, Aluguel"
                 placeholderTextColor="#999"
               />
+            </View>
+
+            {/* Seletor de Ícone */}
+            <View style={[styles.inputGroup, { zIndex: 12 }]}>
+              <Text style={styles.inputLabel}>Ícone</Text>
+              <TouchableOpacity 
+                style={[
+                  styles.iconSelector,
+                  selectedIcon ? { borderColor: theme.primary, borderWidth: 1.5 } : null
+                ]} 
+                onPress={toggleIcons}
+              >
+                {selectedIcon ? (
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Text style={styles.selectedIconText}>{selectedIcon}</Text>
+                    <Text style={[styles.selectedIconLabel, { color: theme.primary }]}>Ícone selecionado</Text>
+                  </View>
+                ) : (
+                  <Text style={styles.iconSelectorText}>Escolha um ícone (opcional)</Text>
+                )}
+                <ChevronRight size={18} color="#666" style={{ transform: [{ rotate: '90deg' }] as any }} />
+              </TouchableOpacity>
+              
+              {iconsVisible && (
+                <View style={styles.iconsDropdown}>
+                  <ScrollView style={styles.iconsScrollView} horizontal={false} showsVerticalScrollIndicator={true}>
+                    <View style={styles.iconsGrid}>
+                      {availableIcons.map((item, index) => (
+                        <TouchableOpacity 
+                          key={index} 
+                          style={[
+                            styles.iconItem,
+                            selectedIcon === item.emoji && styles.selectedIconItem
+                          ]} 
+                          onPress={() => selectIcon(item.emoji)}
+                        >
+                          <Text style={styles.iconEmoji}>{item.emoji}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </ScrollView>
+                </View>
+              )}
             </View>
 
             {/* Seletor de Data */}
@@ -2406,5 +2510,71 @@ const styles = StyleSheet.create({
     color: '#666',
     fontFamily: fontFallbacks.Poppins_400Regular,
     textAlign: 'center',
+  },
+  iconSelector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 12,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    borderRadius: 8,
+    backgroundColor: 'white',
+  },
+  iconSelectorText: {
+    fontSize: 16,
+    fontFamily: fontFallbacks.Poppins_400Regular,
+    color: '#666',
+    flex: 1,
+  },
+  selectedIconText: {
+    fontSize: 24, 
+    marginRight: 12,
+  },
+  selectedIconLabel: {
+    fontSize: 16,
+    fontFamily: fontFallbacks.Poppins_500Medium,
+  },
+  iconsDropdown: {
+    position: 'absolute',
+    top: 45,
+    left: 0,
+    right: 0,
+    backgroundColor: 'white',
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    borderRadius: 8,
+    marginTop: 4,
+    maxHeight: 200,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+    zIndex: 9999,
+  },
+  iconsScrollView: {
+    maxHeight: 200,
+  },
+  iconsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    padding: 12,
+  },
+  iconItem: {
+    width: '16.666%', // 6 ícones por linha
+    aspectRatio: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 10,
+    borderRadius: 4,
+  },
+  selectedIconItem: {
+    backgroundColor: 'rgba(182, 135, 254, 0.15)',
+  },
+  iconEmoji: {
+    fontSize: 24,
   },
 }); 

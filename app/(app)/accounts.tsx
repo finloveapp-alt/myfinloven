@@ -138,7 +138,7 @@ export default function Accounts() {
       // Buscar relacionamentos do usuário atual na tabela couples
       const { data: couplesData, error: couplesError } = await supabase
         .from('couples')
-        .select('*, user1_id(*), user2_id(*)')
+        .select('*')
         .or(`user1_id.eq.${currentUserId},user2_id.eq.${currentUserId}`);
       
       if (couplesError) {
@@ -151,25 +151,32 @@ export default function Accounts() {
       const relatedUserIds = new Set<string>();
       const relatedUsers: any[] = [];
       
-      couplesData?.forEach(couple => {
-        let partnerId: string;
-        let partner: any;
+      if (couplesData && couplesData.length > 0) {
+        // Obter todos os IDs de parceiros
+        const partnerIds = couplesData.map(couple => 
+          couple.user1_id === currentUserId ? couple.user2_id : couple.user1_id
+        ).filter(id => id !== null);
         
-        // Determinar qual é o parceiro (pode ser user1 ou user2)
-        if (couple.user1_id.id === currentUserId) {
-          partnerId = couple.user2_id.id;
-          partner = couple.user2_id;
-        } else {
-          partnerId = couple.user1_id.id;
-          partner = couple.user1_id;
+        // Buscar perfis dos parceiros
+        if (partnerIds.length > 0) {
+          const { data: partnerProfiles, error: partnersError } = await supabase
+            .from('profiles')
+            .select('*')
+            .in('id', partnerIds);
+            
+          if (partnersError) {
+            console.error('Erro ao buscar perfis dos parceiros:', partnersError);
+          } else if (partnerProfiles) {
+            // Adicionar usuários únicos à lista
+            partnerProfiles.forEach(profile => {
+              if (!relatedUserIds.has(profile.id)) {
+                relatedUserIds.add(profile.id);
+                relatedUsers.push(profile);
+              }
+            });
+          }
         }
-        
-        // Adicionar apenas se ainda não estiver na lista
-        if (!relatedUserIds.has(partnerId)) {
-          relatedUserIds.add(partnerId);
-          relatedUsers.push(partner);
-        }
-      });
+      }
       
       console.log(`Encontrados ${relatedUsers.length} usuários relacionados`);
       setUsers(relatedUsers);

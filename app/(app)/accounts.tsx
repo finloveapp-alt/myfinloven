@@ -129,48 +129,80 @@ export default function Accounts() {
         
       if (currentUserError) {
         console.error('Erro ao buscar usuário atual:', currentUserError);
-      } else {
-        setCurrentUser(currentUserData);
+        setIsLoading(false);
+        return;
       }
       
-      // Buscar outros usuários convidados (na implementação real, você buscaria usuários relacionados)
-      const { data: usersData, error: usersError } = await supabase
-        .from('profiles')
-        .select('*')
-        .neq('id', currentUserId);
+      setCurrentUser(currentUserData);
+      
+      // Buscar relacionamentos do usuário atual na tabela couples
+      const { data: couplesData, error: couplesError } = await supabase
+        .from('couples')
+        .select('*, user1_id(*), user2_id(*)')
+        .or(`user1_id.eq.${currentUserId},user2_id.eq.${currentUserId}`);
+      
+      if (couplesError) {
+        console.error('Erro ao buscar relacionamentos:', couplesError);
+        setIsLoading(false);
+        return;
+      }
+      
+      // Extrair IDs dos parceiros do usuário atual
+      const relatedUserIds = new Set<string>();
+      const relatedUsers: any[] = [];
+      
+      couplesData?.forEach(couple => {
+        let partnerId: string;
+        let partner: any;
         
-      if (usersError) {
-        console.error('Erro ao buscar usuários:', usersError);
-      } else {
-        setUsers(usersData || []);
-        
-        // Inicializar o objeto de contas dos usuários
-        const accountsByUser: {[key: string]: any[]} = {};
-        accountsByUser['Compartilhadas'] = sharedAccounts;
-        
-        // Inicializar contas para cada usuário
-        // Na implementação real, você buscaria contas específicas para cada usuário
-        usersData?.forEach(user => {
-          accountsByUser[user.first_name] = user.gender?.toLowerCase().includes('f') 
-            ? [...mariaAccounts] 
-            : [...joaoAccounts];
-          
-          // Atualizar os nomes das contas para refletir o nome do usuário
-          accountsByUser[user.first_name].forEach(account => {
-            if (account.name === 'Conta Pessoal') {
-              account.name = `Conta de ${user.first_name}`;
-            } else if (account.name === 'Minha Carteira') {
-              account.name = `Carteira de ${user.first_name}`;
-            }
-          });
-        });
-        
-        setUserAccounts(accountsByUser);
-        
-        // Definir a primeira aba ativa
-        if (usersData && usersData.length > 0) {
-          setActiveTab(usersData[0].first_name);
+        // Determinar qual é o parceiro (pode ser user1 ou user2)
+        if (couple.user1_id.id === currentUserId) {
+          partnerId = couple.user2_id.id;
+          partner = couple.user2_id;
+        } else {
+          partnerId = couple.user1_id.id;
+          partner = couple.user1_id;
         }
+        
+        // Adicionar apenas se ainda não estiver na lista
+        if (!relatedUserIds.has(partnerId)) {
+          relatedUserIds.add(partnerId);
+          relatedUsers.push(partner);
+        }
+      });
+      
+      console.log(`Encontrados ${relatedUsers.length} usuários relacionados`);
+      setUsers(relatedUsers);
+      
+      // Inicializar o objeto de contas dos usuários
+      const accountsByUser: {[key: string]: any[]} = {};
+      accountsByUser['Compartilhadas'] = sharedAccounts;
+      
+      // Inicializar contas para cada usuário
+      // Na implementação real, você buscaria contas específicas para cada usuário
+      relatedUsers?.forEach(user => {
+        accountsByUser[user.first_name] = user.gender?.toLowerCase().includes('f') 
+          ? [...mariaAccounts] 
+          : [...joaoAccounts];
+        
+        // Atualizar os nomes das contas para refletir o nome do usuário
+        accountsByUser[user.first_name].forEach(account => {
+          if (account.name === 'Conta Pessoal') {
+            account.name = `Conta de ${user.first_name}`;
+          } else if (account.name === 'Minha Carteira') {
+            account.name = `Carteira de ${user.first_name}`;
+          }
+        });
+      });
+      
+      setUserAccounts(accountsByUser);
+      
+      // Definir a primeira aba ativa
+      if (relatedUsers && relatedUsers.length > 0) {
+        setActiveTab(relatedUsers[0].first_name);
+      } else {
+        // Se não houver usuários relacionados, mostrar apenas as contas compartilhadas
+        setActiveTab('Compartilhadas');
       }
       
       setIsLoading(false);
@@ -511,42 +543,50 @@ export default function Accounts() {
   // Função para determinar o nome da outra pessoa com base no usuário atual
   const getOtherPersonName = () => {
     if (users.length === 0 || activeTab === 'Compartilhadas') {
-      return '';
+      return currentUser?.first_name || 'Você';
     }
     
-    // Se o usuário atual for o ativo, retornar o primeiro usuário diferente
-    const otherUsers = users.filter(user => user.first_name !== activeTab);
-    return otherUsers.length > 0 ? otherUsers[0].first_name : '';
+    // Se estiver na aba do parceiro, retornar o nome do usuário atual
+    if (activeTab === users[0].first_name) {
+      return currentUser?.first_name || 'Você';
+    }
+    
+    // Se estiver na aba do usuário atual ou compartilhada, retornar o nome do parceiro
+    return users[0].first_name || 'Parceiro';
   };
 
   // Dados fictícios de transações para cada conta
   const getAccountTransactions = (accountId: string) => {
+    // Nomes dos usuários para as transações
+    const mainUserName = currentUser?.first_name || 'Você';
+    const partnerName = users.length > 0 ? users[0].first_name : 'Parceiro';
+    
     const transactionsData = {
       '1': [ // Conta Conjunta
-        { id: 't1', title: 'Spotify Premium', category: 'Assinatura', date: '28 Janeiro 2023', amount: -85.00, type: 'expense', icon: <Music size={20} color="#fff" />, iconBg: '#1ED760', person: 'Maria' },
-        { id: 't2', title: 'Operadora Celular', category: 'Serviços', date: '25 Janeiro 2023', amount: 250.00, type: 'income', icon: <Phone size={20} color="#fff" />, iconBg: '#0073EA', person: 'João' },
-        { id: 't3', title: 'Salário', category: 'Renda', date: '21 Janeiro 2023', amount: 5400.00, type: 'income', icon: <DollarSign size={20} color="#fff" />, iconBg: '#4CD964', person: 'Maria' },
+        { id: 't1', title: 'Spotify Premium', category: 'Assinatura', date: '28 Janeiro 2023', amount: -85.00, type: 'expense', icon: <Music size={20} color="#fff" />, iconBg: '#1ED760', person: mainUserName },
+        { id: 't2', title: 'Operadora Celular', category: 'Serviços', date: '25 Janeiro 2023', amount: 250.00, type: 'income', icon: <Phone size={20} color="#fff" />, iconBg: '#0073EA', person: partnerName },
+        { id: 't3', title: 'Salário', category: 'Renda', date: '21 Janeiro 2023', amount: 5400.00, type: 'income', icon: <DollarSign size={20} color="#fff" />, iconBg: '#4CD964', person: mainUserName },
       ],
       '2': [ // Poupança Casal
-        { id: 't4', title: 'Transferência', category: 'Poupança', date: '22 Janeiro 2023', amount: 1000.00, type: 'income', icon: <ArrowUpRight size={20} color="#fff" />, iconBg: '#4CD964', person: 'João' },
+        { id: 't4', title: 'Transferência', category: 'Poupança', date: '22 Janeiro 2023', amount: 1000.00, type: 'income', icon: <ArrowUpRight size={20} color="#fff" />, iconBg: '#4CD964', person: partnerName },
         { id: 't5', title: 'Rendimento', category: 'Juros', date: '15 Janeiro 2023', amount: 62.50, type: 'income', icon: <DollarSign size={20} color="#fff" />, iconBg: '#FFB300', person: 'Sistema' },
       ],
       '3': [ // Reserva Emergência
-        { id: 't6', title: 'Transferência', category: 'Investimento', date: '05 Janeiro 2023', amount: 1500.00, type: 'income', icon: <ArrowUpRight size={20} color="#fff" />, iconBg: '#4CD964', person: 'Maria' },
+        { id: 't6', title: 'Transferência', category: 'Investimento', date: '05 Janeiro 2023', amount: 1500.00, type: 'income', icon: <ArrowUpRight size={20} color="#fff" />, iconBg: '#4CD964', person: mainUserName },
       ],
-      '4': [ // Conta Pessoal Maria
-        { id: 't7', title: 'Farmácia', category: 'Saúde', date: '18 Janeiro 2023', amount: -127.35, type: 'expense', icon: <DollarSign size={20} color="#fff" />, iconBg: '#FF3B30', person: 'Maria' },
-        { id: 't8', title: 'Salário', category: 'Renda', date: '15 Janeiro 2023', amount: 4200.00, type: 'income', icon: <DollarSign size={20} color="#fff" />, iconBg: '#4CD964', person: 'Maria' },
+      '4': [ // Conta Pessoal usuário atual
+        { id: 't7', title: 'Farmácia', category: 'Saúde', date: '18 Janeiro 2023', amount: -127.35, type: 'expense', icon: <DollarSign size={20} color="#fff" />, iconBg: '#FF3B30', person: mainUserName },
+        { id: 't8', title: 'Salário', category: 'Renda', date: '15 Janeiro 2023', amount: 4200.00, type: 'income', icon: <DollarSign size={20} color="#fff" />, iconBg: '#4CD964', person: mainUserName },
       ],
-      '5': [ // Carteira Maria
-        { id: 't9', title: 'Saque', category: 'Transferência', date: '20 Janeiro 2023', amount: 350.00, type: 'income', icon: <ArrowUpRight size={20} color="#fff" />, iconBg: '#4CD964', person: 'Maria' },
+      '5': [ // Carteira usuário atual
+        { id: 't9', title: 'Saque', category: 'Transferência', date: '20 Janeiro 2023', amount: 350.00, type: 'income', icon: <ArrowUpRight size={20} color="#fff" />, iconBg: '#4CD964', person: mainUserName },
       ],
-      '6': [ // Conta Pessoal João
-        { id: 't10', title: 'Restaurante', category: 'Alimentação', date: '15 Janeiro 2023', amount: -78.90, type: 'expense', icon: <DollarSign size={20} color="#fff" />, iconBg: '#FF3B30', person: 'João' },
-        { id: 't11', title: 'Salário', category: 'Renda', date: '10 Janeiro 2023', amount: 3800.00, type: 'income', icon: <DollarSign size={20} color="#fff" />, iconBg: '#4CD964', person: 'João' },
+      '6': [ // Conta Pessoal parceiro
+        { id: 't10', title: 'Restaurante', category: 'Alimentação', date: '15 Janeiro 2023', amount: -78.90, type: 'expense', icon: <DollarSign size={20} color="#fff" />, iconBg: '#FF3B30', person: partnerName },
+        { id: 't11', title: 'Salário', category: 'Renda', date: '10 Janeiro 2023', amount: 3800.00, type: 'income', icon: <DollarSign size={20} color="#fff" />, iconBg: '#4CD964', person: partnerName },
       ],
-      '7': [ // Carteira João
-        { id: 't12', title: 'Saque', category: 'Transferência', date: '19 Janeiro 2023', amount: 280.00, type: 'income', icon: <ArrowUpRight size={20} color="#fff" />, iconBg: '#4CD964', person: 'João' },
+      '7': [ // Carteira parceiro
+        { id: 't12', title: 'Saque', category: 'Transferência', date: '19 Janeiro 2023', amount: 280.00, type: 'income', icon: <ArrowUpRight size={20} color="#fff" />, iconBg: '#4CD964', person: partnerName },
       ],
     };
     
@@ -583,14 +623,17 @@ export default function Accounts() {
   // Calcular gastos por pessoa para contas compartilhadas
   const getExpensesByPerson = (accountId: string) => {
     const transactions = getAccountTransactions(accountId);
-    const expenseData = {
-      Maria: 0,
-      João: 0
+    const mainUserName = currentUser?.first_name || 'Você';
+    const partnerName = users.length > 0 ? users[0].first_name : 'Parceiro';
+    
+    const expenseData: {[key: string]: number} = {
+      [mainUserName]: 0,
+      [partnerName]: 0
     };
     
     transactions.forEach(transaction => {
-      if (transaction.type === 'expense' && (transaction.person === 'Maria' || transaction.person === 'João')) {
-        expenseData[transaction.person as keyof typeof expenseData] += Math.abs(transaction.amount);
+      if (transaction.type === 'expense' && (transaction.person === mainUserName || transaction.person === partnerName)) {
+        expenseData[transaction.person] += Math.abs(transaction.amount);
       }
     });
     
@@ -688,33 +731,41 @@ export default function Accounts() {
           </TouchableOpacity>
           
           {/* Renderização dinâmica das abas de usuários */}
-          {!isLoading && users.map((user) => (
-            <TouchableOpacity 
-              key={user.id}
-              style={[
-                styles.tab, 
-                activeTab === user.first_name && [
-                  styles.activeTab,
-                  { backgroundColor: `rgba(${parseInt(theme.primary.slice(1, 3), 16)}, ${parseInt(theme.primary.slice(3, 5), 16)}, ${parseInt(theme.primary.slice(5, 7), 16)}, 0.1)` }
-                ]
-              ]}
-              onPress={() => setActiveTab(user.first_name)}
-            >
-              <Image 
-                source={{ 
-                  uri: user.avatar_url || 
-                       (user.gender?.toLowerCase().includes('f') 
-                         ? 'https://randomuser.me/api/portraits/women/44.jpg' 
-                         : 'https://randomuser.me/api/portraits/men/42.jpg') 
-                }}
-                style={styles.tabAvatar}
-              />
-              <Text style={[
-                styles.tabText,
-                activeTab === user.first_name && { color: theme.primary }
-              ]}>{user.first_name}</Text>
-            </TouchableOpacity>
-          ))}
+          {!isLoading && users.length > 0 ? (
+            users.map((user) => (
+              <TouchableOpacity 
+                key={user.id}
+                style={[
+                  styles.tab, 
+                  activeTab === user.first_name && [
+                    styles.activeTab,
+                    { backgroundColor: `rgba(${parseInt(theme.primary.slice(1, 3), 16)}, ${parseInt(theme.primary.slice(3, 5), 16)}, ${parseInt(theme.primary.slice(5, 7), 16)}, 0.1)` }
+                  ]
+                ]}
+                onPress={() => setActiveTab(user.first_name)}
+              >
+                <Image 
+                  source={{ 
+                    uri: user.avatar_url || 
+                         (user.gender?.toLowerCase().includes('f') 
+                           ? 'https://randomuser.me/api/portraits/women/44.jpg' 
+                           : 'https://randomuser.me/api/portraits/men/42.jpg') 
+                  }}
+                  style={styles.tabAvatar}
+                />
+                <Text style={[
+                  styles.tabText,
+                  activeTab === user.first_name && { color: theme.primary }
+                ]}>{user.first_name}</Text>
+              </TouchableOpacity>
+            ))
+          ) : !isLoading && (
+            <View style={styles.emptyRelationshipContainer}>
+              <Text style={styles.emptyRelationshipText}>
+                Você ainda não tem relacionamentos.
+              </Text>
+            </View>
+          )}
         </ScrollView>
       </View>
 
@@ -900,7 +951,7 @@ export default function Accounts() {
             <View style={styles.pickerContainer}>
               <Text style={styles.pickerLabel}>Proprietário</Text>
               <View style={styles.pickerOptions}>
-                {['Compartilhadas', ...users.map(user => user.first_name)].map((owner) => (
+                {['Compartilhadas', ...(users.length > 0 ? users.map(user => user.first_name) : [currentUser?.first_name || 'Você'])].map((owner) => (
                   <TouchableOpacity 
                     key={owner}
                     style={[
@@ -1159,7 +1210,10 @@ export default function Accounts() {
             <View style={styles.infoBox}>
               <Users size={20} color="#FFB300" style={{marginRight: 8}} />
               <Text style={styles.infoText}>
-                Ao compartilhar esta conta, {getOtherPersonName()} poderá visualizar transações e saldo.
+                {users.length > 0
+                  ? `Ao compartilhar esta conta, seu parceiro poderá visualizar transações e saldo.`
+                  : `Adicione um relacionamento para compartilhar contas.`
+                }
               </Text>
             </View>
 
@@ -1368,12 +1422,12 @@ export default function Accounts() {
                       <View style={[
                         styles.personAvatar, 
                         { 
-                          backgroundColor: person === 'Maria' 
+                          backgroundColor: person === currentUser?.first_name || (users.length > 0 && person === users[0].first_name)
                             ? `rgba(${parseInt(theme.primary.slice(1, 3), 16)}, ${parseInt(theme.primary.slice(3, 5), 16)}, ${parseInt(theme.primary.slice(5, 7), 16)}, 0.2)` 
                             : `rgba(${parseInt(theme.secondary.slice(1, 3), 16)}, ${parseInt(theme.secondary.slice(3, 5), 16)}, ${parseInt(theme.secondary.slice(5, 7), 16)}, 0.2)` 
                         }
                       ]}>
-                        <User size={20} color={person === 'Maria' ? theme.primary : theme.secondary} />
+                        <User size={20} color={person === currentUser?.first_name || (users.length > 0 && person === users[0].first_name) ? theme.primary : theme.secondary} />
                       </View>
                       <Text style={styles.personName}>{person}</Text>
                     </View>
@@ -2352,5 +2406,17 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: fontFallbacks.Poppins_500Medium,
     marginTop: 12,
+  },
+  emptyRelationshipContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    marginLeft: 8,
+    justifyContent: 'center',
+  },
+  emptyRelationshipText: {
+    fontSize: 14,
+    fontFamily: fontFallbacks.Poppins_400Regular,
+    color: '#777',
+    fontStyle: 'italic',
   },
 }); 

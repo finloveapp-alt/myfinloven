@@ -123,7 +123,7 @@ export default function Accounts() {
       // Buscar o usuário atual
       const { data: currentUserData, error: currentUserError } = await supabase
         .from('profiles')
-        .select('id, first_name, last_name, avatar_url, gender')
+        .select('id, name, avatar_url, gender')
         .eq('id', currentUserId)
         .single();
         
@@ -161,7 +161,7 @@ export default function Accounts() {
         if (partnerIds.length > 0) {
           const { data: partnerProfiles, error: partnersError } = await supabase
             .from('profiles')
-            .select('id, first_name, last_name, avatar_url, gender, email')
+            .select('id, name, avatar_url, gender, email')
             .in('id', partnerIds);
             
           if (partnersError) {
@@ -189,16 +189,16 @@ export default function Accounts() {
       // Inicializar contas para cada usuário
       // Na implementação real, você buscaria contas específicas para cada usuário
       relatedUsers?.forEach(user => {
-        accountsByUser[user.first_name] = user.gender?.toLowerCase().includes('f') 
+        accountsByUser[user.name] = user.gender?.toLowerCase().includes('f') 
           ? [...mariaAccounts] 
           : [...joaoAccounts];
         
         // Atualizar os nomes das contas para refletir o nome do usuário
-        accountsByUser[user.first_name].forEach(account => {
+        accountsByUser[user.name].forEach(account => {
           if (account.name === 'Conta Pessoal') {
-            account.name = `Conta de ${user.first_name}`;
+            account.name = `Conta de ${user.name}`;
           } else if (account.name === 'Minha Carteira') {
-            account.name = `Carteira de ${user.first_name}`;
+            account.name = `Carteira de ${user.name}`;
           }
         });
       });
@@ -207,7 +207,7 @@ export default function Accounts() {
       
       // Definir a primeira aba ativa
       if (relatedUsers && relatedUsers.length > 0) {
-        setActiveTab(relatedUsers[0].first_name);
+        setActiveTab(relatedUsers[0].name);
       } else {
         // Se não houver usuários relacionados, mostrar apenas as contas compartilhadas
         setActiveTab('Compartilhadas');
@@ -551,23 +551,23 @@ export default function Accounts() {
   // Função para determinar o nome da outra pessoa com base no usuário atual
   const getOtherPersonName = () => {
     if (users.length === 0 || activeTab === 'Compartilhadas') {
-      return currentUser?.first_name || 'Você';
+      return currentUser?.name || 'Você';
     }
     
     // Se estiver na aba do parceiro, retornar o nome do usuário atual
-    if (activeTab === users[0].first_name) {
-      return currentUser?.first_name || 'Você';
+    if (activeTab === users[0].name) {
+      return currentUser?.name || 'Você';
     }
     
     // Se estiver na aba do usuário atual ou compartilhada, retornar o nome do parceiro
-    return users[0].first_name || 'Parceiro';
+    return users[0].name || 'Parceiro';
   };
 
   // Dados fictícios de transações para cada conta
   const getAccountTransactions = (accountId: string) => {
     // Nomes dos usuários para as transações
-    const mainUserName = currentUser?.first_name || 'Você';
-    const partnerName = users.length > 0 ? users[0].first_name : 'Parceiro';
+    const mainUserName = currentUser?.name || 'Você';
+    const partnerName = users.length > 0 ? users[0].name : 'Parceiro';
     
     const transactionsData = {
       '1': [ // Conta Conjunta
@@ -631,8 +631,8 @@ export default function Accounts() {
   // Calcular gastos por pessoa para contas compartilhadas
   const getExpensesByPerson = (accountId: string) => {
     const transactions = getAccountTransactions(accountId);
-    const mainUserName = currentUser?.first_name || 'Você';
-    const partnerName = users.length > 0 ? users[0].first_name : 'Parceiro';
+    const mainUserName = currentUser?.name || 'Você';
+    const partnerName = users.length > 0 ? users[0].name : 'Parceiro';
     
     const expenseData: {[key: string]: number} = {
       [mainUserName]: 0,
@@ -745,12 +745,12 @@ export default function Accounts() {
                 key={user.id}
                 style={[
                   styles.tab, 
-                  activeTab === user.first_name && [
+                  activeTab === user.name && [
                     styles.activeTab,
                     { backgroundColor: `rgba(${parseInt(theme.primary.slice(1, 3), 16)}, ${parseInt(theme.primary.slice(3, 5), 16)}, ${parseInt(theme.primary.slice(5, 7), 16)}, 0.1)` }
                   ]
                 ]}
-                onPress={() => setActiveTab(user.first_name)}
+                onPress={() => setActiveTab(user.name)}
               >
                 <Image 
                   source={{ 
@@ -764,8 +764,8 @@ export default function Accounts() {
                 />
                 <Text style={[
                   styles.tabText,
-                  activeTab === user.first_name && { color: theme.primary }
-                ]}>{user.first_name || 'Usuário'}</Text>
+                  activeTab === user.name && { color: theme.primary }
+                ]}>{user.name || 'Usuário'}</Text>
               </TouchableOpacity>
             ))
           ) : !isLoading && (
@@ -960,7 +960,7 @@ export default function Accounts() {
             <View style={styles.pickerContainer}>
               <Text style={styles.pickerLabel}>Proprietário</Text>
               <View style={styles.pickerOptions}>
-                {['Compartilhadas', ...(users.length > 0 ? users.map(user => user.first_name) : [currentUser?.first_name || 'Você'])].map((owner) => (
+                {['Compartilhadas', ...(users.length > 0 ? users.map(user => user.name) : [currentUser?.name || 'Você'])].map((owner) => (
                   <TouchableOpacity 
                     key={owner}
                     style={[
@@ -1178,12 +1178,12 @@ export default function Accounts() {
 
             <View style={styles.pickerContainer}>
               <Text style={styles.pickerLabel}>Compartilhar com</Text>
-              {users.filter(user => user.first_name !== activeTab).map(user => (
+              {users.filter(user => user.name !== activeTab).map(user => (
                 <TouchableOpacity 
                   key={user.id}
                   style={[
                     styles.sharePerson, 
-                    shareWithPerson === user.first_name && [
+                    shareWithPerson === user.name && [
                       styles.sharePersonSelected,
                       { 
                         backgroundColor: `rgba(${parseInt(theme.primary.slice(1, 3), 16)}, ${parseInt(theme.primary.slice(3, 5), 16)}, ${parseInt(theme.primary.slice(5, 7), 16)}, 0.1)`,
@@ -1192,7 +1192,7 @@ export default function Accounts() {
                       }
                     ]
                   ]}
-                  onPress={() => setShareWithPerson(user.first_name)}
+                  onPress={() => setShareWithPerson(user.name)}
                 >
                   <Image 
                     source={{ 
@@ -1204,13 +1204,13 @@ export default function Accounts() {
                     }}
                     style={styles.sharePersonAvatar}
                   />
-                  <Text style={styles.sharePersonName}>{user.first_name} {user.last_name}</Text>
-                  {shareWithPerson === user.first_name && (
+                  <Text style={styles.sharePersonName}>{user.name}</Text>
+                  {shareWithPerson === user.name && (
                     <Check size={20} color={theme.primary} />
                   )}
                 </TouchableOpacity>
               ))}
-              {users.filter(user => user.first_name !== activeTab).length === 0 && (
+              {users.filter(user => user.name !== activeTab).length === 0 && (
                 <Text style={styles.infoText}>
                   Não há usuários disponíveis para compartilhar.
                 </Text>
@@ -1432,12 +1432,12 @@ export default function Accounts() {
                       <View style={[
                         styles.personAvatar, 
                         { 
-                          backgroundColor: person === currentUser?.first_name || (users.length > 0 && person === users[0].first_name)
+                          backgroundColor: person === currentUser?.name || (users.length > 0 && person === users[0].name)
                             ? `rgba(${parseInt(theme.primary.slice(1, 3), 16)}, ${parseInt(theme.primary.slice(3, 5), 16)}, ${parseInt(theme.primary.slice(5, 7), 16)}, 0.2)` 
                             : `rgba(${parseInt(theme.secondary.slice(1, 3), 16)}, ${parseInt(theme.secondary.slice(3, 5), 16)}, ${parseInt(theme.secondary.slice(5, 7), 16)}, 0.2)` 
                         }
                       ]}>
-                        <User size={20} color={person === currentUser?.first_name || (users.length > 0 && person === users[0].first_name) ? theme.primary : theme.secondary} />
+                        <User size={20} color={person === currentUser?.name || (users.length > 0 && person === users[0].name) ? theme.primary : theme.secondary} />
                       </View>
                       <Text style={styles.personName}>{person}</Text>
                     </View>

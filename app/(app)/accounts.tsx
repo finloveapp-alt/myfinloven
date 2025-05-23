@@ -765,7 +765,7 @@ export default function Accounts() {
                 <Text style={[
                   styles.tabText,
                   activeTab === user.name && { color: theme.primary }
-                ]}>{user.name || 'Usuário'}</Text>
+                ]}>{user.name || 'Avatar'}</Text>
               </TouchableOpacity>
             ))
           ) : !isLoading && (
@@ -1204,7 +1204,7 @@ export default function Accounts() {
                     }}
                     style={styles.sharePersonAvatar}
                   />
-                  <Text style={styles.sharePersonName}>{user.name}</Text>
+                  <Text style={styles.sharePersonName}>{user.name || 'Avatar'}</Text>
                   {shareWithPerson === user.name && (
                     <Check size={20} color={theme.primary} />
                   )}

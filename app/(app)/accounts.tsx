@@ -267,7 +267,7 @@ export default function Accounts() {
       bank: 'Itaú',
       balance: 'R$ 2.124,35',
       icon: <Landmark size={24} color="#fff" />,
-      color: '#b687fe',
+      color: themeDefault.primary,
       lastTransaction: '18 julho, 2023'
     },
     {
@@ -582,7 +582,7 @@ export default function Accounts() {
             <Users size={18} color={activeTab === 'Compartilhadas' ? theme.primary : '#777'} />
             <Text style={[
               styles.tabText,
-              activeTab === 'Compartilhadas' && styles.activeTabText
+              activeTab === 'Compartilhadas' && { color: theme.primary }
             ]}>Compartilhadas</Text>
           </TouchableOpacity>
           
@@ -637,7 +637,7 @@ export default function Accounts() {
               onPress={() => setNewAccountModalVisible(true)}
             >
               <Plus size={18} color={theme.primary} />
-              <Text style={styles.addButtonText}>Adicionar Conta</Text>
+              <Text style={[styles.addButtonText, { color: theme.primary }]}>Adicionar Conta</Text>
             </TouchableOpacity>
           </View>
 
@@ -1552,7 +1552,6 @@ const styles = StyleSheet.create({
     marginLeft: 4,
     fontSize: 14,
     fontFamily: fontFallbacks.Poppins_500Medium,
-    color: themeDefault.primary,
   },
   accountCard: {
     flexDirection: 'row',

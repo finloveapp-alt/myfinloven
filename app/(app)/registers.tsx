@@ -223,6 +223,10 @@ export default function Registers() {
   const [accountsMap, setAccountsMap] = useState<{[key: string]: any}>({}); // Mapa para acessar detalhes das contas rapidamente
   const [selectedIcon, setSelectedIcon] = useState(''); // Estado para armazenar o ícone selecionado
   const [iconsVisible, setIconsVisible] = useState(false); // Estado para controlar a visibilidade do seletor de ícones
+  const [isSharedTransaction, setIsSharedTransaction] = useState(false); // Estado para controlar se a transação é compartilhada
+  const [selectedPartnerId, setSelectedPartnerId] = useState<string | null>(null); // Estado para armazenar o ID do parceiro selecionado
+  const [userPartners, setUserPartners] = useState<any[]>([]); // Estado para armazenar os parceiros do usuário
+  const [partnersVisible, setPartnersVisible] = useState(false); // Estado para controlar a visibilidade da lista de parceiros
   
   // Lista de ícones disponíveis para seleção
   const availableIcons = [
@@ -260,6 +264,8 @@ export default function Registers() {
     fetchUserAccounts();
     // Buscar transações do usuário
     fetchTransactions();
+    // Buscar parceiros do usuário
+    fetchUserPartners();
   }, []);
 
   // useEffect para atualizar as transações quando o usuário seleciona outro dia/mês/ano
@@ -509,6 +515,95 @@ export default function Registers() {
     }
   };
 
+  // Função para buscar os parceiros do usuário
+  const fetchUserPartners = async () => {
+    try {
+      // Obter a sessão atual
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError) {
+        console.error('Erro ao obter sessão:', sessionError);
+        return;
+      }
+      
+      if (!session?.user) {
+        console.log('Nenhuma sessão de usuário encontrada');
+        return;
+      }
+      
+      const userId = session.user.id;
+      
+      // Buscar casais onde o usuário é user1 ou user2 e o status é 'active'
+      const { data: couples, error: couplesError } = await supabase
+        .from('couples')
+        .select(`
+          id, 
+          user1_id, 
+          user2_id, 
+          is_avatar,
+          profiles!couples_user1_id_fkey(id, name),
+          profiles!couples_user2_id_fkey(id, name)
+        `)
+        .or(`user1_id.eq.${userId},user2_id.eq.${userId}`)
+        .eq('status', 'active');
+      
+      if (couplesError) {
+        console.error('Erro ao buscar parceiros:', couplesError);
+        return;
+      }
+      
+      if (couples && couples.length > 0) {
+        // Processar a lista de parceiros para facilitar o uso na interface
+        const partners = couples.map(couple => {
+          // Determinar qual usuário é o parceiro (não o usuário atual)
+          const isUser1 = couple.user1_id === userId;
+          const partnerId = isUser1 ? couple.user2_id : couple.user1_id;
+          const partnerProfile = isUser1 ? couple.profiles_couples_user2_id_fkey : couple.profiles_couples_user1_id_fkey;
+          
+          return {
+            id: partnerId,
+            name: partnerProfile ? partnerProfile.name : 'Sem nome',
+            coupleId: couple.id,
+            isAvatar: couple.is_avatar
+          };
+        }).filter(partner => partner.id !== null); // Filtrar apenas parceiros válidos
+        
+        setUserPartners(partners);
+        console.log('Parceiros encontrados:', partners);
+      } else {
+        console.log('Nenhum parceiro encontrado para o usuário');
+        setUserPartners([]);
+      }
+    } catch (error) {
+      console.error('Erro ao buscar parceiros:', error);
+    }
+  };
+
+  // Função para alternar a visibilidade da lista de parceiros
+  const togglePartners = () => {
+    setPartnersVisible(!partnersVisible);
+    
+    // Fechar outros dropdowns se estiverem abertos
+    if (paymentMethodsVisible) {
+      setPaymentMethodsVisible(false);
+    }
+    if (calendarVisible) {
+      setCalendarVisible(false);
+    }
+    if (accountsVisible) {
+      setAccountsVisible(false);
+    }
+    if (iconsVisible) {
+      setIconsVisible(false);
+    }
+  };
+
+  // Função para selecionar um parceiro
+  const selectPartner = (partnerId: string) => {
+    setSelectedPartnerId(partnerId);
+    setPartnersVisible(false);
+  };
+
   // Função para abrir o modal
   const openAddTransactionModal = () => {
     // Resetar os estados
@@ -526,6 +621,8 @@ export default function Registers() {
     setPaymentMethod('');
     setErrorMessage('');
     setSelectedIcon(''); // Resetar o ícone selecionado
+    setIsSharedTransaction(false); // Resetar para transação pessoal
+    setSelectedPartnerId(null); // Resetar parceiro selecionado
     
     setModalVisible(true);
   };
@@ -537,6 +634,7 @@ export default function Registers() {
     setPaymentMethodsVisible(false);
     setAccountsVisible(false);
     setIconsVisible(false); // Fechar o seletor de ícones
+    setPartnersVisible(false); // Fechar a lista de parceiros
   };
 
   // Função para alternar a visibilidade do seletor de ícones
@@ -586,6 +684,13 @@ export default function Registers() {
         return;
       }
       
+      // Validação adicional para transação compartilhada
+      if (isSharedTransaction && !selectedPartnerId) {
+        setErrorMessage('Por favor, selecione um parceiro para compartilhar a transação.');
+        setIsSaving(false);
+        return;
+      }
+      
       // Obter a sessão atual para o ID do usuário
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user) {
@@ -618,6 +723,7 @@ export default function Registers() {
         category: selectedCategory || null,
         recurrence_type: recurrenceType,
         owner_id: userId,
+        partner_id: isSharedTransaction ? selectedPartnerId : null, // Incluir parceiro apenas se for transação compartilhada
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
         icon: selectedIcon || null // Incluir o ícone selecionado nos dados da transação
@@ -1289,6 +1395,95 @@ export default function Registers() {
                 </View>
               )}
             </View>
+
+            {/* Tipo de Transação (Pessoal ou Compartilhada) */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Tipo de Transação</Text>
+              <View style={styles.sharingTypeContainer}>
+                <TouchableOpacity
+                  style={[
+                    styles.sharingTypeButton,
+                    !isSharedTransaction && [styles.activeSharingButton, { borderColor: theme.primary }]
+                  ]}
+                  onPress={() => {
+                    setIsSharedTransaction(false);
+                    setSelectedPartnerId(null);
+                  }}
+                >
+                  <Text style={[
+                    styles.sharingTypeText,
+                    !isSharedTransaction && [styles.activeSharingText, { color: theme.primary }]
+                  ]}>Pessoal</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={[
+                    styles.sharingTypeButton,
+                    isSharedTransaction && [styles.activeSharingButton, { borderColor: theme.shared }]
+                  ]}
+                  onPress={() => setIsSharedTransaction(true)}
+                >
+                  <Text style={[
+                    styles.sharingTypeText,
+                    isSharedTransaction && [styles.activeSharingText, { color: theme.shared }]
+                  ]}>Compartilhada</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Seletor de Parceiro (apenas visível se for transação compartilhada) */}
+            {isSharedTransaction && (
+              <View style={[styles.inputGroup, { zIndex: 11 }]}>
+                <Text style={styles.inputLabel}>Compartilhar com</Text>
+                <TouchableOpacity 
+                  style={[
+                    styles.partnerSelector,
+                    selectedPartnerId ? { borderColor: theme.shared, borderWidth: 1.5 } : null
+                  ]} 
+                  onPress={togglePartners}
+                >
+                  {selectedPartnerId ? (
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      <Text style={[styles.selectedPartnerText, { color: theme.shared }]}>
+                        {userPartners.find(p => p.id === selectedPartnerId)?.name || 'Parceiro'}
+                      </Text>
+                    </View>
+                  ) : (
+                    <Text style={styles.partnerSelectorText}>Selecione um parceiro</Text>
+                  )}
+                  <ChevronRight size={18} color="#666" style={{ transform: [{ rotate: '90deg' }] as any }} />
+                </TouchableOpacity>
+                
+                {partnersVisible && (
+                  <View style={styles.partnersDropdown}>
+                    {userPartners.length > 0 ? (
+                      userPartners.map((partner, index) => (
+                        <TouchableOpacity 
+                          key={index} 
+                          style={[
+                            styles.partnerOption,
+                            selectedPartnerId === partner.id && styles.selectedPartnerOption,
+                            index === userPartners.length - 1 && { borderBottomWidth: 0 }
+                          ]} 
+                          onPress={() => selectPartner(partner.id)}
+                        >
+                          <Text style={[
+                            styles.partnerOptionText,
+                            selectedPartnerId === partner.id && [styles.selectedPartnerOptionText, { color: theme.shared }]
+                          ]}>
+                            {partner.name} {partner.isAvatar ? '(Avatar)' : ''}
+                          </Text>
+                        </TouchableOpacity>
+                      ))
+                    ) : (
+                      <View style={styles.partnerOption}>
+                        <Text style={styles.partnerOptionText}>Nenhum parceiro disponível</Text>
+                      </View>
+                    )}
+                  </View>
+                )}
+              </View>
+            )}
 
             {/* Seletor de Data */}
             <View style={styles.inputGroup}>
@@ -2576,5 +2771,91 @@ const styles = StyleSheet.create({
   },
   iconEmoji: {
     fontSize: 24,
+  },
+  sharingTypeContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginVertical: 5,
+  },
+  sharingTypeButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 14,
+    borderRadius: 8,
+    marginHorizontal: 5,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  activeSharingButton: {
+    borderWidth: 1.5,
+    backgroundColor: 'rgba(0, 115, 234, 0.05)',
+  },
+  sharingTypeText: {
+    fontSize: 16,
+    fontFamily: fontFallbacks.Poppins_500Medium,
+    color: '#666',
+  },
+  activeSharingText: {
+    fontFamily: fontFallbacks.Poppins_600SemiBold,
+  },
+  partnerSelector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 12,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    borderRadius: 8,
+    backgroundColor: 'white',
+  },
+  partnerSelectorText: {
+    fontSize: 16,
+    fontFamily: fontFallbacks.Poppins_400Regular,
+    color: '#666',
+    flex: 1,
+  },
+  selectedPartnerText: {
+    fontSize: 16,
+    fontFamily: fontFallbacks.Poppins_500Medium,
+    flex: 1,
+  },
+  partnersDropdown: {
+    position: 'absolute',
+    top: 45,
+    left: 0,
+    right: 0,
+    backgroundColor: 'white',
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    borderRadius: 8,
+    marginTop: 4,
+    maxHeight: 200,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+    zIndex: 9998,
+  },
+  partnerOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  selectedPartnerOption: {
+    backgroundColor: 'rgba(0, 115, 234, 0.15)',
+  },
+  partnerOptionText: {
+    fontSize: 16,
+    fontFamily: fontFallbacks.Poppins_500Medium,
+    color: '#333333',
+  },
+  selectedPartnerOptionText: {
+    fontFamily: fontFallbacks.Poppins_600SemiBold,
   },
 }); 

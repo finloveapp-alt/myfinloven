@@ -54,6 +54,21 @@ const themeDefault = {
   text: '#333333'
 };
 
+// Adicionando interface para contas
+interface Account {
+  id: string;
+  name: string;
+  type: string;
+  bank: string | null;
+  balance: number;
+  color: string;
+  last_transaction_date: string | null;
+  ownership_type: string;
+  owner_id: string;
+  partner_id: string | null;
+  created_at: string;
+}
+
 export default function Accounts() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState('Compartilhadas');
@@ -62,7 +77,9 @@ export default function Accounts() {
   // Estados para armazenar usuários e contas
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [users, setUsers] = useState<any[]>([]);
-  const [userAccounts, setUserAccounts] = useState<{[key: string]: any[]}>({});
+  const [userAccounts, setUserAccounts] = useState<{[key: string]: any[]}>({
+    'Compartilhadas': []
+  });
   const [isLoading, setIsLoading] = useState(true);
   
   // Estados para controlar a visibilidade dos modais
@@ -182,32 +199,90 @@ export default function Accounts() {
       console.log(`Encontrados ${relatedUsers.length} usuários relacionados`);
       setUsers(relatedUsers);
       
-      // Inicializar o objeto de contas dos usuários
-      const accountsByUser: {[key: string]: any[]} = {};
-      accountsByUser['Compartilhadas'] = sharedAccounts;
+      // Buscar todas as contas do usuário atual (próprias ou compartilhadas)
+      const { data: accountsData, error: accountsError } = await supabase
+        .from('accounts')
+        .select('*')
+        .or(`owner_id.eq.${currentUserId},partner_id.eq.${currentUserId}`)
+        .order('created_at', { ascending: false });
       
-      // Inicializar contas para cada usuário
-      // Na implementação real, você buscaria contas específicas para cada usuário
-      relatedUsers?.forEach(user => {
-        accountsByUser[user.name] = user.gender?.toLowerCase().includes('f') 
-          ? [...mariaAccounts] 
-          : [...joaoAccounts];
-        
-        // Atualizar os nomes das contas para refletir o nome do usuário
-        accountsByUser[user.name].forEach(account => {
-          if (account.name === 'Conta Pessoal') {
-            account.name = `Conta de ${user.name}`;
-          } else if (account.name === 'Minha Carteira') {
-            account.name = `Carteira de ${user.name}`;
+      if (accountsError) {
+        console.error('Erro ao buscar contas:', accountsError);
+        setIsLoading(false);
+        return;
+      }
+      
+      console.log('Contas recuperadas:', accountsData);
+      
+      // Organizar contas por tipo de propriedade (compartilhadas ou individuais)
+      const accountsByUser: {[key: string]: any[]} = {
+        'Compartilhadas': []
+      };
+      
+      // Adicionar usuários atuais ao objeto de contas
+      if (currentUserData) {
+        accountsByUser[currentUserData.name || 'Você'] = [];
+      }
+      
+      // Adicionar parceiros ao objeto de contas
+      relatedUsers.forEach(user => {
+        if (user.name) {
+          accountsByUser[user.name] = [];
+        }
+      });
+      
+      // Distribuir as contas nas categorias apropriadas
+      if (accountsData) {
+        accountsData.forEach((account: Account) => {
+          // Processar contas para exibição
+          const processedAccount = {
+            id: account.id,
+            name: account.name,
+            type: account.type,
+            bank: account.bank || '',
+            balance: `R$ ${account.balance.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+            icon: getAccountIcon(account.type),
+            color: account.color || getRandomColorForType(account.type),
+            lastTransaction: account.last_transaction_date 
+              ? new Date(account.last_transaction_date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })
+              : new Date(account.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })
+          };
+          
+          if (account.ownership_type === 'compartilhada') {
+            // Adicionar à categoria compartilhadas
+            accountsByUser['Compartilhadas'].push(processedAccount);
+          } else {
+            // Contas individuais - adicionar ao proprietário
+            const isOwner = account.owner_id === currentUserId;
+            const ownerProfile = isOwner ? currentUserData : relatedUsers.find(u => u.id === account.owner_id);
+            
+            if (ownerProfile && ownerProfile.name) {
+              if (!accountsByUser[ownerProfile.name]) {
+                accountsByUser[ownerProfile.name] = [];
+              }
+              accountsByUser[ownerProfile.name].push(processedAccount);
+            }
           }
         });
-      });
+      }
+      
+      // Se não houver contas compartilhadas, usar uma mensagem amigável
+      if (accountsByUser['Compartilhadas'].length === 0) {
+        // Manter o array vazio para exibir a mensagem de "sem contas"
+      }
+      
+      // Se não houver contas individuais para o usuário atual
+      if (currentUserData && accountsByUser[currentUserData.name || 'Você']?.length === 0) {
+        // Manter o array vazio para exibir a mensagem de "sem contas"
+      }
       
       setUserAccounts(accountsByUser);
       
       // Definir a primeira aba ativa
       if (relatedUsers && relatedUsers.length > 0) {
         setActiveTab(relatedUsers[0].name);
+      } else if (currentUserData && currentUserData.name) {
+        setActiveTab(currentUserData.name);
       } else {
         // Se não houver usuários relacionados, mostrar apenas as contas compartilhadas
         setActiveTab('Compartilhadas');
@@ -439,8 +514,11 @@ export default function Accounts() {
   const displayAccounts = () => {
     if (isLoading) return [];
     
-    // Usar as contas dos usuários reais
-    return userAccounts[activeTab] || [];
+    const accounts = userAccounts[activeTab] || [];
+    
+    // Se não houver contas, retornar um array vazio
+    // A renderização condicional será tratada na UI
+    return accounts;
   };
   
   // Calcula o saldo total das contas exibidas
@@ -452,31 +530,104 @@ export default function Accounts() {
   };
 
   // Função para criar uma nova conta
-  const handleAddNewAccount = () => {
+  const handleAddNewAccount = async () => {
     // Validação básica
     if (!newAccountName || !newAccountType) {
       Alert.alert('Erro', 'Por favor preencha pelo menos o nome e o tipo da conta.');
       return;
     }
     
-    // Simular adição de conta (em um app real, isso iria para um banco de dados)
-    Alert.alert(
-      'Sucesso',
-      `Conta "${newAccountName}" criada com sucesso!`,
-      [
-        {
-          text: 'OK',
-          onPress: () => {
-            // Limpar o formulário e fechar o modal
-            setNewAccountName('');
-            setNewAccountType('');
-            setNewAccountBank('');
-            setNewAccountInitialBalance('');
-            setNewAccountModalVisible(false);
-          }
+    try {
+      setIsLoading(true);
+      
+      // Converter valor do saldo para número
+      let initialBalance = 0;
+      if (newAccountInitialBalance) {
+        // Remover formatação e converter para número
+        initialBalance = parseFloat(newAccountInitialBalance.replace(',', '.'));
+        if (isNaN(initialBalance)) {
+          initialBalance = 0;
         }
-      ]
-    );
+      }
+      
+      // Determinar o tipo de propriedade com base na aba selecionada
+      let ownershipType = 'individual';
+      let partnerId = null;
+      
+      if (activeTab === 'Compartilhadas') {
+        ownershipType = 'compartilhada';
+        // Se houver um parceiro, usar como partner_id
+        if (users.length > 0) {
+          partnerId = users[0].id;
+        }
+      }
+      
+      // Obter sessão atual para ID do usuário
+      const { data: { session } } = await supabase.auth.getSession();
+      const ownerId = session?.user?.id;
+      
+      if (!ownerId) {
+        Alert.alert('Erro', 'Sessão expirada. Por favor, faça login novamente.');
+        setIsLoading(false);
+        return;
+      }
+      
+      // Cor aleatória baseada no tipo de conta
+      const color = getRandomColorForType(newAccountType);
+      
+      // Criar a conta no Supabase
+      const { data, error } = await supabase
+        .from('accounts')
+        .insert({
+          name: newAccountName,
+          type: newAccountType,
+          bank: newAccountBank || null,
+          balance: initialBalance,
+          initial_balance: initialBalance,
+          ownership_type: ownershipType,
+          color: color,
+          owner_id: ownerId,
+          partner_id: partnerId
+        })
+        .select()
+        .single();
+      
+      if (error) {
+        console.error('Erro ao criar conta:', error);
+        Alert.alert('Erro', `Não foi possível criar a conta: ${error.message}`);
+        setIsLoading(false);
+        return;
+      }
+      
+      console.log('Conta criada com sucesso:', data);
+      
+      // Recarregar contas
+      await fetchUsersAndAccounts();
+      
+      Alert.alert(
+        'Sucesso',
+        `Conta "${newAccountName}" criada com sucesso!`,
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              // Limpar o formulário e fechar o modal
+              setNewAccountName('');
+              setNewAccountType('');
+              setNewAccountBank('');
+              setNewAccountInitialBalance('');
+              setNewAccountModalVisible(false);
+            }
+          }
+        ]
+      );
+      
+      setIsLoading(false);
+    } catch (error: any) {
+      console.error('Erro ao processar criação de conta:', error);
+      Alert.alert('Erro', error.message || 'Ocorreu um erro ao criar a conta.');
+      setIsLoading(false);
+    }
   };
 
   // Função para processar depósito
@@ -678,6 +829,38 @@ export default function Accounts() {
   const chartData = generateChartData();
   const maxChartValue = Math.max(...chartData.map(item => Math.max(item.debit, item.credit)));
 
+  // Função auxiliar para obter ícone com base no tipo de conta
+  const getAccountIcon = (type: string) => {
+    switch (type) {
+      case 'Conta Corrente':
+        return <Landmark size={24} color="#fff" />;
+      case 'Poupança':
+        return <PiggyBank size={24} color="#fff" />;
+      case 'Investimento':
+        return <DollarSign size={24} color="#fff" />;
+      case 'Dinheiro Físico':
+        return <Wallet size={24} color="#fff" />;
+      default:
+        return <CreditCard size={24} color="#fff" />;
+    }
+  };
+
+  // Função para gerar cores aleatórias com base no tipo de conta
+  const getRandomColorForType = (type: string) => {
+    switch (type) {
+      case 'Conta Corrente':
+        return '#8A5CF6';
+      case 'Poupança':
+        return '#5896FF';
+      case 'Investimento':
+        return '#4CD964';
+      case 'Dinheiro Físico':
+        return '#FF5A6E';
+      default:
+        return '#0073ea';
+    }
+  };
+
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
@@ -804,32 +987,40 @@ export default function Accounts() {
                 </TouchableOpacity>
               </View>
 
-              {displayAccounts().map((account) => (
-                <TouchableOpacity 
-                  key={account.id} 
-                  style={styles.accountCard}
-                  onPress={() => handleOpenAccountDetails(account)}
-                >
-                  <View style={[styles.accountIcon, { backgroundColor: account.color }]}>
-                    {account.icon}
-                  </View>
-                  
-                  <View style={styles.accountInfo}>
-                    <Text style={styles.accountName}>{account.name}</Text>
-                    <Text style={styles.accountType}>
-                      {account.type}{account.bank ? ` • ${account.bank}` : ''}
-                    </Text>
-                    <Text style={styles.accountDate}>
-                      Última transação: {account.lastTransaction}
-                    </Text>
-                  </View>
-                  
-                  <View style={styles.accountBalance}>
-                    <Text style={styles.accountBalanceText}>{account.balance}</Text>
-                    <ChevronRight size={16} color="#999" />
-                  </View>
-                </TouchableOpacity>
-              ))}
+              {displayAccounts().length > 0 ? (
+                displayAccounts().map((account) => (
+                  <TouchableOpacity 
+                    key={account.id} 
+                    style={styles.accountCard}
+                    onPress={() => handleOpenAccountDetails(account)}
+                  >
+                    <View style={[styles.accountIcon, { backgroundColor: account.color }]}>
+                      {account.icon}
+                    </View>
+                    
+                    <View style={styles.accountInfo}>
+                      <Text style={styles.accountName}>{account.name}</Text>
+                      <Text style={styles.accountType}>
+                        {account.type}{account.bank ? ` • ${account.bank}` : ''}
+                      </Text>
+                      <Text style={styles.accountDate}>
+                        Última transação: {account.lastTransaction}
+                      </Text>
+                    </View>
+                    
+                    <View style={styles.accountBalance}>
+                      <Text style={styles.accountBalanceText}>{account.balance}</Text>
+                      <ChevronRight size={16} color="#999" />
+                    </View>
+                  </TouchableOpacity>
+                ))
+              ) : (
+                <View style={styles.emptyAccountsContainer}>
+                  <Text style={styles.emptyAccountsText}>
+                    Nenhuma conta encontrada. Adicione uma nova conta clicando no botão acima.
+                  </Text>
+                </View>
+              )}
             </View>
 
             {/* Quick Actions Section */}
@@ -2428,5 +2619,20 @@ const styles = StyleSheet.create({
     fontFamily: fontFallbacks.Poppins_400Regular,
     color: '#777',
     fontStyle: 'italic',
+  },
+  emptyAccountsContainer: {
+    padding: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
+    marginVertical: 10,
+  },
+  emptyAccountsText: {
+    fontSize: 14,
+    fontFamily: fontFallbacks.Poppins_400Regular,
+    color: '#666',
+    textAlign: 'center',
+    lineHeight: 20,
   },
 }); 

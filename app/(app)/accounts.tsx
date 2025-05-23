@@ -123,7 +123,7 @@ export default function Accounts() {
       // Buscar o usuário atual
       const { data: currentUserData, error: currentUserError } = await supabase
         .from('profiles')
-        .select('id, name, avatar_url, gender')
+        .select('id, name, profile_picture_url, gender')
         .eq('id', currentUserId)
         .single();
         
@@ -161,7 +161,7 @@ export default function Accounts() {
         if (partnerIds.length > 0) {
           const { data: partnerProfiles, error: partnersError } = await supabase
             .from('profiles')
-            .select('id, name, avatar_url, gender, email')
+            .select('id, name, profile_picture_url, gender, email')
             .in('id', partnerIds);
             
           if (partnersError) {
@@ -754,8 +754,8 @@ export default function Accounts() {
               >
                 <Image 
                   source={{ 
-                    uri: user.avatar_url
-                         ? user.avatar_url
+                    uri: user.profile_picture_url
+                         ? user.profile_picture_url
                          : (user.gender?.toLowerCase().includes('f') 
                            ? 'https://randomuser.me/api/portraits/women/44.jpg' 
                            : 'https://randomuser.me/api/portraits/men/42.jpg') 
@@ -1196,8 +1196,8 @@ export default function Accounts() {
                 >
                   <Image 
                     source={{ 
-                      uri: user.avatar_url
-                          ? user.avatar_url
+                      uri: user.profile_picture_url
+                          ? user.profile_picture_url
                           : (user.gender?.toLowerCase().includes('f') 
                             ? 'https://randomuser.me/api/portraits/women/44.jpg' 
                             : 'https://randomuser.me/api/portraits/men/42.jpg') 

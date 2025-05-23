@@ -536,29 +536,46 @@ export default function Registers() {
       // Buscar casais onde o usuário é user1 ou user2 e o status é 'active'
       const { data: couples, error: couplesError } = await supabase
         .from('couples')
-        .select(`
-          id, 
-          user1_id, 
-          user2_id, 
-          is_avatar,
-          profiles!couples_user1_id_fkey(id, name),
-          profiles!couples_user2_id_fkey(id, name)
-        `)
+        .select('id, user1_id, user2_id, is_avatar')
         .or(`user1_id.eq.${userId},user2_id.eq.${userId}`)
         .eq('status', 'active');
       
       if (couplesError) {
-        console.error('Erro ao buscar parceiros:', couplesError);
+        console.error('Erro ao buscar casais:', couplesError);
         return;
       }
       
       if (couples && couples.length > 0) {
+        // Criar uma lista de IDs de parceiros para buscar seus perfis
+        const partnerIds = couples.map(couple => {
+          return couple.user1_id === userId ? couple.user2_id : couple.user1_id;
+        }).filter(id => id !== null);
+        
+        // Buscar os perfis dos parceiros
+        const { data: partnerProfiles, error: profilesError } = await supabase
+          .from('profiles')
+          .select('id, name')
+          .in('id', partnerIds);
+        
+        if (profilesError) {
+          console.error('Erro ao buscar perfis dos parceiros:', profilesError);
+          return;
+        }
+        
+        // Criar um mapa de ID -> perfil para facilitar acesso
+        const profileMap = {};
+        if (partnerProfiles) {
+          partnerProfiles.forEach(profile => {
+            profileMap[profile.id] = profile;
+          });
+        }
+        
         // Processar a lista de parceiros para facilitar o uso na interface
         const partners = couples.map(couple => {
           // Determinar qual usuário é o parceiro (não o usuário atual)
           const isUser1 = couple.user1_id === userId;
           const partnerId = isUser1 ? couple.user2_id : couple.user1_id;
-          const partnerProfile = isUser1 ? couple.profiles_couples_user2_id_fkey : couple.profiles_couples_user1_id_fkey;
+          const partnerProfile = profileMap[partnerId];
           
           return {
             id: partnerId,

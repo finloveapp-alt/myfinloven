@@ -761,14 +761,20 @@ export default function Accounts() {
                     key={type}
                     style={[
                       styles.pickerOption,
-                      newAccountType === type && styles.pickerOptionSelected
+                      newAccountType === type && [
+                        styles.pickerOptionSelected,
+                        { backgroundColor: `rgba(${parseInt(theme.primary.slice(1, 3), 16)}, ${parseInt(theme.primary.slice(3, 5), 16)}, ${parseInt(theme.primary.slice(5, 7), 16)}, 0.2)` }
+                      ]
                     ]}
                     onPress={() => setNewAccountType(type)}
                   >
                     <Text 
                       style={[
                         styles.pickerOptionText,
-                        newAccountType === type && styles.pickerOptionTextSelected
+                        newAccountType === type && [
+                          styles.pickerOptionTextSelected,
+                          { color: theme.primary }
+                        ]
                       ]}
                     >
                       {type}
@@ -803,14 +809,20 @@ export default function Accounts() {
                     key={owner}
                     style={[
                       styles.pickerOption,
-                      activeTab === owner && styles.pickerOptionSelected
+                      activeTab === owner && [
+                        styles.pickerOptionSelected,
+                        { backgroundColor: `rgba(${parseInt(theme.primary.slice(1, 3), 16)}, ${parseInt(theme.primary.slice(3, 5), 16)}, ${parseInt(theme.primary.slice(5, 7), 16)}, 0.2)` }
+                      ]
                     ]}
                     onPress={() => setActiveTab(owner)}
                   >
                     <Text 
                       style={[
                         styles.pickerOptionText,
-                        activeTab === owner && styles.pickerOptionTextSelected
+                        activeTab === owner && [
+                          styles.pickerOptionTextSelected,
+                          { color: theme.primary }
+                        ]
                       ]}
                     >
                       {owner}
@@ -821,7 +833,7 @@ export default function Accounts() {
             </View>
 
             <TouchableOpacity 
-              style={[styles.modalButton, styles.primaryButton]}
+              style={[styles.modalButton, {backgroundColor: theme.primary}]}
               onPress={handleAddNewAccount}
             >
               <Text style={styles.modalButtonText}>Criar Conta</Text>
@@ -857,7 +869,14 @@ export default function Accounts() {
                     key={account.id}
                     style={[
                       styles.accountPickerItem,
-                      depositAccount === account.name && styles.accountPickerItemSelected
+                      depositAccount === account.name && [
+                        styles.accountPickerItemSelected,
+                        { 
+                          backgroundColor: `rgba(${parseInt(theme.primary.slice(1, 3), 16)}, ${parseInt(theme.primary.slice(3, 5), 16)}, ${parseInt(theme.primary.slice(5, 7), 16)}, 0.1)`,
+                          borderWidth: 1,
+                          borderColor: `rgba(${parseInt(theme.primary.slice(1, 3), 16)}, ${parseInt(theme.primary.slice(3, 5), 16)}, ${parseInt(theme.primary.slice(5, 7), 16)}, 0.3)`
+                        }
+                      ]
                     ]}
                     onPress={() => setDepositAccount(account.name)}
                   >
@@ -869,7 +888,7 @@ export default function Accounts() {
                       <Text style={styles.accountPickerType}>{account.type}</Text>
                     </View>
                     {depositAccount === account.name && (
-                      <Check size={20} color="#4CD964" />
+                      <Check size={20} color={theme.primary} />
                     )}
                   </TouchableOpacity>
                 ))}
@@ -886,7 +905,7 @@ export default function Accounts() {
             />
 
             <TouchableOpacity 
-              style={[styles.modalButton, styles.primaryButton]}
+              style={[styles.modalButton, {backgroundColor: theme.primary}]}
               onPress={handleDeposit}
             >
               <Text style={styles.modalButtonText}>Confirmar Depósito</Text>
@@ -939,7 +958,7 @@ export default function Accounts() {
             </View>
 
             <TouchableOpacity 
-              style={[styles.modalButton, styles.primaryButton]}
+              style={[styles.modalButton, {backgroundColor: theme.primary}]}
               onPress={handleSavings}
             >
               <Text style={styles.modalButtonText}>Confirmar Transferência</Text>
@@ -975,7 +994,14 @@ export default function Accounts() {
                     key={account.id}
                     style={[
                       styles.accountPickerItem,
-                      shareAccount === account.name && styles.accountPickerItemSelected
+                      shareAccount === account.name && [
+                        styles.accountPickerItemSelected,
+                        { 
+                          backgroundColor: `rgba(${parseInt(theme.primary.slice(1, 3), 16)}, ${parseInt(theme.primary.slice(3, 5), 16)}, ${parseInt(theme.primary.slice(5, 7), 16)}, 0.1)`,
+                          borderWidth: 1,
+                          borderColor: `rgba(${parseInt(theme.primary.slice(1, 3), 16)}, ${parseInt(theme.primary.slice(3, 5), 16)}, ${parseInt(theme.primary.slice(5, 7), 16)}, 0.3)`
+                        }
+                      ]
                     ]}
                     onPress={() => setShareAccount(account.name)}
                   >
@@ -987,7 +1013,7 @@ export default function Accounts() {
                       <Text style={styles.accountPickerType}>{account.type}</Text>
                     </View>
                     {shareAccount === account.name && (
-                      <Check size={20} color="#4CD964" />
+                      <Check size={20} color={theme.primary} />
                     )}
                   </TouchableOpacity>
                 ))}
@@ -997,7 +1023,17 @@ export default function Accounts() {
             <View style={styles.pickerContainer}>
               <Text style={styles.pickerLabel}>Compartilhar com</Text>
               <TouchableOpacity 
-                style={[styles.sharePerson, shareWithPerson === getOtherPersonName() && styles.sharePersonSelected]}
+                style={[
+                  styles.sharePerson, 
+                  shareWithPerson === getOtherPersonName() && [
+                    styles.sharePersonSelected,
+                    { 
+                      backgroundColor: `rgba(${parseInt(theme.primary.slice(1, 3), 16)}, ${parseInt(theme.primary.slice(3, 5), 16)}, ${parseInt(theme.primary.slice(5, 7), 16)}, 0.1)`,
+                      borderWidth: 1,
+                      borderColor: `rgba(${parseInt(theme.primary.slice(1, 3), 16)}, ${parseInt(theme.primary.slice(3, 5), 16)}, ${parseInt(theme.primary.slice(5, 7), 16)}, 0.3)`
+                    }
+                  ]
+                ]}
                 onPress={() => setShareWithPerson(getOtherPersonName())}
               >
                 <Image 
@@ -1010,7 +1046,7 @@ export default function Accounts() {
                 />
                 <Text style={styles.sharePersonName}>{getOtherPersonName()}</Text>
                 {shareWithPerson === getOtherPersonName() && (
-                  <Check size={20} color="#4CD964" />
+                  <Check size={20} color={theme.primary} />
                 )}
               </TouchableOpacity>
             </View>
@@ -1023,7 +1059,7 @@ export default function Accounts() {
             </View>
 
             <TouchableOpacity 
-              style={[styles.modalButton, styles.primaryButton]}
+              style={[styles.modalButton, {backgroundColor: theme.primary}]}
               onPress={handleShareAccount}
             >
               <Text style={styles.modalButtonText}>Compartilhar</Text>
@@ -1721,7 +1757,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   pickerOptionSelected: {
-    backgroundColor: `rgba(${parseInt(themeDefault.primary.slice(1, 3), 16)}, ${parseInt(themeDefault.primary.slice(3, 5), 16)}, ${parseInt(themeDefault.primary.slice(5, 7), 16)}, 0.2)`,
+    // Mantendo estilo vazio para compatibilidade
   },
   pickerOptionText: {
     fontSize: 14,
@@ -1729,16 +1765,13 @@ const styles = StyleSheet.create({
     color: '#666',
   },
   pickerOptionTextSelected: {
-    color: themeDefault.primary,
+    // Mantendo estilo vazio para compatibilidade
   },
   modalButton: {
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: 'center',
     marginTop: 8,
-  },
-  primaryButton: {
-    backgroundColor: themeDefault.primary,
   },
   modalButtonText: {
     fontSize: 16,
@@ -1758,9 +1791,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   accountPickerItemSelected: {
-    backgroundColor: `rgba(${parseInt(themeDefault.primary.slice(1, 3), 16)}, ${parseInt(themeDefault.primary.slice(3, 5), 16)}, ${parseInt(themeDefault.primary.slice(5, 7), 16)}, 0.1)`,
-    borderWidth: 1,
-    borderColor: `rgba(${parseInt(themeDefault.primary.slice(1, 3), 16)}, ${parseInt(themeDefault.primary.slice(3, 5), 16)}, ${parseInt(themeDefault.primary.slice(5, 7), 16)}, 0.3)`,
+    // Mantendo estilo vazio para compatibilidade
   },
   accountPickerIcon: {
     width: 40,
@@ -1806,9 +1837,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   sharePersonSelected: {
-    backgroundColor: `rgba(${parseInt(themeDefault.primary.slice(1, 3), 16)}, ${parseInt(themeDefault.primary.slice(3, 5), 16)}, ${parseInt(themeDefault.primary.slice(5, 7), 16)}, 0.1)`,
-    borderWidth: 1,
-    borderColor: `rgba(${parseInt(themeDefault.primary.slice(1, 3), 16)}, ${parseInt(themeDefault.primary.slice(3, 5), 16)}, ${parseInt(themeDefault.primary.slice(5, 7), 16)}, 0.3)`,
+    // Mantendo estilo vazio para compatibilidade
   },
   sharePersonAvatar: {
     width: 40,
@@ -2204,7 +2233,7 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: themeDefault.primary,
+    backgroundColor: theme.primary,
     justifyContent: 'center',
     alignItems: 'center',
   },

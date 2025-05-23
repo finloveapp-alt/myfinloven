@@ -560,6 +560,10 @@ export default function Accounts() {
         if (users.length > 0) {
           partnerId = users[0].id;
         }
+      } else if (activeTab === 'Pessoal') {
+        // Explicitamente definir como conta individual pessoal
+        ownershipType = 'individual';
+        partnerId = null;
       }
       
       // Obter sessão atual para ID do usuário
@@ -980,7 +984,10 @@ export default function Accounts() {
                 
                 <TouchableOpacity 
                   style={styles.addButton}
-                  onPress={() => setNewAccountModalVisible(true)}
+                  onPress={() => {
+                    setActiveTab('Pessoal'); // Define 'Pessoal' como proprietário padrão
+                    setNewAccountModalVisible(true);
+                  }}
                 >
                   <Plus size={18} color={theme.primary} />
                   <Text style={[styles.addButtonText, { color: theme.primary }]}>Adicionar Conta</Text>
@@ -1030,7 +1037,10 @@ export default function Accounts() {
               <View style={styles.actionsGrid}>
                 <TouchableOpacity 
                   style={styles.actionButton}
-                  onPress={() => setNewAccountModalVisible(true)}
+                  onPress={() => {
+                    setActiveTab('Pessoal'); // Define 'Pessoal' como proprietário padrão
+                    setNewAccountModalVisible(true);
+                  }}
                 >
                   <View style={[styles.actionIcon, { backgroundColor: `rgba(${parseInt(theme.primary.slice(1, 3), 16)}, ${parseInt(theme.primary.slice(3, 5), 16)}, ${parseInt(theme.primary.slice(5, 7), 16)}, 0.2)` }]}>
                     <Wallet size={24} color={theme.primary} />
@@ -1151,7 +1161,7 @@ export default function Accounts() {
             <View style={styles.pickerContainer}>
               <Text style={styles.pickerLabel}>Proprietário</Text>
               <View style={styles.pickerOptions}>
-                {['Compartilhadas', ...(users.length > 0 ? users.map(user => user.name || 'Avatar') : [currentUser?.name || 'Avatar'])].map((owner) => (
+                {['Pessoal', 'Compartilhadas', ...(users.length > 0 ? users.map(user => user.name || 'Avatar') : [currentUser?.name || 'Avatar'])].map((owner) => (
                   <TouchableOpacity 
                     key={owner}
                     style={[

@@ -994,8 +994,8 @@ export default function Dashboard() {
                 isUserInviter: isUserInviter
               })}
               
-              {/* Mostrar o botão se o usuário for um convidador (independente do account_type) */}
-              {currentUser && isUserInviter && (
+              {/* Mostrar o botão se o usuário for um convidador (independente do account_type) OU se for individual */}
+              {currentUser && (isUserInviter || currentUser.account_type !== 'couple') && (
                 <TouchableOpacity 
                   style={styles.addUserAvatar}
                   onPress={() => setInviteModalVisible(true)}

@@ -767,13 +767,36 @@ export default function Registers() {
       
       console.log('Transação salva com sucesso:', data);
       
-      // Atualizar a lista de transações
-      fetchTransactions();
+      // Verificar se a data da transação está no mês atual para determinar quais atualizações fazer
+      const transactionDate = new Date(parsedDate);
+      const isCurrentMonthTransaction = 
+        transactionDate.getMonth() === currentMonth && 
+        transactionDate.getFullYear() === currentYear;
       
+      // Verificar se a data da transação é o dia selecionado atual
+      const isSelectedDayTransaction = 
+        transactionDate.getDate() === selectedDay && 
+        isCurrentMonthTransaction;
+      
+      // Sequência de atualização otimizada:
+      // 1. Atualizar o status de salvamento antes das chamadas assícronas
       setIsSaving(false);
+      
+      // 2. Fechar o modal imediatamente para melhorar a experiência do usuário
       closeModal();
       
-      // Opcional: Exibir um alerta de sucesso
+      // 3. Atualizar os dados relevantes
+      if (isCurrentMonthTransaction) {
+        // Atualizar os indicadores do mês
+        await fetchMonthTransactions();
+      }
+      
+      if (isSelectedDayTransaction) {
+        // Atualizar as transações do dia atual
+        await fetchTransactions();
+      }
+      
+      // 4. Mostrar mensagem de sucesso após o modal estar fechado
       alert('Transação registrada com sucesso!');
       
     } catch (error) {

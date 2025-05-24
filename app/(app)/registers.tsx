@@ -881,6 +881,7 @@ export default function Registers() {
       const isCurrentMonthDay = day.currentMonth && pickerMonth === currentMonth && pickerYear === currentYear;
       const dayKey = day.day.toString();
       const hasTransactions = isCurrentMonthDay && monthTransactions[dayKey];
+      const isSelected = pickerDay === day.day && day.currentMonth;
       
       cells.push(
         <TouchableOpacity
@@ -888,21 +889,21 @@ export default function Registers() {
           style={[
             styles.pickerCalendarCell,
             day.currentMonth ? styles.pickerCurrentMonthCell : styles.pickerOtherMonthCell,
-            pickerDay === day.day && day.currentMonth ? styles.pickerSelectedCell : null
+            isSelected ? styles.pickerSelectedCell : null
           ]}
           onPress={() => day.currentMonth && selectDateFromPicker(day.day)}
         >
           <View
             style={[
               styles.pickerDayCircle,
-              pickerDay === day.day && day.currentMonth ? styles.pickerSelectedDayCircle : null
+              isSelected ? styles.pickerSelectedDayCircle : null
             ]}
           >
             <Text
               style={[
                 styles.pickerCalendarDay,
                 day.currentMonth ? styles.pickerCurrentMonthDay : styles.pickerOtherMonthDay,
-                pickerDay === day.day && day.currentMonth ? [styles.pickerSelectedDayText, { color: theme.primary }] : null
+                isSelected ? [styles.pickerSelectedDayText, { color: theme.primary }] : null
               ]}
             >
               {day.day}
@@ -910,15 +911,30 @@ export default function Registers() {
             
             {/* Indicadores de transações */}
             {hasTransactions && (
-              <View style={styles.pickerTransactionIndicatorsContainer}>
+              <View style={[
+                styles.pickerTransactionIndicatorsContainer,
+                isSelected ? styles.selectedDayIndicatorsContainer : null
+              ]}>
                 {hasTransactions.income && (
-                  <View style={[styles.transactionIndicator, styles.incomeIndicator]} />
+                  <View style={[
+                    styles.transactionIndicator, 
+                    styles.incomeIndicator,
+                    isSelected ? styles.selectedDayIndicator : null
+                  ]} />
                 )}
                 {hasTransactions.expense && (
-                  <View style={[styles.transactionIndicator, styles.expenseIndicator]} />
+                  <View style={[
+                    styles.transactionIndicator, 
+                    styles.expenseIndicator,
+                    isSelected ? styles.selectedDayIndicator : null
+                  ]} />
                 )}
                 {hasTransactions.transfer && (
-                  <View style={[styles.transactionIndicator, styles.transferIndicator]} />
+                  <View style={[
+                    styles.transactionIndicator, 
+                    styles.transferIndicator,
+                    isSelected ? styles.selectedDayIndicator : null
+                  ]} />
                 )}
               </View>
             )}
@@ -1048,6 +1064,7 @@ export default function Registers() {
       // Verificar se este dia tem transações
       const dayKey = day.day.toString();
       const hasTransactions = day.currentMonth && monthTransactions[dayKey];
+      const isSelected = selectedDay === day.day && day.currentMonth;
       
       cells.push(
         <TouchableOpacity
@@ -1055,21 +1072,21 @@ export default function Registers() {
           style={[
             styles.calendarCell,
             day.currentMonth ? styles.currentMonthCell : styles.otherMonthCell,
-            selectedDay === day.day && day.currentMonth ? styles.selectedCell : null
+            isSelected ? styles.selectedCell : null
           ]}
           onPress={() => day.currentMonth && selectDay(day.day)}
         >
           <View
             style={[
               styles.dayCircle,
-              selectedDay === day.day && day.currentMonth ? styles.selectedDayCircle : null
+              isSelected ? styles.selectedDayCircle : null
             ]}
           >
             <Text
               style={[
                 styles.calendarDay,
                 day.currentMonth ? styles.currentMonthDay : styles.otherMonthDay,
-                selectedDay === day.day && day.currentMonth ? [styles.selectedDayText, { color: theme.primary }] : null
+                isSelected ? [styles.selectedDayText, { color: theme.primary }] : null
               ]}
             >
               {day.day}
@@ -1077,15 +1094,30 @@ export default function Registers() {
             
             {/* Indicadores de transações */}
             {hasTransactions && (
-              <View style={styles.transactionIndicatorsContainer}>
+              <View style={[
+                styles.transactionIndicatorsContainer,
+                isSelected ? styles.selectedDayIndicatorsContainer : null
+              ]}>
                 {hasTransactions.income && (
-                  <View style={[styles.transactionIndicator, styles.incomeIndicator]} />
+                  <View style={[
+                    styles.transactionIndicator, 
+                    styles.incomeIndicator,
+                    isSelected ? styles.selectedDayIndicator : null
+                  ]} />
                 )}
                 {hasTransactions.expense && (
-                  <View style={[styles.transactionIndicator, styles.expenseIndicator]} />
+                  <View style={[
+                    styles.transactionIndicator, 
+                    styles.expenseIndicator,
+                    isSelected ? styles.selectedDayIndicator : null
+                  ]} />
                 )}
                 {hasTransactions.transfer && (
-                  <View style={[styles.transactionIndicator, styles.transferIndicator]} />
+                  <View style={[
+                    styles.transactionIndicator, 
+                    styles.transferIndicator,
+                    isSelected ? styles.selectedDayIndicator : null
+                  ]} />
                 )}
               </View>
             )}
@@ -3018,11 +3050,20 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
   },
+  selectedDayIndicatorsContainer: {
+    bottom: 2, // Posiciona os indicadores dentro do círculo branco quando selecionado
+    alignSelf: 'center',
+  },
   transactionIndicator: {
     width: 5,
     height: 5,
     borderRadius: 2.5,
     marginHorizontal: 1,
+  },
+  selectedDayIndicator: {
+    width: 4, // Tamanho ligeiramente menor quando selecionado
+    height: 4,
+    borderRadius: 2,
   },
   incomeIndicator: {
     backgroundColor: '#4CD964', // Verde para receitas

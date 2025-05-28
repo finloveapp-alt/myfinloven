@@ -309,7 +309,10 @@ export default function ReceitasScreen() {
           </TouchableOpacity>
           <Text style={styles.title}>Receitas</Text>
           <View style={styles.headerActions}>
-            <TouchableOpacity style={styles.iconButton}>
+            <TouchableOpacity 
+              style={styles.iconButton}
+              onPress={() => setHistoryModalVisible(true)}
+            >
               <Clock size={20} color="#fff" />
             </TouchableOpacity>
             <TouchableOpacity style={styles.iconButton}>
@@ -331,6 +334,39 @@ export default function ReceitasScreen() {
           </View>
         </View>
       </LinearGradient>
+      
+      {/* Month Selector */}
+      <View style={styles.monthSelector}>
+        <TouchableOpacity 
+          onPress={() => {
+            if (currentMonth === 0) {
+              setCurrentMonth(11);
+              setCurrentYear(currentYear - 1);
+            } else {
+              setCurrentMonth(currentMonth - 1);
+            }
+          }}
+          style={styles.monthArrow}
+        >
+          <ChevronLeft size={24} color="white" />
+        </TouchableOpacity>
+        
+        <Text style={styles.monthText}>{months[currentMonth]}</Text>
+        
+        <TouchableOpacity 
+          onPress={() => {
+            if (currentMonth === 11) {
+              setCurrentMonth(0);
+              setCurrentYear(currentYear + 1);
+            } else {
+              setCurrentMonth(currentMonth + 1);
+            }
+          }}
+          style={styles.monthArrow}
+        >
+          <ChevronRight size={24} color="white" />
+        </TouchableOpacity>
+      </View>
 
       {/* Botão de adicionar receita flutuante */}
       <TouchableOpacity 
@@ -891,16 +927,15 @@ const createStyles = (theme: any) => StyleSheet.create({
     backgroundColor: '#f5f5f5',
   },
   headerContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    backgroundColor: '#b388ff', // Cor roxa/lilás do cabeçalho
+    paddingTop: Platform.OS === 'android' ? 25 : 40,
+    paddingBottom: 15,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    marginBottom: 12,
   },
   iconButton: {
     padding: 8,
@@ -909,66 +944,65 @@ const createStyles = (theme: any) => StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: 'white',
-    marginLeft: 8,
+    fontFamily: fontFallbacks.Poppins_600SemiBold,
   },
   headerActions: {
     flexDirection: 'row',
+    alignItems: 'center',
   },
   financialSummary: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    marginTop: 16,
-    marginBottom: 16,
+    marginTop: 8,
   },
   balanceCard: {
     flex: 1,
-    backgroundColor: 'white',
-    borderRadius: 16,
-    padding: 16,
-    marginHorizontal: 6,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-    position: 'relative',
-    overflow: 'hidden',
+    paddingRight: 12,
   },
   divider: {
     width: 1,
-    backgroundColor: '#e0e0e0',
-    marginHorizontal: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    marginHorizontal: 8,
   },
   payableCard: {
     flex: 1,
-    backgroundColor: 'white',
-    borderRadius: 16,
-    padding: 16,
-    marginHorizontal: 6,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-    position: 'relative',
-    overflow: 'hidden',
+    paddingLeft: 12,
   },
   summaryLabel: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 8,
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.7)',
+    marginBottom: 4,
     fontWeight: '500',
+    fontFamily: fontFallbacks.Poppins_500Medium,
   },
   balanceValue: {
-    fontSize: 22,
+    fontSize: 18,
     fontWeight: '700',
-    marginBottom: 12,
+    color: 'white',
+    fontFamily: fontFallbacks.Poppins_700Bold,
   },
   payableValue: {
-    fontSize: 22,
+    fontSize: 18,
     fontWeight: '700',
-    marginBottom: 12,
+    color: 'white',
+    fontFamily: fontFallbacks.Poppins_700Bold,
+  },
+  monthSelector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    backgroundColor: theme.primary,
+  },
+  monthArrow: {
+    padding: 8,
+  },
+  monthText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: 'white',
+    fontFamily: fontFallbacks.Poppins_600SemiBold,
   },
   addButton: {
     position: 'absolute',
@@ -1750,5 +1784,19 @@ const createStyles = (theme: any) => StyleSheet.create({
   },
   bottomPadding: {
     height: 80,
+  },
+  monthSelector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+  },
+  monthArrow: {
+    padding: 8,
+  },
+  monthText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: 'white',
   },
 });

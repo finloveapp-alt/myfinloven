@@ -295,21 +295,19 @@ export default function ReceitasScreen() {
       <StatusBar style="light" />
       
       {/* Header */}
-      <View style={styles.headerContainer}>
+      <LinearGradient
+        colors={[theme.primaryGradient[0], theme.primaryGradient[1]]}
+        style={styles.headerContainer}
+      >
         <View style={styles.header}>
-          <View style={styles.headerLeft}>
-            <TouchableOpacity 
-              onPress={() => router.back()} 
-              style={styles.iconButton}
-              accessibilityLabel="Voltar"
-            >
-              <ArrowLeft size={24} color="#fff" />
-            </TouchableOpacity>
-            <View style={styles.headerTitleContainer}>
-              <Text style={styles.title}>Receitas</Text>
-              <Text style={styles.headerAmount}>R$ {formatCurrency(incomes.filter(income => !income.isReceived).reduce((sum, income) => sum + income.amount, 0))}</Text>
-            </View>
-          </View>
+          <TouchableOpacity 
+            onPress={() => router.back()} 
+            style={styles.iconButton}
+            accessibilityLabel="Voltar"
+          >
+            <ArrowLeft size={24} color="#fff" />
+          </TouchableOpacity>
+          <Text style={styles.title}>Receitas</Text>
           <View style={styles.headerActions}>
             <TouchableOpacity 
               style={styles.iconButton}
@@ -320,62 +318,26 @@ export default function ReceitasScreen() {
             <TouchableOpacity style={styles.iconButton}>
               <Search size={20} color="#fff" />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.iconButton}>
-              <MoreVertical size={20} color="#fff" />
-            </TouchableOpacity>
           </View>
         </View>
-        
-        {/* Financial Summary */}
-        <View style={styles.financialSummaryContainer}>
-          <View style={styles.summaryItem}>
-            <Text style={styles.summaryLabel}>Saldo disponível</Text>
-            <Text style={styles.summaryValue}>R$ 5000.00</Text>
-          </View>
-          <View style={styles.summaryDivider}></View>
-          <View style={styles.summaryItem}>
-            <Text style={styles.summaryLabel}>Total a pagar</Text>
-            <Text style={styles.summaryValue}>R$ 1390.00</Text>
-          </View>
-        </View>
-      </View>
 
-      {/* Month Selector */}
-      <View style={styles.monthSelector}>
-        <TouchableOpacity 
-          onPress={() => {
-            if (currentMonth === 0) {
-              setCurrentMonth(11);
-              setCurrentYear(currentYear - 1);
-            } else {
-              setCurrentMonth(currentMonth - 1);
-            }
-          }}
-          style={styles.monthArrow}
-        >
-          <ChevronLeft size={24} color="#fff" />
-        </TouchableOpacity>
-        
-        <Text style={styles.monthText}>{months[currentMonth]}</Text>
-        
-        <TouchableOpacity 
-          onPress={() => {
-            if (currentMonth === 11) {
-              setCurrentMonth(0);
-              setCurrentYear(currentYear + 1);
-            } else {
-              setCurrentMonth(currentMonth + 1);
-            }
-          }}
-          style={styles.monthArrow}
-        >
-          <ChevronRight size={24} color="#fff" />
-        </TouchableOpacity>
-      </View>
+        {/* Financial Summary - Separated from header */}
+        <View style={styles.financialSummary}>
+          <View style={styles.balanceCard}>
+            <Text style={styles.summaryLabel}>Total a receber</Text>
+            <Text style={styles.balanceValue}>R$ {formatCurrency(incomes.filter(income => !income.isReceived).reduce((sum, income) => sum + income.amount, 0))}</Text>
+          </View>
+          <View style={styles.divider} />
+          <View style={styles.payableCard}>
+            <Text style={styles.summaryLabel}>Total recebido</Text>
+            <Text style={styles.payableValue}>R$ {formatCurrency(incomes.filter(income => income.isReceived).reduce((sum, income) => sum + income.amount, 0))}</Text>
+          </View>
+        </View>
+      </LinearGradient>
 
       {/* Botão de adicionar receita flutuante */}
       <TouchableOpacity 
-        style={styles.addButton}
+        style={[styles.addButton, {backgroundColor: theme.primary}]}
         onPress={() => setModalVisible(true)}
       >
         <Plus size={24} color="white" />
@@ -932,100 +894,77 @@ const createStyles = (theme: any) => StyleSheet.create({
     backgroundColor: '#f5f5f5',
   },
   headerContainer: {
-    backgroundColor: '#aa80ff', // Cor roxa sólida similar à da imagem
     paddingTop: Platform.OS === 'android' ? 25 : 40,
-    paddingBottom: 10,
-    paddingHorizontal: 16,
+    paddingBottom: 15,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 5,
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    paddingHorizontal: 16,
+    marginBottom: 12,
   },
   headerTitleContainer: {
-    marginLeft: 5,
+    flex: 1,
+    marginHorizontal: 12,
   },
   iconButton: {
     padding: 8,
+    borderRadius: 20,
   },
   title: {
+    color: '#fff',
     fontSize: 22,
-    fontWeight: '600',
-    color: 'white',
-    marginBottom: 0,
-  },
-  headerAmount: {
-    fontSize: 16,
-    fontWeight: '400',
-    color: 'white',
-    marginTop: -2,
+    fontWeight: 'bold',
+    fontFamily: fontFallbacks.Poppins_600SemiBold,
+    flex: 1,
+    marginLeft: 10,
   },
   headerActions: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  financialSummaryContainer: {
+  // New financial summary styles
+  financialSummary: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    marginTop: 10,
-    marginBottom: 16,
-    backgroundColor: 'white',
-    borderRadius: 16,
-    padding: 12,
     marginHorizontal: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 5,
   },
-  summaryItem: {
+  balanceCard: {
     flex: 1,
     paddingVertical: 4,
-    alignItems: 'center',
-    justifyContent: 'center',
+    paddingHorizontal: 8,
+  },
+  payableCard: {
+    flex: 1,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+  },
+  divider: {
+    width: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    marginHorizontal: 8,
   },
   summaryLabel: {
+    color: 'rgba(255, 255, 255, 0.8)',
     fontSize: 12,
-    color: '#666',
+    fontFamily: fontFallbacks.Poppins_400Regular,
     marginBottom: 4,
-    fontWeight: '500',
   },
-  summaryValue: {
+  balanceValue: {
+    color: '#fff',
     fontSize: 18,
-    fontWeight: '700',
-    color: '#333',
-  },
-  summaryDivider: {
-    width: 1,
-    height: '80%',
-    backgroundColor: '#e0e0e0',
-    alignSelf: 'center',
-  },
-  monthSelector: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 12,
-    backgroundColor: '#aa80ff', // Mesma cor do cabeçalho
-    paddingBottom: 16,
-  },
-  monthArrow: {
-    padding: 8,
-  },
-  monthText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: 'white',
+    fontWeight: 'bold',
     fontFamily: fontFallbacks.Poppins_600SemiBold,
-    textDecorationLine: 'underline',
-    marginHorizontal: 10,
+  },
+  payableValue: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+    fontFamily: fontFallbacks.Poppins_600SemiBold,
   },
   addButton: {
     position: 'absolute',
@@ -1034,7 +973,6 @@ const createStyles = (theme: any) => StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#9c27b0', // Roxo mais escuro para o botão
     justifyContent: 'center',
     alignItems: 'center',
     elevation: 5,
@@ -1044,25 +982,29 @@ const createStyles = (theme: any) => StyleSheet.create({
     shadowRadius: 3,
     zIndex: 999,
   },
+  listContainer: {
+    flex: 1,
+  },
+  listContentContainer: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+  },
   loaderContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  content: {
-    flex: 1,
-    backgroundColor: '#f5f5f5', // Fundo claro para o conteúdo
-  },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 32,
+    padding: 32,
+    marginTop: 48,
   },
   emptyText: {
+    color: '#666',
     fontSize: 16,
-    color: 'white',
-    marginBottom: 16,
+    fontFamily: fontFallbacks.Poppins_400Regular,
   },
   emptyButton: {
     paddingHorizontal: 16,
@@ -1074,352 +1016,147 @@ const createStyles = (theme: any) => StyleSheet.create({
     color: 'white',
     fontWeight: '500',
   },
-  sectionTitle: {
-    fontSize: 16,
-    color: '#333',
-    marginLeft: 16,
-    marginTop: 16,
-    marginBottom: 8,
-    fontWeight: '600',
+  // Status indicators
+  statusIndicators: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginBottom: 16,
+    backgroundColor: 'rgba(255,255,255,0.8)',
+    padding: 8,
+    borderRadius: 8,
   },
-  incomeContainer: {
-    marginBottom: 4,
-  },
-  incomeItem: {
+  statusItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'white',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-    borderLeftWidth: 3,
-    borderLeftColor: '#9c27b0',
+    marginLeft: 16,
   },
-  receivedIncomeItem: {
-    borderLeftColor: '#2ecc71',
-    opacity: 0.9,
-    backgroundColor: '#fafffe',
-  },
-  incomeCheckbox: {
-    marginRight: 16,
-    justifyContent: 'center',
-  },
-  receivedCheckbox: {
-    opacity: 1,
-  },
-  calendarIcon: {
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
     marginRight: 4,
   },
-  incomeIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: theme.primary,
-    justifyContent: 'center',
+  statusText: {
+    fontSize: 11,
+    fontWeight: '500',
+    fontFamily: fontFallbacks.Poppins_500Medium,
+  },
+  incomeCard: {
+    marginBottom: 16,
+    borderRadius: 16,
+    overflow: 'hidden',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 3,
+      },
+    }),
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
+  },
+  incomeContent: {
+    padding: 16,
+  },
+  incomeMain: {
+    flex: 1,
+  },
+  incomeTitleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: 8,
+  },
+  incomeTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    fontFamily: fontFallbacks.Poppins_600SemiBold,
+    flex: 1,
     marginRight: 12,
   },
-  incomeDetails: {
-    flex: 1,
-  },
-  incomeRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  amountContainer: {
+  incomeTitleRightContent: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  incomeAmountText: {
+    fontSize: 16,
+    color: '#333',
+    fontFamily: fontFallbacks.Poppins_600SemiBold,
   },
   optionsButton: {
-    padding: 6,
+    padding: 4,
     marginLeft: 8,
   },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  optionsModalContent: {
-    width: '80%',
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 16,
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-  },
-  deleteOptionsTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 12,
-    textAlign: 'center',
-    paddingBottom: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  historyContainer: {
-    flex: 1,
-    backgroundColor: '#f8f9fa',
-  },
-  historyHeader: {
+  incomeMetaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#b388ff',
-  },
-  historyBackButton: {
-    padding: 8,
-  },
-  historyTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: 'white',
-  },
-  filterContainer: {
-    backgroundColor: 'white',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-  },
-  filterGroup: {
     marginBottom: 12,
   },
-  filterLabel: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 8,
-    fontWeight: '500',
-  },
-  filterSelector: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#f5f5f5',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  filterButton: {
-    padding: 4,
-  },
-  filterValue: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-  },
-  personFilterContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  personFilterButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: '#f5f5f5',
-    marginRight: 8,
-    marginBottom: 8,
-  },
-  personFilterButtonActive: {
-    backgroundColor: '#9c27b0',
-  },
-  personFilterText: {
-    fontSize: 14,
-    color: '#333',
-  },
-  personFilterTextActive: {
-    color: 'white',
-    fontWeight: '500',
-  },
-  historyStats: {
-    flexDirection: 'row',
-    backgroundColor: 'white',
-    padding: 16,
-    marginTop: 12,
-    marginBottom: 12,
-    borderBottomWidth: 1,
-    borderTopWidth: 1,
-    borderColor: '#e0e0e0',
-  },
-  historyStatItem: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  historyStatLabel: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 4,
-  },
-  historyStatValue: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#9c27b0',
-  },
-  historyList: {
-    flex: 1,
-    padding: 16,
-  },
-  historyItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  historyItemLeft: {
-    flex: 1,
-    marginRight: 8,
-  },
-  historyItemTitle: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#333',
-    marginBottom: 4,
-  },
-  historyItemMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-  },
-  historyItemDate: {
-    fontSize: 12,
-    color: '#666',
-    marginRight: 8,
-  },
-  historyItemCategory: {
-    backgroundColor: 'rgba(156, 39, 176, 0.1)',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
+  incomeTag: {
     borderRadius: 4,
-  },
-  historyItemCategoryText: {
-    fontSize: 10,
-    color: '#9c27b0',
-  },
-  historyItemRight: {
-    alignItems: 'flex-end',
-  },
-  historyItemAmount: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  historyItemReceived: {
-    color: '#2ecc71',
-  },
-  historyItemPending: {
-    color: '#9c27b0',
-  },
-  historyItemStatus: {
-    paddingHorizontal: 8,
+    paddingHorizontal: 6,
     paddingVertical: 2,
-    borderRadius: 4,
-  },
-  historyItemStatusReceived: {
-    backgroundColor: 'rgba(46, 204, 113, 0.1)',
-  },
-  historyItemStatusPending: {
-    backgroundColor: 'rgba(156, 39, 176, 0.1)',
-  },
-  historyItemStatusText: {
-    fontSize: 10,
-    fontWeight: '500',
-  },
-  historyEmpty: {
-    padding: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  historyEmptyText: {
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
-  },
-  optionItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  optionText: {
-    fontSize: 16,
-    marginLeft: 16,
-    color: '#333',
-  },
-  incomeDescription: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#333',
-  },
-  incomeAmount: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-  },
-  receivedAmount: {
-    color: '#4caf50',
-  },
-  pendingAmount: {
-    color: '#9c27b0',
-  },
-  incomeTagContainer: {
-    backgroundColor: 'rgba(179, 136, 255, 0.2)',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  receivedTagContainer: {
-    backgroundColor: 'rgba(46, 204, 113, 0.1)',
+    marginRight: 8,
   },
   incomeTagText: {
-    fontSize: 12,
-    color: '#9c27b0',
+    fontSize: 11,
     fontWeight: '500',
+    fontFamily: fontFallbacks.Poppins_500Medium,
   },
-  receivedTagText: {
-    color: '#2ecc71',
+  incomeAccount: {
+    color: '#666',
+    fontSize: 12,
+    fontFamily: fontFallbacks.Poppins_400Regular,
+  },
+  incomeDetailsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 14,
   },
   incomeDateContainer: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  incomeDate: {
-    fontSize: 12,
+  incomeDateIcon: {
+    marginRight: 4,
+  },
+  incomeDateText: {
     color: '#666',
+    fontSize: 13,
+    fontFamily: fontFallbacks.Poppins_400Regular,
   },
-  receivedDate: {
-    color: '#2ecc71',
+  statusIndicator: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+    borderWidth: 1,
   },
-  receivedText: {
-    color: '#444',
+  confirmButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    alignSelf: 'flex-start',
+    borderWidth: 1,
   },
-  incomeStatusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#2ecc71', // Verde para status recebido
-    marginLeft: 6,
+  confirmButtonText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    marginRight: 6,
+    fontFamily: fontFallbacks.Poppins_600SemiBold,
   },
+  bottomPadding: {
+    height: 80,
+  },
+  // Modals styles - keeping the existing modal styles
   modalContainer: {
     flex: 1,
     justifyContent: 'flex-end',
@@ -1543,20 +1280,111 @@ const createStyles = (theme: any) => StyleSheet.create({
   cancelButtonText: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#9c27b0', // Roxo mais escuro para o texto
+    color: '#9c27b0',
   },
-  confirmButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    backgroundColor: '#9c27b0', // Roxo mais escuro para o botão
-    borderRadius: 20,
-    alignItems: 'center',
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
+    alignItems: 'center',
   },
-  confirmButtonText: {
+  optionsModalContent: {
+    width: '80%',
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 16,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  deleteOptionsTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 12,
+    textAlign: 'center',
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  optionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  optionText: {
     fontSize: 16,
-    fontWeight: '500',
+    marginLeft: 16,
+    color: '#333',
+  },
+  historyContainer: {
+    flex: 1,
+    backgroundColor: '#f8f9fa',
+  },
+  historyHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#b388ff',
+  },
+  historyBackButton: {
+    padding: 8,
+  },
+  historyTitle: {
+    fontSize: 18,
+    fontWeight: '600',
     color: 'white',
+  },
+  filterContainer: {
+    backgroundColor: 'white',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  filterGroup: {
+    marginBottom: 12,
+  },
+  filterLabel: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 8,
+    fontWeight: '500',
+  },
+  filterSelector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#f5f5f5',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  filterButton: {
+    padding: 4,
+  },
+  filterValue: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+  },
+  personFilterContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  personFilterButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#f5f5f5',
+    marginRight: 8,
+    marginBottom: 8,
   },
   personFilterButtonActive: {
     backgroundColor: '#b388ff',
@@ -1677,135 +1505,5 @@ const createStyles = (theme: any) => StyleSheet.create({
     fontSize: 14,
     color: '#666',
     textAlign: 'center',
-  },
-  listContainer: {
-    flex: 1,
-    backgroundColor: '#f5f7fa',
-  },
-  listContentContainer: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 80,
-  },
-  statusIndicators: {
-    flexDirection: 'row',
-    marginBottom: 12,
-    paddingHorizontal: 4,
-  },
-  statusItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginRight: 16,
-  },
-  statusDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    marginRight: 6,
-  },
-  statusText: {
-    fontSize: 12,
-    fontFamily: fontFallbacks.Poppins_400Regular,
-    color: '#666',
-  },
-  incomeCard: {
-    borderRadius: 16,
-    marginBottom: 12,
-    backgroundColor: 'white',
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  incomeContent: {
-    flex: 1,
-  },
-  incomeMain: {
-    flex: 1,
-  },
-  incomeTitleRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  incomeTitle: {
-    fontSize: 16,
-    fontFamily: fontFallbacks.Poppins_500Medium,
-    color: '#333',
-    flex: 1,
-    marginRight: 8,
-  },
-  incomeTitleRightContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  incomeAmountText: {
-    fontSize: 16,
-    fontFamily: fontFallbacks.Poppins_600SemiBold,
-    color: '#333',
-    marginRight: 8,
-  },
-  incomeMetaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    marginBottom: 10,
-  },
-  incomeTag: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 12,
-    marginRight: 8,
-    backgroundColor: 'rgba(139, 92, 246, 0.1)',
-  },
-  incomeTagText: {
-    fontSize: 12,
-    fontFamily: fontFallbacks.Poppins_400Regular,
-    color: theme.primary,
-  },
-  incomeAccount: {
-    fontSize: 12,
-    fontFamily: fontFallbacks.Poppins_400Regular,
-    color: '#666',
-  },
-  incomeDetailsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  incomeDateIcon: {
-    marginRight: 4,
-  },
-  incomeDateText: {
-    fontSize: 13,
-    fontFamily: fontFallbacks.Poppins_400Regular,
-    color: '#666',
-  },
-  statusIndicator: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 12,
-    borderWidth: 1,
-  },
-  confirmButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-    marginTop: 4,
-  },
-  confirmButtonText: {
-    fontSize: 14,
-    fontFamily: fontFallbacks.Poppins_500Medium,
-    marginRight: 6,
-  },
-  bottomPadding: {
-    height: 80,
-  },
+  }
 });

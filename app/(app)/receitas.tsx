@@ -333,40 +333,40 @@ export default function ReceitasScreen() {
             <Text style={styles.payableValue}>R$ {formatCurrency(incomes.filter(income => income.isReceived).reduce((sum, income) => sum + income.amount, 0))}</Text>
           </View>
         </View>
+        
+        {/* Month Selector */}
+        <View style={styles.monthSelector}>
+          <TouchableOpacity 
+            onPress={() => {
+              if (currentMonth === 0) {
+                setCurrentMonth(11);
+                setCurrentYear(currentYear - 1);
+              } else {
+                setCurrentMonth(currentMonth - 1);
+              }
+            }}
+            style={styles.monthArrow}
+          >
+            <ChevronLeft size={20} color="#fff" />
+          </TouchableOpacity>
+          
+          <Text style={styles.monthText}>{months[currentMonth]}</Text>
+          
+          <TouchableOpacity 
+            onPress={() => {
+              if (currentMonth === 11) {
+                setCurrentMonth(0);
+                setCurrentYear(currentYear + 1);
+              } else {
+                setCurrentMonth(currentMonth + 1);
+              }
+            }}
+            style={styles.monthArrow}
+          >
+            <ChevronRight size={20} color="#fff" />
+          </TouchableOpacity>
+        </View>
       </LinearGradient>
-
-      {/* Month Selector */}
-      <View style={[styles.monthSelector, {backgroundColor: theme.primary}]}>
-        <TouchableOpacity 
-          onPress={() => {
-            if (currentMonth === 0) {
-              setCurrentMonth(11);
-              setCurrentYear(currentYear - 1);
-            } else {
-              setCurrentMonth(currentMonth - 1);
-            }
-          }}
-          style={styles.monthArrow}
-        >
-          <ChevronLeft size={20} color="#fff" />
-        </TouchableOpacity>
-        
-        <Text style={styles.monthText}>{months[currentMonth]}</Text>
-        
-        <TouchableOpacity 
-          onPress={() => {
-            if (currentMonth === 11) {
-              setCurrentMonth(0);
-              setCurrentYear(currentYear + 1);
-            } else {
-              setCurrentMonth(currentMonth + 1);
-            }
-          }}
-          style={styles.monthArrow}
-        >
-          <ChevronRight size={20} color="#fff" />
-        </TouchableOpacity>
-      </View>
 
       {/* Botão de adicionar receita flutuante */}
       <TouchableOpacity 

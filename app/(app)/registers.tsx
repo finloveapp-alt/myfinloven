@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Dimensions, Platform, Modal, TextInput } from 'react-native';
-import { ChevronLeft, ChevronRight, Search, ArrowLeft, Filter, Plus, PlusCircle, X, Calendar, ArrowRight, ArrowDown, DollarSign, CreditCard, RefreshCw, BarChart, Menu, Home, Bell, Receipt, Wallet, Info, ExternalLink } from 'lucide-react-native';
+import { ChevronLeft, ChevronRight, Search, ArrowLeft, Filter, Plus, PlusCircle, X, Calendar, ArrowRight, ArrowDown, DollarSign, CreditCard, RefreshCw, BarChart, Menu, Home, Bell, Receipt, Wallet, Info, ExternalLink, ArrowUp } from 'lucide-react-native';
 import { StatusBar } from 'expo-status-bar';
 import BottomNavigation from '@/components/BottomNavigation';
 import { router, useRouter } from 'expo-router';
@@ -1511,10 +1511,16 @@ export default function Registers() {
               <TouchableOpacity
                 style={[
                   styles.transactionTypeButton,
-                  transactionType === 'expense' && [styles.activeTypeButton, { borderColor: theme.expense }]
+                  transactionType === 'expense' && [styles.activeTypeButton, { 
+                    backgroundColor: `${theme.expense}15`, 
+                    borderColor: theme.expense 
+                  }]
                 ]}
                 onPress={() => setTransactionType('expense')}
               >
+                <View style={[styles.transactionIconContainer, { backgroundColor: transactionType === 'expense' ? theme.expense : '#f5f5f5' }]}>
+                  <ArrowDown size={20} color={transactionType === 'expense' ? 'white' : '#666'} />
+                </View>
                 <Text style={[
                   styles.transactionTypeText,
                   transactionType === 'expense' && [styles.activeTypeText, { color: theme.expense }]
@@ -1524,10 +1530,16 @@ export default function Registers() {
               <TouchableOpacity
                 style={[
                   styles.transactionTypeButton,
-                  transactionType === 'income' && [styles.activeTypeButton, { borderColor: theme.income }]
+                  transactionType === 'income' && [styles.activeTypeButton, { 
+                    backgroundColor: `${theme.income}15`, 
+                    borderColor: theme.income 
+                  }]
                 ]}
                 onPress={() => setTransactionType('income')}
               >
+                <View style={[styles.transactionIconContainer, { backgroundColor: transactionType === 'income' ? theme.income : '#f5f5f5' }]}>
+                  <ArrowUp size={20} color={transactionType === 'income' ? 'white' : '#666'} />
+                </View>
                 <Text style={[
                   styles.transactionTypeText,
                   transactionType === 'income' && [styles.activeTypeText, { color: theme.income }]
@@ -1537,10 +1549,16 @@ export default function Registers() {
               <TouchableOpacity
                 style={[
                   styles.transactionTypeButton,
-                  transactionType === 'transfer' && [styles.activeTypeButton, { borderColor: theme.shared }]
+                  transactionType === 'transfer' && [styles.activeTypeButton, { 
+                    backgroundColor: `${theme.shared}15`, 
+                    borderColor: theme.shared 
+                  }]
                 ]}
                 onPress={() => setTransactionType('transfer')}
               >
+                <View style={[styles.transactionIconContainer, { backgroundColor: transactionType === 'transfer' ? theme.shared : '#f5f5f5' }]}>
+                  <RefreshCw size={20} color={transactionType === 'transfer' ? 'white' : '#666'} />
+                </View>
                 <Text style={[
                   styles.transactionTypeText,
                   transactionType === 'transfer' && [styles.activeTypeText, { color: theme.shared }]
@@ -2440,22 +2458,36 @@ const styles = StyleSheet.create({
   },
   transactionTypeButton: {
     flex: 1,
-    flexDirection: 'row',
+    flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
     padding: 14,
-    borderRadius: 8,
+    borderRadius: 12,
     marginHorizontal: 5,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
   activeTypeButton: {
-    borderWidth: 1,
+    borderWidth: 1.5,
     // borderColor será aplicado inline
   },
+  transactionIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
   transactionTypeText: {
-    fontSize: 16,
+    fontSize: 14,
     fontFamily: fontFallbacks.Poppins_500Medium,
     color: '#333333',
-    marginLeft: 6,
   },
   activeTypeText: {
     // color será aplicado inline

@@ -1244,42 +1244,42 @@ export default function Dashboard() {
           </View>
         </TouchableOpacity>
 
-        {/* Contas a Pagar & Cartões (Duplicado) */}
-        <TouchableOpacity onPress={() => router.push('/expenses')} activeOpacity={0.8}>
+        {/* Contas a Receber */}
+        <TouchableOpacity onPress={() => router.push('/income')} activeOpacity={0.8}>
           <View style={[styles.sectionContainer, { backgroundColor: theme.card }]}> 
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Contas a Pagar & Cartões</Text>
+              <Text style={styles.sectionTitle}>Contas a Receber</Text>
               <ChevronRight size={20} color="#999" />
             </View>
             <View style={styles.billItem}>
-              <View style={[styles.billIconContainer, {backgroundColor: '#FFE2E6'}]}>
-                <CreditCard size={20} color="#FF5A6E" />
+              <View style={[styles.billIconContainer, {backgroundColor: '#E2FFE9'}]}>
+                <ArrowDownCircle size={20} color="#4CD964" />
               </View>
               <View style={styles.billDetails}>
-                <Text style={styles.billTitle}>Cartão Nubank</Text>
-                <Text style={styles.billDate}>Vence em 10 Abr</Text>
+                <Text style={styles.billTitle}>Salário</Text>
+                <Text style={styles.billDate}>Previsto para 05 Abr</Text>
               </View>
-              <Text style={styles.billAmount}>R$ 783,50</Text>
+              <Text style={styles.billAmount}>R$ 3.500,00</Text>
             </View>
             <View style={styles.billItem}>
-              <View style={[styles.billIconContainer, {backgroundColor: '#E3F5FF'}]}>
-                <Receipt size={20} color="#0095FF" />
+              <View style={[styles.billIconContainer, {backgroundColor: '#E8F9E8'}]}>
+                <ArrowDownCircle size={20} color="#28A745" />
               </View>
               <View style={styles.billDetails}>
-                <Text style={styles.billTitle}>Aluguel</Text>
-                <Text style={styles.billDate}>Débito automático · 05 Abr</Text>
+                <Text style={styles.billTitle}>Freelance</Text>
+                <Text style={styles.billDate}>Confirmado · 12 Abr</Text>
               </View>
-              <Text style={styles.billAmount}>R$ 1.200,00</Text>
+              <Text style={styles.billAmount}>R$ 850,00</Text>
             </View>
             <View style={styles.billItem}>
-              <View style={[styles.billIconContainer, {backgroundColor: '#FFF6E3'}]}>
-                <Receipt size={20} color="#FFB627" />
+              <View style={[styles.billIconContainer, {backgroundColor: '#DEFCE4'}]}>
+                <ArrowDownCircle size={20} color="#20C948" />
               </View>
               <View style={styles.billDetails}>
-                <Text style={styles.billTitle}>Internet</Text>
-                <Text style={styles.billDate}>Boleto · 15 Abr</Text>
+                <Text style={styles.billTitle}>Reembolso</Text>
+                <Text style={styles.billDate}>Pix · 20 Abr</Text>
               </View>
-              <Text style={styles.billAmount}>R$ 120,00</Text>
+              <Text style={styles.billAmount}>R$ 650,00</Text>
             </View>
           </View>
         </TouchableOpacity>

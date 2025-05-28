@@ -336,7 +336,7 @@ export default function ReceitasScreen() {
       </LinearGradient>
 
       {/* Month Selector */}
-      <View style={styles.monthSelector}>
+      <View style={[styles.monthSelector, {backgroundColor: theme.primary}]}>
         <TouchableOpacity 
           onPress={() => {
             if (currentMonth === 0) {
@@ -348,7 +348,7 @@ export default function ReceitasScreen() {
           }}
           style={styles.monthArrow}
         >
-          <ChevronLeft size={24} color="#fff" />
+          <ChevronLeft size={20} color="#fff" />
         </TouchableOpacity>
         
         <Text style={styles.monthText}>{months[currentMonth]}</Text>
@@ -364,7 +364,7 @@ export default function ReceitasScreen() {
           }}
           style={styles.monthArrow}
         >
-          <ChevronRight size={24} color="#fff" />
+          <ChevronRight size={20} color="#fff" />
         </TouchableOpacity>
       </View>
 
@@ -1544,14 +1544,13 @@ const createStyles = (theme: any) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: 12,
-    backgroundColor: '#aa80ff',
     paddingBottom: 16,
   },
   monthArrow: {
     padding: 8,
   },
   monthText: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
     color: 'white',
     fontFamily: fontFallbacks.Poppins_600SemiBold,

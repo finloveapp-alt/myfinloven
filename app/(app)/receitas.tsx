@@ -335,6 +335,39 @@ export default function ReceitasScreen() {
         </View>
       </LinearGradient>
 
+      {/* Month Selector */}
+      <View style={styles.monthSelector}>
+        <TouchableOpacity 
+          onPress={() => {
+            if (currentMonth === 0) {
+              setCurrentMonth(11);
+              setCurrentYear(currentYear - 1);
+            } else {
+              setCurrentMonth(currentMonth - 1);
+            }
+          }}
+          style={styles.monthArrow}
+        >
+          <ChevronLeft size={24} color="#fff" />
+        </TouchableOpacity>
+        
+        <Text style={styles.monthText}>{months[currentMonth]}</Text>
+        
+        <TouchableOpacity 
+          onPress={() => {
+            if (currentMonth === 11) {
+              setCurrentMonth(0);
+              setCurrentYear(currentYear + 1);
+            } else {
+              setCurrentMonth(currentMonth + 1);
+            }
+          }}
+          style={styles.monthArrow}
+        >
+          <ChevronRight size={24} color="#fff" />
+        </TouchableOpacity>
+      </View>
+
       {/* Botão de adicionar receita flutuante */}
       <TouchableOpacity 
         style={[styles.addButton, {backgroundColor: theme.primary}]}
@@ -1505,5 +1538,24 @@ const createStyles = (theme: any) => StyleSheet.create({
     fontSize: 14,
     color: '#666',
     textAlign: 'center',
-  }
+  },
+  monthSelector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 12,
+    backgroundColor: '#aa80ff',
+    paddingBottom: 16,
+  },
+  monthArrow: {
+    padding: 8,
+  },
+  monthText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: 'white',
+    fontFamily: fontFallbacks.Poppins_600SemiBold,
+    textDecorationLine: 'underline',
+    marginHorizontal: 10,
+  },
 });

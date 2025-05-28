@@ -320,20 +320,20 @@ export default function ReceitasScreen() {
             </TouchableOpacity>
           </View>
         </View>
-
-        {/* Financial Summary - Separated from header */}
-        <View style={styles.financialSummary}>
-          <View style={styles.balanceCard}>
-            <Text style={styles.summaryLabel}>Total a receber</Text>
-            <Text style={styles.balanceValue}>R$ {formatCurrency(incomes.filter(income => !income.isReceived).reduce((sum, income) => sum + income.amount, 0))}</Text>
-          </View>
-          <View style={styles.divider} />
-          <View style={styles.payableCard}>
-            <Text style={styles.summaryLabel}>Total recebido</Text>
-            <Text style={styles.payableValue}>R$ {formatCurrency(incomes.filter(income => income.isReceived).reduce((sum, income) => sum + income.amount, 0))}</Text>
-          </View>
-        </View>
       </LinearGradient>
+
+      {/* Financial Summary */}
+      <View style={styles.financialSummary}>
+        <View style={styles.balanceCard}>
+          <Text style={styles.summaryLabel}>Total a receber</Text>
+          <Text style={styles.balanceValue}>R$ {formatCurrency(incomes.filter(income => !income.isReceived).reduce((sum, income) => sum + income.amount, 0))}</Text>
+        </View>
+        <View style={styles.divider} />
+        <View style={styles.payableCard}>
+          <Text style={styles.summaryLabel}>Total recebido</Text>
+          <Text style={styles.payableValue}>R$ {formatCurrency(incomes.filter(income => income.isReceived).reduce((sum, income) => sum + income.amount, 0))}</Text>
+        </View>
+      </View>
       
       {/* Month Selector */}
       <View style={styles.monthSelector}>
@@ -348,7 +348,7 @@ export default function ReceitasScreen() {
           }}
           style={styles.monthArrow}
         >
-          <ChevronLeft size={24} color="white" />
+          <ChevronLeft size={24} color="#8b5cf6" />
         </TouchableOpacity>
         
         <Text style={styles.monthText}>{months[currentMonth]}</Text>
@@ -364,7 +364,7 @@ export default function ReceitasScreen() {
           }}
           style={styles.monthArrow}
         >
-          <ChevronRight size={24} color="white" />
+          <ChevronRight size={24} color="#8b5cf6" />
         </TouchableOpacity>
       </View>
 
@@ -927,15 +927,16 @@ const createStyles = (theme: any) => StyleSheet.create({
     backgroundColor: '#f5f5f5',
   },
   headerContainer: {
-    paddingTop: Platform.OS === 'android' ? 25 : 40,
-    paddingBottom: 15,
-  },
-  header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    marginBottom: 12,
+    paddingVertical: 16,
+    backgroundColor: '#b388ff', // Cor roxa/lilás do cabeçalho
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   iconButton: {
     padding: 8,
@@ -944,56 +945,73 @@ const createStyles = (theme: any) => StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: 'white',
-    fontFamily: fontFallbacks.Poppins_600SemiBold,
+    marginLeft: 8,
   },
   headerActions: {
     flexDirection: 'row',
-    alignItems: 'center',
   },
   financialSummary: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    marginTop: 8,
+    marginTop: 16,
+    marginBottom: 16,
   },
   balanceCard: {
     flex: 1,
-    paddingRight: 12,
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 16,
+    marginHorizontal: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    position: 'relative',
+    overflow: 'hidden',
   },
   divider: {
     width: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    marginHorizontal: 8,
+    backgroundColor: '#e0e0e0',
+    marginHorizontal: 16,
   },
   payableCard: {
     flex: 1,
-    paddingLeft: 12,
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 16,
+    marginHorizontal: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    position: 'relative',
+    overflow: 'hidden',
   },
   summaryLabel: {
-    fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.7)',
-    marginBottom: 4,
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 8,
     fontWeight: '500',
-    fontFamily: fontFallbacks.Poppins_500Medium,
   },
   balanceValue: {
-    fontSize: 18,
+    fontSize: 22,
     fontWeight: '700',
-    color: 'white',
-    fontFamily: fontFallbacks.Poppins_700Bold,
+    marginBottom: 12,
   },
   payableValue: {
-    fontSize: 18,
+    fontSize: 22,
     fontWeight: '700',
-    color: 'white',
-    fontFamily: fontFallbacks.Poppins_700Bold,
+    marginBottom: 12,
   },
   monthSelector: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: 16,
-    backgroundColor: theme.primary,
+    backgroundColor: '#f5f5f5',
   },
   monthArrow: {
     padding: 8,
@@ -1001,7 +1019,7 @@ const createStyles = (theme: any) => StyleSheet.create({
   monthText: {
     fontSize: 18,
     fontWeight: '600',
-    color: 'white',
+    color: '#333',
     fontFamily: fontFallbacks.Poppins_600SemiBold,
   },
   addButton: {
@@ -1784,19 +1802,5 @@ const createStyles = (theme: any) => StyleSheet.create({
   },
   bottomPadding: {
     height: 80,
-  },
-  monthSelector: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 16,
-  },
-  monthArrow: {
-    padding: 8,
-  },
-  monthText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: 'white',
   },
 });

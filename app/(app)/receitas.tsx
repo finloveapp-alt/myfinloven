@@ -418,55 +418,61 @@ export default function ReceitasScreen() {
               </TouchableOpacity>
             </View>
           ) : (
-            <FlatList
-              data={[
-                {
-                  id: '1',
-                  description: 'Salário Mirassol',
-                  amount: 659.00,
-                  receiptDate: new Date(2025, 4, 10),
-                  isReceived: true,
-                  isShared: false,
-                  isRecurring: true,
-                  createdAt: new Date(),
-                  category: 'Salário'
-                },
-                ...incomes
-              ]}
-              style={styles.content}
-              keyExtractor={(item) => item.id}
-              renderItem={({ item, index }) => {
+            <ScrollView 
+              style={styles.listContainer}
+              contentContainerStyle={styles.listContentContainer}
+              showsVerticalScrollIndicator={false}
+            >
+              {/* Indicador de status */}
+              <View style={styles.statusIndicators}>
+                <View style={styles.statusItem}>
+                  <View style={[styles.statusDot, { backgroundColor: theme.positive }]} />
+                  <Text style={styles.statusText}>Recebido</Text>
+                </View>
+                <View style={styles.statusItem}>
+                  <View style={[styles.statusDot, { backgroundColor: theme.primary }]} />
+                  <Text style={styles.statusText}>Pendente</Text>
+                </View>
+              </View>
+
+              {incomes.map((income) => {
+                const statusColor = income.isReceived 
+                  ? theme.positive
+                  : theme.primary;
+                
+                // Status text and styling
+                const statusText = income.isReceived 
+                  ? "Recebido" 
+                  : "Pendente";
+
                 // Extrair dia e dia da semana
-                const date = new Date(item.receiptDate);
-                const day = date.getDate();
-                const dayOfWeek = ['Dom.', 'Seg.', 'Ter.', 'Qua.', 'Qui.', 'Sex.', 'Sáb.'][date.getDay()];
+                const date = new Date(income.receiptDate);
+                const formattedDate = `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getFullYear()}`;
                 
                 return (
-                  <View style={styles.incomeContainer}>
-                    {index === 0 && (
-                      <Text style={styles.sectionTitle}>Minha Carteira</Text>
-                    )}
-                    <View style={[styles.incomeItem, item.isReceived && styles.receivedIncomeItem]}>
-                      <TouchableOpacity 
-                        style={[styles.incomeCheckbox, item.isReceived && styles.receivedCheckbox]}
-                        onPress={() => toggleReceived(item.id)}
-                      >
-                        {item.isReceived ? (
-                          <CheckCircle size={24} color="#2ecc71" fill="#2ecc71" />
-                        ) : (
-                          <Circle size={24} color="#9c27b0" />
-                        )}
-                      </TouchableOpacity>
-                      
-                      <View style={styles.incomeDetails}>
-                        <View style={styles.incomeRow}>
-                          <Text style={[styles.incomeDescription, item.isReceived && styles.receivedText]}>{item.description}</Text>
-                          <View style={styles.amountContainer}>
-                            <Text style={[styles.incomeAmount, item.isReceived ? styles.receivedAmount : styles.pendingAmount]}>R$ {formatCurrency(item.amount)}</Text>
+                  <View key={income.id} style={[
+                    styles.incomeCard,
+                    { backgroundColor: theme.card }
+                  ]}>
+                    <View style={styles.incomeContent}>
+                      <View style={styles.incomeMain}>
+                        <View style={styles.incomeTitleRow}>
+                          <Text style={styles.incomeTitle}>
+                            {income.description}
+                          </Text>
+                          
+                          <View style={styles.incomeTitleRightContent}>
+                            <Text style={[
+                              styles.incomeAmountText,
+                              { fontWeight: '600' }
+                            ]}>
+                              R$ {income.amount.toFixed(2)}
+                            </Text>
+                            
                             <TouchableOpacity 
                               style={styles.optionsButton}
                               onPress={() => {
-                                setSelectedIncomeId(item.id);
+                                setSelectedIncomeId(income.id);
                                 setOptionsModalVisible(true);
                               }}
                             >
@@ -475,22 +481,77 @@ export default function ReceitasScreen() {
                           </View>
                         </View>
                         
-                        <View style={styles.incomeRow}>
-                          <View style={[styles.incomeTagContainer, item.isReceived && styles.receivedTagContainer]}>
-                            <Text style={[styles.incomeTagText, item.isReceived && styles.receivedTagText]}>{item.category || 'Outros'}</Text>
+                        <View style={styles.incomeMetaRow}>
+                          <View style={[styles.incomeTag, { backgroundColor: `${theme.primary}10` }]}>
+                            <Text style={[styles.incomeTagText, { color: theme.primary }]}>
+                              {income.category || 'Outros'}
+                            </Text>
+                          </View>
+                          <Text style={styles.incomeAccount}>Minha Carteira</Text>
+                        </View>
+                        
+                        <View style={styles.incomeDetailsRow}>
+                          <View style={styles.incomeDateContainer}>
+                            <Calendar size={14} color="#666" style={styles.incomeDateIcon} />
+                            <Text style={styles.incomeDateText}>
+                              {formattedDate}
+                            </Text>
                           </View>
                           
-                          <View style={styles.incomeDateContainer}>
-                            <Calendar size={12} color={item.isReceived ? "#2ecc71" : "#9c27b0"} style={styles.calendarIcon} />
-                            <Text style={[styles.incomeDate, item.isReceived && styles.receivedDate]}>{day} · {dayOfWeek}</Text>
+                          <View style={[
+                            styles.statusIndicator,
+                            {
+                              backgroundColor: income.isReceived 
+                                ? 'rgba(76, 217, 100, 0.1)' 
+                                : 'rgba(139, 92, 246, 0.1)',
+                              borderColor: income.isReceived 
+                                ? 'rgba(76, 217, 100, 0.3)' 
+                                : 'rgba(139, 92, 246, 0.3)'
+                            }
+                          ]}>
+                            <Text style={[
+                              styles.statusText,
+                              {
+                                color: income.isReceived 
+                                  ? theme.positive 
+                                  : theme.primary
+                              }
+                            ]}>
+                              {statusText}
+                            </Text>
                           </View>
                         </View>
+                        
+                        {/* Botão para confirmar recebimento (apenas para receitas não recebidas) */}
+                        {!income.isReceived && (
+                          <TouchableOpacity 
+                            style={[
+                              styles.confirmButton,
+                              { 
+                                backgroundColor: `${theme.primary}15`,
+                                borderColor: theme.primary,
+                              }
+                            ]}
+                            onPress={() => toggleReceived(income.id)}
+                          >
+                            <Text style={[
+                              styles.confirmButtonText,
+                              { 
+                                color: theme.primary 
+                              }
+                            ]}>
+                              Confirmar Recebimento
+                            </Text>
+                            <Check size={14} color={theme.primary} />
+                          </TouchableOpacity>
+                        )}
                       </View>
                     </View>
                   </View>
                 );
-              }}
-            />
+              })}
+              <View style={styles.bottomPadding} />
+            </ScrollView>
           )}
         </>
       )}
@@ -1319,7 +1380,6 @@ const createStyles = (theme: any) => StyleSheet.create({
   historyItemStatusText: {
     fontSize: 10,
     fontWeight: '500',
-    color: '#333',
   },
   historyEmpty: {
     padding: 24,
@@ -1654,5 +1714,135 @@ const createStyles = (theme: any) => StyleSheet.create({
     fontSize: 14,
     color: '#666',
     textAlign: 'center',
-  }
+  },
+  listContainer: {
+    flex: 1,
+    backgroundColor: '#f5f7fa',
+  },
+  listContentContainer: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 80,
+  },
+  statusIndicators: {
+    flexDirection: 'row',
+    marginBottom: 12,
+    paddingHorizontal: 4,
+  },
+  statusItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  statusDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    marginRight: 6,
+  },
+  statusText: {
+    fontSize: 12,
+    fontFamily: fontFallbacks.Poppins_400Regular,
+    color: '#666',
+  },
+  incomeCard: {
+    borderRadius: 16,
+    marginBottom: 12,
+    backgroundColor: 'white',
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  incomeContent: {
+    flex: 1,
+  },
+  incomeMain: {
+    flex: 1,
+  },
+  incomeTitleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  incomeTitle: {
+    fontSize: 16,
+    fontFamily: fontFallbacks.Poppins_500Medium,
+    color: '#333',
+    flex: 1,
+    marginRight: 8,
+  },
+  incomeTitleRightContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  incomeAmountText: {
+    fontSize: 16,
+    fontFamily: fontFallbacks.Poppins_600SemiBold,
+    color: '#333',
+    marginRight: 8,
+  },
+  incomeMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    marginBottom: 10,
+  },
+  incomeTag: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+    marginRight: 8,
+    backgroundColor: 'rgba(139, 92, 246, 0.1)',
+  },
+  incomeTagText: {
+    fontSize: 12,
+    fontFamily: fontFallbacks.Poppins_400Regular,
+    color: theme.primary,
+  },
+  incomeAccount: {
+    fontSize: 12,
+    fontFamily: fontFallbacks.Poppins_400Regular,
+    color: '#666',
+  },
+  incomeDetailsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  incomeDateIcon: {
+    marginRight: 4,
+  },
+  incomeDateText: {
+    fontSize: 13,
+    fontFamily: fontFallbacks.Poppins_400Regular,
+    color: '#666',
+  },
+  statusIndicator: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  confirmButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginTop: 4,
+  },
+  confirmButtonText: {
+    fontSize: 14,
+    fontFamily: fontFallbacks.Poppins_500Medium,
+    marginRight: 6,
+  },
+  bottomPadding: {
+    height: 80,
+  },
 });

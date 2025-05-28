@@ -295,19 +295,21 @@ export default function ReceitasScreen() {
       <StatusBar style="light" />
       
       {/* Header */}
-      <LinearGradient
-        colors={[theme.primaryGradient[0], theme.primaryGradient[1]]}
-        style={styles.headerContainer}
-      >
+      <View style={styles.headerContainer}>
         <View style={styles.header}>
-          <TouchableOpacity 
-            onPress={() => router.back()} 
-            style={styles.iconButton}
-            accessibilityLabel="Voltar"
-          >
-            <ArrowLeft size={24} color="#fff" />
-          </TouchableOpacity>
-          <Text style={styles.title}>Receitas</Text>
+          <View style={styles.headerLeft}>
+            <TouchableOpacity 
+              onPress={() => router.back()} 
+              style={styles.iconButton}
+              accessibilityLabel="Voltar"
+            >
+              <ArrowLeft size={24} color="#fff" />
+            </TouchableOpacity>
+            <View style={styles.headerTitleContainer}>
+              <Text style={styles.title}>Receitas</Text>
+              <Text style={styles.headerAmount}>R$ {formatCurrency(incomes.filter(income => !income.isReceived).reduce((sum, income) => sum + income.amount, 0))}</Text>
+            </View>
+          </View>
           <View style={styles.headerActions}>
             <TouchableOpacity 
               style={styles.iconButton}
@@ -318,23 +320,13 @@ export default function ReceitasScreen() {
             <TouchableOpacity style={styles.iconButton}>
               <Search size={20} color="#fff" />
             </TouchableOpacity>
+            <TouchableOpacity style={styles.iconButton}>
+              <MoreVertical size={20} color="#fff" />
+            </TouchableOpacity>
           </View>
         </View>
-      </LinearGradient>
-
-      {/* Financial Summary */}
-      <View style={styles.financialSummary}>
-        <View style={styles.balanceCard}>
-          <Text style={styles.summaryLabel}>Total a receber</Text>
-          <Text style={styles.balanceValue}>R$ {formatCurrency(incomes.filter(income => !income.isReceived).reduce((sum, income) => sum + income.amount, 0))}</Text>
-        </View>
-        <View style={styles.divider} />
-        <View style={styles.payableCard}>
-          <Text style={styles.summaryLabel}>Total recebido</Text>
-          <Text style={styles.payableValue}>R$ {formatCurrency(incomes.filter(income => income.isReceived).reduce((sum, income) => sum + income.amount, 0))}</Text>
-        </View>
       </View>
-      
+
       {/* Month Selector */}
       <View style={styles.monthSelector}>
         <TouchableOpacity 
@@ -348,7 +340,7 @@ export default function ReceitasScreen() {
           }}
           style={styles.monthArrow}
         >
-          <ChevronLeft size={24} color="#8b5cf6" />
+          <ChevronLeft size={24} color="#fff" />
         </TouchableOpacity>
         
         <Text style={styles.monthText}>{months[currentMonth]}</Text>
@@ -364,9 +356,11 @@ export default function ReceitasScreen() {
           }}
           style={styles.monthArrow}
         >
-          <ChevronRight size={24} color="#8b5cf6" />
+          <ChevronRight size={24} color="#fff" />
         </TouchableOpacity>
       </View>
+
+      {/* Financial Summary - Hidden based on image */}
 
       {/* Botão de adicionar receita flutuante */}
       <TouchableOpacity 
@@ -927,28 +921,42 @@ const createStyles = (theme: any) => StyleSheet.create({
     backgroundColor: '#f5f5f5',
   },
   headerContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    backgroundColor: '#aa80ff', // Cor roxa sólida similar à da imagem
+    paddingTop: Platform.OS === 'android' ? 25 : 40,
+    paddingBottom: 10,
     paddingHorizontal: 16,
-    paddingVertical: 16,
-    backgroundColor: '#b388ff', // Cor roxa/lilás do cabeçalho
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 5,
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerTitleContainer: {
+    marginLeft: 5,
   },
   iconButton: {
     padding: 8,
   },
   title: {
-    fontSize: 18,
+    fontSize: 22,
     fontWeight: '600',
     color: 'white',
-    marginLeft: 8,
+    marginBottom: 0,
+  },
+  headerAmount: {
+    fontSize: 16,
+    fontWeight: '400',
+    color: 'white',
+    marginTop: -2,
   },
   headerActions: {
     flexDirection: 'row',
+    alignItems: 'center',
   },
   financialSummary: {
     flexDirection: 'row',
@@ -1009,9 +1017,10 @@ const createStyles = (theme: any) => StyleSheet.create({
   monthSelector: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 16,
-    backgroundColor: '#f5f5f5',
+    justifyContent: 'center',
+    padding: 12,
+    backgroundColor: '#aa80ff', // Mesma cor do cabeçalho
+    paddingBottom: 16,
   },
   monthArrow: {
     padding: 8,
@@ -1019,8 +1028,10 @@ const createStyles = (theme: any) => StyleSheet.create({
   monthText: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#333',
+    color: 'white',
     fontFamily: fontFallbacks.Poppins_600SemiBold,
+    textDecorationLine: 'underline',
+    marginHorizontal: 10,
   },
   addButton: {
     position: 'absolute',

@@ -325,6 +325,19 @@ export default function ReceitasScreen() {
             </TouchableOpacity>
           </View>
         </View>
+        
+        {/* Financial Summary */}
+        <View style={styles.financialSummaryContainer}>
+          <View style={styles.summaryItem}>
+            <Text style={styles.summaryLabel}>Saldo disponível</Text>
+            <Text style={styles.summaryValue}>R$ 5000.00</Text>
+          </View>
+          <View style={styles.summaryDivider}></View>
+          <View style={styles.summaryItem}>
+            <Text style={styles.summaryLabel}>Total a pagar</Text>
+            <Text style={styles.summaryValue}>R$ 1390.00</Text>
+          </View>
+        </View>
       </View>
 
       {/* Month Selector */}
@@ -359,8 +372,6 @@ export default function ReceitasScreen() {
           <ChevronRight size={24} color="#fff" />
         </TouchableOpacity>
       </View>
-
-      {/* Financial Summary - Hidden based on image */}
 
       {/* Botão de adicionar receita flutuante */}
       <TouchableOpacity 
@@ -958,61 +969,44 @@ const createStyles = (theme: any) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  financialSummary: {
+  financialSummaryContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    marginTop: 16,
+    marginTop: 10,
     marginBottom: 16,
-  },
-  balanceCard: {
-    flex: 1,
     backgroundColor: 'white',
     borderRadius: 16,
-    padding: 16,
-    marginHorizontal: 6,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-    position: 'relative',
-    overflow: 'hidden',
-  },
-  divider: {
-    width: 1,
-    backgroundColor: '#e0e0e0',
+    padding: 12,
     marginHorizontal: 16,
-  },
-  payableCard: {
-    flex: 1,
-    backgroundColor: 'white',
-    borderRadius: 16,
-    padding: 16,
-    marginHorizontal: 6,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
-    position: 'relative',
-    overflow: 'hidden',
+  },
+  summaryItem: {
+    flex: 1,
+    paddingVertical: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   summaryLabel: {
-    fontSize: 14,
+    fontSize: 12,
     color: '#666',
-    marginBottom: 8,
+    marginBottom: 4,
     fontWeight: '500',
   },
-  balanceValue: {
-    fontSize: 22,
+  summaryValue: {
+    fontSize: 18,
     fontWeight: '700',
-    marginBottom: 12,
+    color: '#333',
   },
-  payableValue: {
-    fontSize: 22,
-    fontWeight: '700',
-    marginBottom: 12,
+  summaryDivider: {
+    width: 1,
+    height: '80%',
+    backgroundColor: '#e0e0e0',
+    alignSelf: 'center',
   },
   monthSelector: {
     flexDirection: 'row',

@@ -1584,8 +1584,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   headerContainer: {
-    paddingTop: Platform.OS === 'android' ? 40 : 55,
-    paddingBottom: 20,
+    paddingTop: Platform.OS === 'android' ? 25 : 40,
+    paddingBottom: 15,
   },
   header: {
     flexDirection: 'row',

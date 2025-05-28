@@ -295,30 +295,43 @@ export default function ReceitasScreen() {
       <StatusBar style="light" />
       
       {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <ArrowLeft size={24} color="white" />
-        </TouchableOpacity>
-        <View style={styles.headerTitleContainer}>
-          <Text style={styles.headerTitle}>Receitas</Text>
-          <Text style={styles.headerTotal}>R$ {formatCurrency(incomes.reduce((sum, income) => sum + income.amount, 0))}</Text>
-        </View>
-        <View style={styles.headerActions}>
+      <LinearGradient
+        colors={[theme.primaryGradient[0], theme.primaryGradient[1]]}
+        style={styles.headerContainer}
+      >
+        <View style={styles.header}>
           <TouchableOpacity 
-            style={styles.headerActionButton}
-            onPress={() => setHistoryModalVisible(true)}
+            onPress={() => router.back()} 
+            style={styles.iconButton}
+            accessibilityLabel="Voltar"
           >
-            <Clock size={22} color="white" />
+            <ArrowLeft size={24} color="#fff" />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.headerActionButton}>
-            <Search size={22} color="white" />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.headerActionButton}>
-            <MoreVertical size={22} color="white" />
-          </TouchableOpacity>
+          <Text style={styles.title}>Receitas</Text>
+          <View style={styles.headerActions}>
+            <TouchableOpacity style={styles.iconButton}>
+              <Clock size={20} color="#fff" />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.iconButton}>
+              <Search size={20} color="#fff" />
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
-      
+
+        {/* Financial Summary - Separated from header */}
+        <View style={styles.financialSummary}>
+          <View style={styles.balanceCard}>
+            <Text style={styles.summaryLabel}>Total a receber</Text>
+            <Text style={styles.balanceValue}>R$ {formatCurrency(incomes.filter(income => !income.isReceived).reduce((sum, income) => sum + income.amount, 0))}</Text>
+          </View>
+          <View style={styles.divider} />
+          <View style={styles.payableCard}>
+            <Text style={styles.summaryLabel}>Total recebido</Text>
+            <Text style={styles.payableValue}>R$ {formatCurrency(incomes.filter(income => income.isReceived).reduce((sum, income) => sum + income.amount, 0))}</Text>
+          </View>
+        </View>
+      </LinearGradient>
+
       {/* Botão de adicionar receita flutuante */}
       <TouchableOpacity 
         style={styles.addButton}
@@ -327,82 +340,6 @@ export default function ReceitasScreen() {
         <Plus size={24} color="white" />
       </TouchableOpacity>
       
-      {/* Month Selector */}
-      <View style={styles.monthSelector}>
-        <TouchableOpacity 
-          onPress={() => {
-            if (currentMonth === 0) {
-              setCurrentMonth(11);
-              setCurrentYear(currentYear - 1);
-            } else {
-              setCurrentMonth(currentMonth - 1);
-            }
-          }}
-          style={styles.monthArrow}
-        >
-          <ChevronLeft size={24} color="white" />
-        </TouchableOpacity>
-        
-        <Text style={styles.monthText}>{months[currentMonth]}</Text>
-        
-        <TouchableOpacity 
-          onPress={() => {
-            if (currentMonth === 11) {
-              setCurrentMonth(0);
-              setCurrentYear(currentYear + 1);
-            } else {
-              setCurrentMonth(currentMonth + 1);
-            }
-          }}
-          style={styles.monthArrow}
-        >
-          <ChevronRight size={24} color="white" />
-        </TouchableOpacity>
-      </View>
-      
-      {/* Cards de resumo financeiro */}
-      <View style={styles.summaryContainer}>
-        <TouchableOpacity 
-          style={[styles.summaryCard, styles.pendingCard]}
-          onPress={() => setHistoryModalVisible(true)}
-          activeOpacity={0.7}
-        >
-          <View style={styles.summaryIconContainer}>
-            <Clock size={20} color="#9c27b0" />
-          </View>
-          <Text style={styles.summaryLabel}>Total a receber</Text>
-          <Text style={[styles.summaryValue, styles.pendingValue]}>R$ {formatCurrency(incomes.filter(income => !income.isReceived).reduce((sum, income) => sum + income.amount, 0))}</Text>
-          <View style={styles.summaryProgress}>
-            <View 
-              style={[styles.summaryProgressBar, { 
-                width: `${incomes.length > 0 ? (incomes.filter(income => !income.isReceived).length / incomes.length) * 100 : 0}%`,
-                backgroundColor: '#9c27b0'
-              }]} 
-            />
-          </View>
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={[styles.summaryCard, styles.receivedCard]}
-          onPress={() => setHistoryModalVisible(true)}
-          activeOpacity={0.7}
-        >
-          <View style={styles.summaryIconContainer}>
-            <CheckCircle size={20} color="#2ecc71" />
-          </View>
-          <Text style={styles.summaryLabel}>Total recebido</Text>
-          <Text style={[styles.summaryValue, styles.receivedValue]}>R$ {formatCurrency(incomes.filter(income => income.isReceived).reduce((sum, income) => sum + income.amount, 0))}</Text>
-          <View style={styles.summaryProgress}>
-            <View 
-              style={[styles.summaryProgressBar, { 
-                width: `${incomes.length > 0 ? (incomes.filter(income => income.isReceived).length / incomes.length) * 100 : 0}%`,
-                backgroundColor: '#2ecc71'
-              }]} 
-            />
-          </View>
-        </TouchableOpacity>
-      </View>
-
       {/* Conteúdo */}
       {loading ? (
         <View style={styles.loaderContainer}>
@@ -953,7 +890,7 @@ const createStyles = (theme: any) => StyleSheet.create({
     flex: 1,
     backgroundColor: '#f5f5f5',
   },
-  header: {
+  headerContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -961,29 +898,77 @@ const createStyles = (theme: any) => StyleSheet.create({
     paddingVertical: 16,
     backgroundColor: '#b388ff', // Cor roxa/lilás do cabeçalho
   },
-  backButton: {
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  iconButton: {
     padding: 8,
   },
-  headerTitleContainer: {
-    flex: 1,
-    marginLeft: 8,
-  },
-  headerTitle: {
+  title: {
     fontSize: 18,
     fontWeight: '600',
     color: 'white',
-  },
-  headerTotal: {
-    fontSize: 16,
-    color: 'white',
-    marginTop: 2,
+    marginLeft: 8,
   },
   headerActions: {
     flexDirection: 'row',
   },
-  headerActionButton: {
-    padding: 8,
-    marginLeft: 4,
+  financialSummary: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    marginTop: 16,
+    marginBottom: 16,
+  },
+  balanceCard: {
+    flex: 1,
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 16,
+    marginHorizontal: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  divider: {
+    width: 1,
+    backgroundColor: '#e0e0e0',
+    marginHorizontal: 16,
+  },
+  payableCard: {
+    flex: 1,
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 16,
+    marginHorizontal: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  summaryLabel: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 8,
+    fontWeight: '500',
+  },
+  balanceValue: {
+    fontSize: 22,
+    fontWeight: '700',
+    marginBottom: 12,
+  },
+  payableValue: {
+    fontSize: 22,
+    fontWeight: '700',
+    marginBottom: 12,
   },
   addButton: {
     position: 'absolute',
@@ -1001,85 +986,6 @@ const createStyles = (theme: any) => StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 3,
     zIndex: 999,
-  },
-  monthSelector: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    backgroundColor: '#b388ff', // Cor roxa/lilás do cabeçalho
-  },
-  monthArrow: {
-    padding: 8,
-  },
-  monthText: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: 'white',
-    paddingHorizontal: 16,
-    textDecorationLine: 'underline',
-  },
-  summaryContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    marginTop: 16,
-    marginBottom: 16,
-  },
-  summaryCard: {
-    flex: 1,
-    backgroundColor: 'white',
-    borderRadius: 16,
-    padding: 16,
-    marginHorizontal: 6,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-    position: 'relative',
-    overflow: 'hidden',
-  },
-  pendingCard: {
-    borderLeftWidth: 3,
-    borderLeftColor: '#9c27b0',
-  },
-  receivedCard: {
-    borderLeftWidth: 3,
-    borderLeftColor: '#2ecc71',
-  },
-  summaryIconContainer: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    opacity: 0.8,
-  },
-  summaryLabel: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 8,
-    fontWeight: '500',
-  },
-  summaryValue: {
-    fontSize: 22,
-    fontWeight: '700',
-    marginBottom: 12,
-  },
-  pendingValue: {
-    color: '#9c27b0',
-  },
-  receivedValue: {
-    color: '#2ecc71',
-  },
-  summaryProgress: {
-    height: 4,
-    backgroundColor: '#f0f0f0',
-    borderRadius: 2,
-    overflow: 'hidden',
-  },
-  summaryProgressBar: {
-    height: '100%',
-    borderRadius: 2,
   },
   loaderContainer: {
     flex: 1,

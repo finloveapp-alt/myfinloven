@@ -1544,7 +1544,7 @@ const createStyles = (theme: any) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: 12,
-    paddingBottom: 4,
+    paddingBottom: 1,
   },
   monthArrow: {
     padding: 8,

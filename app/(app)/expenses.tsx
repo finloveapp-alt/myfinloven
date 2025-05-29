@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, ActivityIndicator, Modal, TextInput, Platform, KeyboardAvoidingView, Switch } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { ArrowLeft, Search, List, MoreVertical, AlertCircle, Plus, Calendar, Check, CheckCircle, ChevronDown, CreditCard, Filter, Clock, X, Edit, DollarSign, CreditCard as CardIcon, Percent, ChevronLeft, ChevronRight, BarChart3, AlignJustify, FileText } from 'lucide-react-native';
+import { ArrowLeft, Search, List, MoreVertical, AlertCircle, Plus, Calendar, Check, CheckCircle, ChevronDown, CreditCard, Filter, Clock, X, Edit, DollarSign, CreditCard as CardIcon, Percent, ChevronLeft, ChevronRight, BarChart3, AlignJustify, FileText, Circle } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -1609,13 +1609,13 @@ export default function Expenses() {
       </Modal>
       
       {/* Menu Inferior */}
-      <View style={[styles.bottomMenu, { backgroundColor: '#fff' }]}>
+      <View style={styles.bottomMenu}>
         <TouchableOpacity 
           style={styles.bottomMenuItem}
           onPress={() => router.push('/dashboard')}
         >
-          <BarChart3 size={24} color="#999" />
-          <Text style={[styles.bottomMenuText, { color: '#999' }]}>Dashboard</Text>
+          <BarChart3 size={24} color="#0073ea" />
+          <Text style={[styles.bottomMenuText, { color: '#0073ea' }]}>Dashboard</Text>
         </TouchableOpacity>
         
         <TouchableOpacity 
@@ -1623,15 +1623,16 @@ export default function Expenses() {
           onPress={() => router.push('/menu')}
         >
           <AlignJustify size={24} color="#999" />
-          <Text style={[styles.bottomMenuText, { color: '#999' }]}>Menu</Text>
+          <Text style={styles.bottomMenuText}>Menu</Text>
         </TouchableOpacity>
         
         <TouchableOpacity 
           style={styles.bottomMenuAddButton}
           onPress={openAddExpenseModal}
         >
-          <View style={[styles.addButtonCircle, { backgroundColor: theme.primary }]}>
-            <Plus size={32} color="#fff" />
+          <View style={styles.addButtonWrapper}>
+            <Circle stroke="#fff" fill="none" size={32} />
+            <Plus size={16} color="#fff" style={styles.plusIcon} />
           </View>
         </TouchableOpacity>
         
@@ -1640,7 +1641,7 @@ export default function Expenses() {
           onPress={() => router.push('/notifications')}
         >
           <FileText size={24} color="#999" />
-          <Text style={[styles.bottomMenuText, { color: '#999' }]}>Notificações</Text>
+          <Text style={styles.bottomMenuText}>Notificações</Text>
         </TouchableOpacity>
         
         <TouchableOpacity 
@@ -1648,7 +1649,7 @@ export default function Expenses() {
           onPress={() => router.push('/cards')}
         >
           <CreditCard size={24} color="#999" />
-          <Text style={[styles.bottomMenuText, { color: '#999' }]}>Cartões</Text>
+          <Text style={styles.bottomMenuText}>Cartões</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -2404,26 +2405,46 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     borderTopWidth: 1,
     borderTopColor: '#eee',
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 70,
+    backgroundColor: 'rgb(255, 255, 255)',
+    zIndex: 1000,
   },
   bottomMenuItem: {
     flexDirection: 'column',
     alignItems: 'center',
+    justifyContent: 'center',
+    padding: 8,
   },
   bottomMenuText: {
     fontSize: 14,
-    color: '#333',
+    color: '#999',
     marginTop: 4,
     fontFamily: fontFallbacks.Poppins_400Regular,
   },
   bottomMenuAddButton: {
-    padding: 12,
-    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    transform: [{ translateY: -15 }],
+    backgroundColor: 'rgb(20, 108, 148)',
+    padding: 0,
   },
-  addButtonCircle: {
+  addButtonWrapper: {
     width: 48,
     height: 48,
     borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: 'rgb(20, 108, 148)',
+    position: 'relative',
+  },
+  plusIcon: {
+    position: 'absolute',
   },
 }); 

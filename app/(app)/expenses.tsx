@@ -1616,12 +1616,12 @@ export default function Expenses() {
           style={styles.navItem}
           onPress={() => router.push('/dashboard')}
         >
-          <Svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#0073ea" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <Line x1="12" y1="20" x2="12" y2="10" stroke="#0073ea" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            <Line x1="18" y1="20" x2="18" y2="4" stroke="#0073ea" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            <Line x1="6" y1="20" x2="6" y2="16" stroke="#0073ea" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          <Svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#999" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <Line x1="12" y1="20" x2="12" y2="10" stroke="#999" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            <Line x1="18" y1="20" x2="18" y2="4" stroke="#999" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            <Line x1="6" y1="20" x2="6" y2="16" stroke="#999" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
           </Svg>
-          <Text style={[styles.navText, { color: theme.primary }]}>Dashboard</Text>
+          <Text style={styles.navText}>Dashboard</Text>
         </TouchableOpacity>
         
         <TouchableOpacity 

@@ -8,6 +8,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import themes from '@/constants/themes';
 import { fontFallbacks } from '@/utils/styles';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import Svg, { Line, Circle, Path, Rect } from 'react-native-svg';
 
 // Interface para as despesas
 interface Expense {
@@ -1613,6 +1614,123 @@ export default function Expenses() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+      
+      {/* Menu Inferior */}
+      <View style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        height: 56,
+        paddingTop: 0,
+        paddingRight: 0,
+        paddingBottom: 0,
+        paddingLeft: 0,
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        zIndex: 1,
+        backgroundColor: 'rgb(255, 255, 255)',
+        borderTopWidth: 1,
+        borderTopColor: 'rgba(0, 0, 0, 0.1)'
+      }}>
+        <TouchableOpacity 
+          style={{
+            flex: 1,
+            alignItems: 'center',
+            justifyContent: 'center',
+            paddingVertical: 8
+          }}
+          onPress={() => router.push('/dashboard')}
+        >
+          <View>
+            <Svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#0073ea" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <Line x1="12" y1="20" x2="12" y2="10" stroke="#0073ea" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              <Line x1="18" y1="20" x2="18" y2="4" stroke="#0073ea" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              <Line x1="6" y1="20" x2="6" y2="16" stroke="#0073ea" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </Svg>
+          </View>
+          <Text style={{ color: 'rgb(0, 115, 234)', fontSize: 12, marginTop: 2 }}>Dashboard</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={{
+            flex: 1,
+            alignItems: 'center',
+            justifyContent: 'center',
+            paddingVertical: 8
+          }}
+        >
+          <View>
+            <Svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#999" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <Line x1="4" y1="12" x2="20" y2="12" stroke="#999" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              <Line x1="4" y1="6" x2="20" y2="6" stroke="#999" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              <Line x1="4" y1="18" x2="20" y2="18" stroke="#999" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </Svg>
+          </View>
+          <Text style={{ color: '#999', fontSize: 12, marginTop: 2 }}>Menu</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={{
+            flex: 1,
+            alignItems: 'center',
+            justifyContent: 'center',
+            paddingVertical: 8
+          }}
+          onPress={openAddExpenseModal}
+        >
+          <View style={{
+            width: 40,
+            height: 40,
+            borderRadius: 20,
+            backgroundColor: theme.primary,
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginBottom: 10
+          }}>
+            <Svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <Circle cx="12" cy="12" r="10" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              <Path d="M8 12h8" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              <Path d="M12 8v8" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </Svg>
+          </View>
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={{
+            flex: 1,
+            alignItems: 'center',
+            justifyContent: 'center',
+            paddingVertical: 8
+          }}
+        >
+          <View>
+            <Svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#999" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <Path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1-2-1Z" stroke="#999" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              <Path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8" stroke="#999" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              <Path d="M12 17V7" stroke="#999" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </Svg>
+          </View>
+          <Text style={{ color: '#999', fontSize: 12, marginTop: 2 }}>Notificações</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={{
+            flex: 1,
+            alignItems: 'center',
+            justifyContent: 'center',
+            paddingVertical: 8
+          }}
+        >
+          <View>
+            <Svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#999" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <Rect width="20" height="14" x="2" y="5" rx="2" stroke="#999" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              <Line x1="2" y1="10" x2="22" y2="10" stroke="#999" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </Svg>
+          </View>
+          <Text style={{ color: '#999', fontSize: 12, marginTop: 2 }}>Cartões</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }

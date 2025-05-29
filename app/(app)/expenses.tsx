@@ -936,12 +936,7 @@ export default function Expenses() {
           </ScrollView>
           
           {/* Botão de adicionar */}
-          <TouchableOpacity 
-            style={[styles.fab, { backgroundColor: theme.primary }]}
-            onPress={openAddExpenseModal}
-          >
-            <Plus size={26} color="#fff" />
-          </TouchableOpacity>
+          {/* Removido o botão flutuante pois agora temos o botão no menu inferior */}
         </>
       )}
 
@@ -1916,21 +1911,7 @@ const styles = StyleSheet.create({
     marginRight: 6,
     fontFamily: fontFallbacks.Poppins_600SemiBold,
   },
-  fab: {
-    position: 'absolute',
-    right: 20,
-    bottom: 24,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-    elevation: 6,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-  },
+  // Estilo do fab removido pois o botão foi removido
   bottomPadding: {
     height: 80,
   },

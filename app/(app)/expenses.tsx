@@ -1623,7 +1623,7 @@ const styles = StyleSheet.create({
   },
   headerContainer: {
     paddingTop: Platform.OS === 'android' ? 25 : 40,
-    paddingBottom: 15,
+    paddingBottom: 4,
   },
   header: {
     flexDirection: 'row',

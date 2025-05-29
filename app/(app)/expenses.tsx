@@ -2448,6 +2448,12 @@ const styles = StyleSheet.create({
       android: {
         elevation: 5,
       },
+      web: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.2,
+        shadowRadius: 8,
+      }
     }),
   },
   bottomNav: {

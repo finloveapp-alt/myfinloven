@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, ActivityIndicator, Modal, TextInput, Platform, KeyboardAvoidingView, Switch } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { ArrowLeft, Search, List, MoreVertical, AlertCircle, Plus, Calendar, Check, CheckCircle, ChevronDown, CreditCard, Filter, Clock, X, Edit, DollarSign, CreditCard as CardIcon, Percent, ChevronLeft, ChevronRight } from 'lucide-react-native';
+import { ArrowLeft, Search, List, MoreVertical, AlertCircle, Plus, Calendar, Check, CheckCircle, ChevronDown, CreditCard, Filter, Clock, X, Edit, DollarSign, CreditCard as CardIcon, Percent, ChevronLeft, ChevronRight, BarChart3, AlignJustify, FileText } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -934,13 +934,7 @@ export default function Expenses() {
             <View style={styles.bottomPadding} />
           </ScrollView>
           
-          {/* Botão de adicionar */}
-          <TouchableOpacity 
-            style={[styles.fab, { backgroundColor: theme.primary }]}
-            onPress={openAddExpenseModal}
-          >
-            <Plus size={26} color="#fff" />
-          </TouchableOpacity>
+          {/* Botão de adicionar - Removido pois agora está no menu inferior */}
         </>
       )}
 
@@ -1613,6 +1607,50 @@ export default function Expenses() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+      
+      {/* Menu Inferior */}
+      <View style={[styles.bottomMenu, { backgroundColor: '#fff' }]}>
+        <TouchableOpacity 
+          style={styles.bottomMenuItem}
+          onPress={() => router.push('/dashboard')}
+        >
+          <BarChart3 size={24} color="#999" />
+          <Text style={[styles.bottomMenuText, { color: '#999' }]}>Dashboard</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={styles.bottomMenuItem}
+          onPress={() => router.push('/menu')}
+        >
+          <AlignJustify size={24} color="#999" />
+          <Text style={[styles.bottomMenuText, { color: '#999' }]}>Menu</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={styles.bottomMenuAddButton}
+          onPress={openAddExpenseModal}
+        >
+          <View style={[styles.addButtonCircle, { backgroundColor: theme.primary }]}>
+            <Plus size={32} color="#fff" />
+          </View>
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={styles.bottomMenuItem}
+          onPress={() => router.push('/notifications')}
+        >
+          <FileText size={24} color="#999" />
+          <Text style={[styles.bottomMenuText, { color: '#999' }]}>Notificações</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={styles.bottomMenuItem}
+          onPress={() => router.push('/cards')}
+        >
+          <CreditCard size={24} color="#999" />
+          <Text style={[styles.bottomMenuText, { color: '#999' }]}>Cartões</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -2357,5 +2395,35 @@ const styles = StyleSheet.create({
     fontFamily: fontFallbacks.Poppins_600SemiBold,
     textDecorationLine: 'underline',
     marginHorizontal: 10,
+  },
+  bottomMenu: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
+  },
+  bottomMenuItem: {
+    flexDirection: 'column',
+    alignItems: 'center',
+  },
+  bottomMenuText: {
+    fontSize: 14,
+    color: '#333',
+    marginTop: 4,
+    fontFamily: fontFallbacks.Poppins_400Regular,
+  },
+  bottomMenuAddButton: {
+    padding: 12,
+    borderRadius: 24,
+  },
+  addButtonCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 }); 

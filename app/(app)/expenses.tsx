@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, ActivityIndicator, Modal, TextInput, Platform, KeyboardAvoidingView, Switch } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { ArrowLeft, Search, List, MoreVertical, AlertCircle, Plus, Calendar, Check, CheckCircle, ChevronDown, CreditCard, Filter, Clock, X, Edit, DollarSign, CreditCard as CardIcon, Percent } from 'lucide-react-native';
+import { ArrowLeft, Search, List, MoreVertical, AlertCircle, Plus, Calendar, Check, CheckCircle, ChevronDown, CreditCard, Filter, Clock, X, Edit, DollarSign, CreditCard as CardIcon, Percent, ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -98,6 +98,11 @@ export default function Expenses() {
   // Estado para pagamento parcial
   const [partialAmount, setPartialAmount] = useState('');
   const [remainingAmount, setRemainingAmount] = useState(0);
+  
+  // Estados para o seletor de mês
+  const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
+  const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
+  const months = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
   
   // Carregar tema e despesas
   useEffect(() => {
@@ -728,6 +733,39 @@ export default function Expenses() {
           <View style={styles.payableCard}>
             <Text style={styles.summaryLabel}>Total a pagar</Text>
             <Text style={styles.payableValue}>R$ {calculateTotal().toFixed(2)}</Text>
+          </View>
+          
+          {/* Month Selector */}
+          <View style={styles.monthSelector}>
+            <TouchableOpacity 
+              onPress={() => {
+                if (currentMonth === 0) {
+                  setCurrentMonth(11);
+                  setCurrentYear(currentYear - 1);
+                } else {
+                  setCurrentMonth(currentMonth - 1);
+                }
+              }}
+              style={styles.monthArrow}
+            >
+              <ChevronLeft size={20} color="#fff" />
+            </TouchableOpacity>
+            
+            <Text style={styles.monthText}>{months[currentMonth]}</Text>
+            
+            <TouchableOpacity 
+              onPress={() => {
+                if (currentMonth === 11) {
+                  setCurrentMonth(0);
+                  setCurrentYear(currentYear + 1);
+                } else {
+                  setCurrentMonth(currentMonth + 1);
+                }
+              }}
+              style={styles.monthArrow}
+            >
+              <ChevronRight size={20} color="#fff" />
+            </TouchableOpacity>
           </View>
         </View>
       </LinearGradient>
@@ -2301,5 +2339,23 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#333',
     fontFamily: fontFallbacks.Poppins_600SemiBold,
+  },
+  monthSelector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 12,
+    paddingBottom: 1,
+  },
+  monthArrow: {
+    padding: 8,
+  },
+  monthText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: 'white',
+    fontFamily: fontFallbacks.Poppins_600SemiBold,
+    textDecorationLine: 'underline',
+    marginHorizontal: 10,
   },
 }); 

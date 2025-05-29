@@ -1284,46 +1284,6 @@ export default function Dashboard() {
           </View>
         </TouchableOpacity>
 
-        {/* Contas a Receber (Duplicado) */}
-        <TouchableOpacity onPress={() => router.push('/income')} activeOpacity={0.8}>
-          <View style={[styles.sectionContainer, { backgroundColor: theme.card }]}> 
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Contas a Receber</Text>
-              <ChevronRight size={20} color="#999" />
-            </View>
-            <View style={styles.billItem}>
-              <View style={[styles.billIconContainer, {backgroundColor: '#E2FFE9'}]}>
-                <ArrowDownCircle size={20} color="#4CD964" />
-              </View>
-              <View style={styles.billDetails}>
-                <Text style={styles.billTitle}>Salário</Text>
-                <Text style={styles.billDate}>Previsto para 05 Abr</Text>
-              </View>
-              <Text style={styles.billAmount}>R$ 3.500,00</Text>
-            </View>
-            <View style={styles.billItem}>
-              <View style={[styles.billIconContainer, {backgroundColor: '#E8F9E8'}]}>
-                <ArrowDownCircle size={20} color="#28A745" />
-              </View>
-              <View style={styles.billDetails}>
-                <Text style={styles.billTitle}>Freelance</Text>
-                <Text style={styles.billDate}>Confirmado · 12 Abr</Text>
-              </View>
-              <Text style={styles.billAmount}>R$ 850,00</Text>
-            </View>
-            <View style={styles.billItem}>
-              <View style={[styles.billIconContainer, {backgroundColor: '#DEFCE4'}]}>
-                <ArrowDownCircle size={20} color="#20C948" />
-              </View>
-              <View style={styles.billDetails}>
-                <Text style={styles.billTitle}>Reembolso</Text>
-                <Text style={styles.billDate}>Pix · 20 Abr</Text>
-              </View>
-              <Text style={styles.billAmount}>R$ 650,00</Text>
-            </View>
-          </View>
-        </TouchableOpacity>
-
         {/* Metas Financeiras */}
         <View style={[styles.sectionContainer, { backgroundColor: theme.card }]}>
           <View style={styles.sectionHeader}>

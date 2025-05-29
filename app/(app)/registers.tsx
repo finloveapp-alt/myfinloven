@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Dimensions, Platform, Modal, TextInput } from 'react-native';
-import { ChevronLeft, ChevronRight, Search, ArrowLeft, Filter, Plus, PlusCircle, X, Calendar, ArrowRight, ArrowDown, DollarSign, CreditCard, RefreshCw, BarChart, Menu, Home, Bell, Receipt, Wallet, Info, ExternalLink, ArrowUp } from 'lucide-react-native';
+import { ChevronLeft, ChevronRight, Search, ArrowLeft, Filter, Plus, PlusCircle, X, Calendar, ArrowRight, ArrowDown, DollarSign, CreditCard, RefreshCw, BarChart, Menu, Home, Bell, Receipt, Wallet, Info, ExternalLink, ArrowUp, ArrowUpCircle } from 'lucide-react-native';
 import { StatusBar } from 'expo-status-bar';
 import BottomNavigation from '@/components/BottomNavigation';
 import { router, useRouter } from 'expo-router';
@@ -1980,7 +1980,7 @@ export default function Registers() {
 
       {/* Menu Modal */}
       <Modal
-        animationType="fade"
+        animationType="slide"
         transparent={true}
         visible={menuModalVisible}
         onRequestClose={() => setMenuModalVisible(false)}
@@ -1992,11 +1992,12 @@ export default function Registers() {
                 style={styles.closeButton}
                 onPress={() => setMenuModalVisible(false)}
               >
-                <X size={22} color={theme.primary} />
+                <Text style={[styles.closeButtonText, { color: theme.primary }]}>Fechar</Text>
               </TouchableOpacity>
             </View>
-            
+
             <View style={styles.menuGrid}>
+              {/* Primeira linha */}
               <View style={styles.menuRow}>
                 <TouchableOpacity 
                   style={styles.menuItem}
@@ -2005,13 +2006,13 @@ export default function Registers() {
                     router.replace('/(app)/dashboard');
                   }}
                 >
-                  <View style={[styles.menuIconContainer, { backgroundColor: 'rgba(182, 135, 254, 0.15)' }]}>
-                    <Home size={24} color={theme.primary} />
+                  <View style={[styles.menuIconContainer, { backgroundColor: `rgba(${theme === themes.feminine ? '182, 135, 254' : '0, 115, 234'}, 0.15)` }]}>
+                    <Home size={28} color={theme.primary} />
                   </View>
                   <Text style={[styles.menuItemTitle, { color: '#333' }]}>Dashboard</Text>
-                  <Text style={[styles.menuItemSubtitle, { color: '#666' }]}>Página inicial</Text>
+                  <Text style={[styles.menuItemSubtitle, { color: '#666' }]}>Visão geral</Text>
                 </TouchableOpacity>
-                
+
                 <TouchableOpacity 
                   style={styles.menuItem}
                   onPress={() => {
@@ -2019,63 +2020,103 @@ export default function Registers() {
                     openAddTransactionModal();
                   }}
                 >
-                  <View style={[styles.menuIconContainer, { backgroundColor: 'rgba(182, 135, 254, 0.15)' }]}>
-                    <PlusCircle size={24} color={theme.primary} />
+                  <View style={[styles.menuIconContainer, { backgroundColor: `rgba(${theme === themes.feminine ? '182, 135, 254' : '0, 115, 234'}, 0.15)` }]}>
+                    <PlusCircle size={28} color={theme.primary} />
                   </View>
                   <Text style={[styles.menuItemTitle, { color: '#333' }]}>Novo Registro</Text>
-                  <Text style={[styles.menuItemSubtitle, { color: '#666' }]}>Adicionar</Text>
+                  <Text style={[styles.menuItemSubtitle, { color: '#666' }]}>Adicionar transação</Text>
                 </TouchableOpacity>
-                
-                <TouchableOpacity style={styles.menuItem}>
-                  <View style={[styles.menuIconContainer, { backgroundColor: 'rgba(182, 135, 254, 0.15)' }]}>
-                    <Bell size={24} color={theme.primary} />
-                  </View>
-                  <Text style={[styles.menuItemTitle, { color: '#333' }]}>Notificações</Text>
-                  <Text style={[styles.menuItemSubtitle, { color: '#666' }]}>Alertas</Text>
-                </TouchableOpacity>
-              </View>
-              
-              <View style={styles.menuRow}>
-                <TouchableOpacity style={styles.menuItem}>
-                  <View style={[styles.menuIconContainer, { backgroundColor: 'rgba(182, 135, 254, 0.15)' }]}>
-                    <BarChart size={24} color={theme.primary} />
-                  </View>
-                  <Text style={[styles.menuItemTitle, { color: '#333' }]}>Planejamento</Text>
-                  <Text style={[styles.menuItemSubtitle, { color: '#666' }]}>Orçamento</Text>
-                </TouchableOpacity>
-                
+
                 <TouchableOpacity 
                   style={styles.menuItem}
                   onPress={() => {
                     setMenuModalVisible(false);
-                    router.replace('/(app)/cards');
+                    router.push('/(app)/notifications');
                   }}
                 >
-                  <View style={[styles.menuIconContainer, { backgroundColor: 'rgba(182, 135, 254, 0.15)' }]}>
-                    <Wallet size={24} color={theme.primary} />
+                  <View style={[styles.menuIconContainer, { backgroundColor: `rgba(${theme === themes.feminine ? '182, 135, 254' : '0, 115, 234'}, 0.15)` }]}>
+                    <Bell size={28} color={theme.primary} />
                   </View>
-                  <Text style={[styles.menuItemTitle, { color: '#333' }]}>Cartões</Text>
-                  <Text style={[styles.menuItemSubtitle, { color: '#666' }]}>Gerenciar</Text>
-                </TouchableOpacity>
-                
-                <TouchableOpacity style={styles.menuItem}>
-                  <View style={[styles.menuIconContainer, { backgroundColor: 'rgba(182, 135, 254, 0.15)' }]}>
-                    <Receipt size={24} color={theme.primary} />
-                  </View>
-                  <Text style={[styles.menuItemTitle, { color: '#333' }]}>Contas</Text>
-                  <Text style={[styles.menuItemSubtitle, { color: '#666' }]}>Pagamentos</Text>
+                  <Text style={[styles.menuItemTitle, { color: '#333' }]}>Notificações</Text>
+                  <Text style={[styles.menuItemSubtitle, { color: '#666' }]}>Alertas e avisos</Text>
                 </TouchableOpacity>
               </View>
-              
+
+              {/* Segunda linha */}
               <View style={styles.menuRow}>
-                <TouchableOpacity style={styles.menuItem}>
-                  <View style={[styles.menuIconContainer, { backgroundColor: 'rgba(182, 135, 254, 0.15)' }]}>
-                    <Info size={24} color={theme.primary} />
+                <TouchableOpacity 
+                  style={styles.menuItem}
+                  onPress={() => {
+                    setMenuModalVisible(false);
+                    router.push('/(app)/planning' as any);
+                  }}
+                >
+                  <View style={[styles.menuIconContainer, { backgroundColor: `rgba(${theme === themes.feminine ? '182, 135, 254' : '0, 115, 234'}, 0.15)` }]}>
+                    <BarChart size={28} color={theme.primary} />
                   </View>
-                  <Text style={[styles.menuItemTitle, { color: '#333' }]}>Sobre</Text>
-                  <Text style={[styles.menuItemSubtitle, { color: '#666' }]}>Informações</Text>
+                  <Text style={[styles.menuItemTitle, { color: '#333' }]}>Planejamento</Text>
+                  <Text style={[styles.menuItemSubtitle, { color: '#666' }]}>Orçamentos e metas</Text>
                 </TouchableOpacity>
-                
+
+                <TouchableOpacity 
+                  style={styles.menuItem}
+                  onPress={() => {
+                    setMenuModalVisible(false);
+                    router.push('/(app)/cards');
+                  }}
+                >
+                  <View style={[styles.menuIconContainer, { backgroundColor: `rgba(${theme === themes.feminine ? '182, 135, 254' : '0, 115, 234'}, 0.15)` }]}>
+                    <CreditCard size={28} color={theme.primary} />
+                  </View>
+                  <Text style={[styles.menuItemTitle, { color: '#333' }]}>Cartões</Text>
+                  <Text style={[styles.menuItemSubtitle, { color: '#666' }]}>Cartões de crédito</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={styles.menuItem}
+                  onPress={() => {
+                    setMenuModalVisible(false);
+                    router.push('/expenses');
+                  }}
+                >
+                  <View style={[styles.menuIconContainer, { backgroundColor: `rgba(${theme === themes.feminine ? '182, 135, 254' : '0, 115, 234'}, 0.15)` }]}>
+                    <Wallet size={28} color={theme.primary} />
+                  </View>
+                  <Text style={[styles.menuItemTitle, { color: '#333' }]}>Contas a Pagar</Text>
+                  <Text style={[styles.menuItemSubtitle, { color: '#666' }]}>Gerenciar pagamentos</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Terceira linha */}
+              <View style={styles.menuRow}>
+                <TouchableOpacity 
+                  style={styles.menuItem}
+                  onPress={() => {
+                    setMenuModalVisible(false);
+                    router.push('/(app)/accounts');
+                  }}
+                >
+                  <View style={[styles.menuIconContainer, { backgroundColor: `rgba(${theme === themes.feminine ? '182, 135, 254' : '0, 115, 234'}, 0.15)` }]}>
+                    <Wallet size={28} color={theme.primary} />
+                  </View>
+                  <Text style={[styles.menuItemTitle, { color: '#333' }]}>Contas</Text>
+                  <Text style={[styles.menuItemSubtitle, { color: '#666' }]}>Gerenciar contas</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={styles.menuItem}
+                  onPress={() => {
+                    setMenuModalVisible(false);
+                    router.push('/(app)/receitas');
+                  }}
+                >
+                  <View style={[styles.menuIconContainer, { backgroundColor: `rgba(${theme === themes.feminine ? '182, 135, 254' : '0, 115, 234'}, 0.15)` }]}>
+                    <ArrowUpCircle size={28} color={theme.primary} />
+                  </View>
+                  <Text style={[styles.menuItemTitle, { color: '#333' }]}>Receitas</Text>
+                  <Text style={[styles.menuItemSubtitle, { color: '#666' }]}>Gerenciar receitas</Text>
+                </TouchableOpacity>
+
                 <TouchableOpacity 
                   style={styles.menuItem}
                   onPress={() => {
@@ -2083,24 +2124,20 @@ export default function Registers() {
                     router.replace('/(auth)/login');
                   }}
                 >
-                  <View style={[styles.menuIconContainer, { backgroundColor: 'rgba(182, 135, 254, 0.15)' }]}>
-                    <ExternalLink size={24} color={theme.primary} />
+                  <View style={[styles.menuIconContainer, { backgroundColor: `rgba(${theme === themes.feminine ? '182, 135, 254' : '0, 115, 234'}, 0.15)` }]}>
+                    <ExternalLink size={28} color={theme.primary} />
                   </View>
                   <Text style={[styles.menuItemTitle, { color: '#333' }]}>Logout</Text>
-                  <Text style={[styles.menuItemSubtitle, { color: '#666' }]}>Sair</Text>
+                  <Text style={[styles.menuItemSubtitle, { color: '#666' }]}>Sair do aplicativo</Text>
                 </TouchableOpacity>
-                
-                <View style={styles.menuItem}>
-                  {/* Item vazio para manter o grid */}
-                </View>
               </View>
             </View>
-            
+
             <TouchableOpacity 
               style={[styles.closeFullButton, { backgroundColor: theme.primary }]}
               onPress={() => setMenuModalVisible(false)}
             >
-              <Text style={styles.closeFullButtonText}>Fechar Menu</Text>
+              <Text style={styles.closeFullButtonText}>Fechar</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -2449,7 +2486,12 @@ const styles = StyleSheet.create({
     color: '#333333',
   },
   closeButton: {
-    padding: 8,
+    padding: 10,
+    borderRadius: 20,
+  },
+  closeButtonText: {
+    fontSize: 16,
+    fontFamily: fontFallbacks.Poppins_500Medium,
   },
   transactionTypeContainer: {
     flexDirection: 'row',

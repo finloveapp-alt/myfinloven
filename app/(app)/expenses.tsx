@@ -734,39 +734,39 @@ export default function Expenses() {
             <Text style={styles.summaryLabel}>Total a pagar</Text>
             <Text style={styles.payableValue}>R$ {calculateTotal().toFixed(2)}</Text>
           </View>
+        </View>
+        
+        {/* Month Selector - Now outside of financialSummary */}
+        <View style={styles.monthSelector}>
+          <TouchableOpacity 
+            onPress={() => {
+              if (currentMonth === 0) {
+                setCurrentMonth(11);
+                setCurrentYear(currentYear - 1);
+              } else {
+                setCurrentMonth(currentMonth - 1);
+              }
+            }}
+            style={styles.monthArrow}
+          >
+            <ChevronLeft size={20} color="#fff" />
+          </TouchableOpacity>
           
-          {/* Month Selector */}
-          <View style={styles.monthSelector}>
-            <TouchableOpacity 
-              onPress={() => {
-                if (currentMonth === 0) {
-                  setCurrentMonth(11);
-                  setCurrentYear(currentYear - 1);
-                } else {
-                  setCurrentMonth(currentMonth - 1);
-                }
-              }}
-              style={styles.monthArrow}
-            >
-              <ChevronLeft size={20} color="#fff" />
-            </TouchableOpacity>
-            
-            <Text style={styles.monthText}>{months[currentMonth]}</Text>
-            
-            <TouchableOpacity 
-              onPress={() => {
-                if (currentMonth === 11) {
-                  setCurrentMonth(0);
-                  setCurrentYear(currentYear + 1);
-                } else {
-                  setCurrentMonth(currentMonth + 1);
-                }
-              }}
-              style={styles.monthArrow}
-            >
-              <ChevronRight size={20} color="#fff" />
-            </TouchableOpacity>
-          </View>
+          <Text style={styles.monthText}>{months[currentMonth]}</Text>
+          
+          <TouchableOpacity 
+            onPress={() => {
+              if (currentMonth === 11) {
+                setCurrentMonth(0);
+                setCurrentYear(currentYear + 1);
+              } else {
+                setCurrentMonth(currentMonth + 1);
+              }
+            }}
+            style={styles.monthArrow}
+          >
+            <ChevronRight size={20} color="#fff" />
+          </TouchableOpacity>
         </View>
       </LinearGradient>
 

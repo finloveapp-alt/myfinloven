@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity, ScrollView, Platform, Pressable, SafeAreaView, Alert, Modal, TextInput, KeyboardAvoidingView, ActivityIndicator, useWindowDimensions, AppState } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StatusBar } from 'expo-status-bar';
-import { BarChart, ArrowLeft, ArrowRight, LogOut, Calendar, DollarSign, Check, Clock, ArrowDownCircle, ArrowUpCircle, ChevronRight, Info, ChevronDown, BookUser, Users, X, FileText, Settings, CreditCard, BarChart3, Bell } from 'lucide-react-native';
+import { BarChart, ArrowLeft, ArrowRight, LogOut, Calendar, DollarSign, Check, Clock, ArrowDownCircle, ArrowUpCircle, ChevronRight, Info, ChevronDown, BookUser, Users, X, FileText, Settings, CreditCard, BarChart3, Bell, Menu, PlusCircle, Wallet, ExternalLink, Target, Receipt, Camera, Upload, ImageIcon } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { Dimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';

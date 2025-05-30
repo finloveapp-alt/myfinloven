@@ -1389,7 +1389,7 @@ export default function Dashboard() {
           style={styles.addButton}
           onPress={() => router.push('/(app)/registers')}
         >
-          <View style={styles.addButtonInner}>
+          <View style={[styles.addButtonInner, { backgroundColor: theme.primary }]}>
             <PlusCircle size={32} color="#fff" />
           </View>
         </TouchableOpacity>
@@ -2616,7 +2616,7 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: themes.feminine.primary,
+    // backgroundColor: themes.feminine.primary, // Removendo a cor estática
     justifyContent: 'center',
     alignItems: 'center',
     transform: [{ scale: 1 }],

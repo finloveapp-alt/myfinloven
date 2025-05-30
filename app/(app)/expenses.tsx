@@ -114,10 +114,17 @@ export default function Expenses() {
       try {
         setLoading(true);
         
-        // Carregar tema
-        const storedTheme = await AsyncStorage.getItem('@MyFinlove:theme');
-        if (storedTheme === 'masculine') {
+        // Carregar tema - usando a variável global definida no dashboard, similar ao dashboard
+        if (global.dashboardTheme === 'masculine') {
           setTheme(themes.masculine);
+        } else {
+          // Verificar o AsyncStorage como fallback
+          const storedTheme = await AsyncStorage.getItem('@MyFinlove:theme');
+          if (storedTheme === 'masculine') {
+            setTheme(themes.masculine);
+          } else {
+            setTheme(themes.feminine);
+          }
         }
         
         // Carregar saldo do usuário

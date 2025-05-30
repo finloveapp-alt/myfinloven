@@ -1,87 +1,35 @@
-import React, { useEffect, useState } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  ScrollView, 
-  Image, 
-  TouchableOpacity,
-  Pressable,
-  SafeAreaView,
-  Platform,
-  Alert,
-  Modal,
-  Animated,
-  ActivityIndicator,
-  TextInput
-} from 'react-native';
-import { router } from 'expo-router';
-import { supabase } from '@/lib/supabase';
-import { LinearGradient } from 'expo-linear-gradient';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, Image, TouchableOpacity, ScrollView, Platform, Pressable, SafeAreaView, Alert, Modal, TextInput, KeyboardAvoidingView, ActivityIndicator, useWindowDimensions, AppState } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StatusBar } from 'expo-status-bar';
+import { BarChart, ArrowLeft, ArrowRight, LogOut, Calendar, DollarSign, Check, Clock, ArrowDownCircle, ArrowUpCircle, ChevronRight, Info, ChevronDown, BookUser, Users, X, FileText, Settings, CreditCard, BarChart3, Bell } from 'lucide-react-native';
+import { useRouter } from 'expo-router';
+import { Dimensions } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { supabase } from '@/lib/supabase';
+import themes from '@/constants/themes';
 import { fontFallbacks } from '@/utils/styles';
-import { 
-  ArrowLeft, 
-  ArrowRight, 
-  Check, 
-  X, 
-  ChevronRight, 
-  BarChart, 
-  Receipt, 
-  PlusCircle, 
-  CreditCard, 
-  Home,
-  Calendar,
-  Target,
-  DollarSign,
-  ArrowDownCircle,
-  ArrowUpCircle,
-  Users,
-  LogOut,
-  Menu,
-  PieChart,
-  Clock,
-  Tag,
-  Wallet,
-  Info,
-  ExternalLink,
-  Bell,
-  Camera,
-  Upload,
-  Image as ImageIcon
-} from 'lucide-react-native';
+import { getBudgetValueById, FeasibilityResults } from '@/utils/budgetCalculator';
 
-// Definição de temas
-const themes = {
-  feminine: {
-    primary: '#b687fe',
-    primaryGradient: ['#b687fe', '#9157ec'],
-    secondary: '#8B5CF6',
-    accent: '#FF3B30',
-    positive: '#4CD964',
-    background: '#f5f7fa',
-    card: '#ffffff',
-    expense: '#FF3B30',
-    income: '#4CD964',
-    shared: '#0073ea',
-    progressTrack: '#f0f0f0'
-  },
-  masculine: {
-    primary: '#0073ea',
-    primaryGradient: ['#0073ea', '#0056b3'],
-    secondary: '#3c79e6',
-    accent: '#FF3B30',
-    positive: '#4CD964',
-    background: '#f5f7fa',
-    card: '#ffffff',
-    expense: '#FF3B30',
-    income: '#4CD964',
-    shared: '#8B5CF6',
-    progressTrack: '#f0f0f0'
+// Declarar a variável global para TypeScript
+declare global {
+  var dashboardTheme: 'feminine' | 'masculine' | undefined;
+}
+
+// Função para obter o tema inicial
+const getInitialTheme = () => {
+  // Verificar primeiro se há um tema global definido
+  if (global.dashboardTheme === 'masculine') {
+    return themes.masculine;
   }
+  
+  // Se não houver tema global, verificar o AsyncStorage
+  // Como não podemos fazer chamada assíncrona aqui, usamos o tema padrão
+  // e depois atualizamos no useEffect
+  return themes.feminine; // Tema padrão
 };
 
-// Interface para o objeto de perfil de usuário
+// Interface para o perfil de usuário
 interface UserProfile {
   id: string;
   name: string;
@@ -94,7 +42,7 @@ interface UserProfile {
 }
 
 export default function Dashboard() {
-  const [theme, setTheme] = useState(themes.feminine);
+  const [theme, setTheme] = useState(getInitialTheme());
   const [currentTransactionIndex, setCurrentTransactionIndex] = useState(0);
   const [menuModalVisible, setMenuModalVisible] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -111,6 +59,58 @@ export default function Dashboard() {
   const [isUserInviter, setIsUserInviter] = useState(false);
   const [isInviteAvatar, setIsInviteAvatar] = useState(false); // Novo estado para marcar convite como avatar
   const [avatarPassword, setAvatarPassword] = useState(''); // Adicionar novamente o estado para senha
+  
+  // Salvar o tema no AsyncStorage quando ele for alterado
+  const saveThemeToStorage = async (themeValue: string) => {
+    try {
+      await AsyncStorage.setItem('@MyFinlove:theme', themeValue);
+      console.log('Tema salvo no AsyncStorage:', themeValue);
+    } catch (error) {
+      console.error('Erro ao salvar tema no AsyncStorage:', error);
+    }
+  };
+
+  // Atualizar o tema e garantir que seja persistido
+  const updateTheme = (newTheme: 'feminine' | 'masculine') => {
+    if (newTheme === 'masculine') {
+      setTheme(themes.masculine);
+      global.dashboardTheme = 'masculine';
+      saveThemeToStorage('masculine');
+    } else {
+      setTheme(themes.feminine);
+      global.dashboardTheme = 'feminine';
+      saveThemeToStorage('feminine');
+    }
+  };
+  
+  // Carregar tema do AsyncStorage no início
+  useEffect(() => {
+    const loadThemeFromStorage = async () => {
+      try {
+        const storedTheme = await AsyncStorage.getItem('@MyFinlove:theme');
+        if (storedTheme === 'masculine' && theme !== themes.masculine) {
+          updateTheme('masculine');
+        } else if (storedTheme === 'feminine' && theme !== themes.feminine) {
+          updateTheme('feminine');
+        }
+      } catch (error) {
+        console.error('Erro ao carregar tema do AsyncStorage:', error);
+      }
+    };
+    
+    loadThemeFromStorage();
+    
+    // Configurar listener para detectar quando o app volta ao primeiro plano
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      if (nextAppState === 'active') {
+        loadThemeFromStorage();
+      }
+    });
+    
+    return () => {
+      subscription.remove();
+    };
+  }, [theme]);
   
   useEffect(() => {
     // Buscar informações do usuário atual e seus parceiros
@@ -155,12 +155,10 @@ export default function Dashboard() {
         
         if (gender === 'masculino' || gender === 'homem' || gender === 'male' || gender === 'm') {
           console.log('Aplicando tema masculino (azul) com base no perfil');
-          setTheme(themes.masculine);
-          global.dashboardTheme = 'masculine';
+          updateTheme('masculine');
         } else if (gender === 'feminino' || gender === 'mulher' || gender === 'female' || gender === 'f') {
           console.log('Aplicando tema feminino (rosa) com base no perfil');
-          setTheme(themes.feminine);
-          global.dashboardTheme = 'feminine';
+          updateTheme('feminine');
         } else {
           // Se o gênero no perfil não for reconhecido, tentar obter dos metadados da sessão
           const userMetadata = session.user.user_metadata;
@@ -174,30 +172,28 @@ export default function Dashboard() {
             if (metaGenderLower === 'masculino' || metaGenderLower === 'homem' || 
                 metaGenderLower === 'male' || metaGenderLower === 'm') {
               console.log('Aplicando tema masculino (azul) com base nos metadados');
-              setTheme(themes.masculine);
-              global.dashboardTheme = 'masculine';
+              updateTheme('masculine');
             } else if (metaGenderLower === 'feminino' || metaGenderLower === 'mulher' || 
                        metaGenderLower === 'female' || metaGenderLower === 'f') {
               console.log('Aplicando tema feminino (rosa) com base nos metadados');
-              setTheme(themes.feminine);
-              global.dashboardTheme = 'feminine';
+              updateTheme('feminine');
             } else {
               // Usar o tema global ou padrão se o gênero nos metadados também não for reconhecido
               if (global.dashboardTheme === 'masculine') {
-                setTheme(themes.masculine);
+                updateTheme('masculine');
                 console.log('Aplicando tema masculino (azul) da variável global');
               } else {
-                setTheme(themes.feminine);
+                updateTheme('feminine');
                 console.log('Aplicando tema feminino (rosa) por padrão ou da variável global');
               }
             }
           } else {
             // Usar o tema global ou padrão se não houver gênero nos metadados
             if (global.dashboardTheme === 'masculine') {
-              setTheme(themes.masculine);
+              updateTheme('masculine');
               console.log('Aplicando tema masculino (azul) da variável global');
             } else {
-              setTheme(themes.feminine);
+              updateTheme('feminine');
               console.log('Aplicando tema feminino (rosa) por padrão ou da variável global');
             }
           }
@@ -215,30 +211,28 @@ export default function Dashboard() {
           if (metaGenderLower === 'masculino' || metaGenderLower === 'homem' || 
               metaGenderLower === 'male' || metaGenderLower === 'm') {
             console.log('Aplicando tema masculino (azul) com base nos metadados');
-            setTheme(themes.masculine);
-            global.dashboardTheme = 'masculine';
+            updateTheme('masculine');
           } else if (metaGenderLower === 'feminino' || metaGenderLower === 'mulher' || 
                      metaGenderLower === 'female' || metaGenderLower === 'f') {
             console.log('Aplicando tema feminino (rosa) com base nos metadados');
-            setTheme(themes.feminine);
-            global.dashboardTheme = 'feminine';
+            updateTheme('feminine');
           } else {
             // Usar o tema global ou padrão se o gênero nos metadados não for reconhecido
             if (global.dashboardTheme === 'masculine') {
-              setTheme(themes.masculine);
+              updateTheme('masculine');
               console.log('Aplicando tema masculino (azul) da variável global');
             } else {
-              setTheme(themes.feminine);
+              updateTheme('feminine');
               console.log('Aplicando tema feminino (rosa) por padrão ou da variável global');
             }
           }
         } else {
           // Usar o tema global ou padrão se não houver gênero nos metadados
           if (global.dashboardTheme === 'masculine') {
-            setTheme(themes.masculine);
+            updateTheme('masculine');
             console.log('Aplicando tema masculino (azul) da variável global');
           } else {
-            setTheme(themes.feminine);
+            updateTheme('feminine');
             console.log('Aplicando tema feminino (rosa) por padrão ou da variável global');
           }
         }

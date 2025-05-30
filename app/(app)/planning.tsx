@@ -1,16 +1,33 @@
-import React, { useState, useRef } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Dimensions, Platform, TextInput, Modal, Alert, SafeAreaView, KeyboardAvoidingView } from 'react-native';
+import React, { useState, useRef, useEffect } from 'react';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Dimensions, Platform, TextInput, Modal, Alert, SafeAreaView, KeyboardAvoidingView, AppState } from 'react-native';
 import { ArrowLeft, MoreVertical, Plus, BarChart2, Target, Repeat, DollarSign, User, Clock, X, Edit2, AlertCircle, BarChart, Menu, Receipt, CreditCard, PlusCircle, Home, Bell, Wallet, Info, ExternalLink } from 'lucide-react-native';
 import { StatusBar } from 'expo-status-bar';
 import { router, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { fontFallbacks } from '@/utils/styles';
 import Svg, { Line, Circle, Path, Rect } from 'react-native-svg';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { supabase } from '@/lib/supabase';
+import themes from '@/constants/themes';
 
 const { width, height } = Dimensions.get('window');
-const theme = {
-  primary: '#b687fe',
-  card: '#ffffff',
+
+// Declarar a variável global para TypeScript
+declare global {
+  var dashboardTheme: 'feminine' | 'masculine' | undefined;
+}
+
+// Função para obter o tema inicial
+const getInitialTheme = () => {
+  // Verificar primeiro se há um tema global definido
+  if (global.dashboardTheme === 'masculine') {
+    return themes.masculine;
+  }
+  
+  // Se não houver tema global, verificar o AsyncStorage
+  // Como não podemos fazer chamada assíncrona aqui, usamos o tema padrão
+  // e depois atualizamos no useEffect
+  return themes.feminine; // Tema padrão
 };
 
 // Dados de exemplo para orçamentos
@@ -155,6 +172,7 @@ const goals = [
 
 export default function Planning() {
   const router = useRouter();
+  const [theme, setTheme] = useState(getInitialTheme());
   const [activeTab, setActiveTab] = useState('budget'); // 'budget' ou 'goals'
   const [expandedBudget, setExpandedBudget] = useState<string | null>(null);
   const [expandedGoal, setExpandedGoal] = useState<string | null>(null);
@@ -183,6 +201,149 @@ export default function Planning() {
   const [selectedUser, setSelectedUser] = useState('Maria');
 
   const scrollViewRef = useRef<ScrollView>(null);
+
+  // Salvar o tema no AsyncStorage quando ele for alterado
+  const saveThemeToStorage = async (themeValue: string) => {
+    try {
+      await AsyncStorage.setItem('@MyFinlove:theme', themeValue);
+      console.log('Tema salvo no AsyncStorage:', themeValue);
+    } catch (error) {
+      console.error('Erro ao salvar tema no AsyncStorage:', error);
+    }
+  };
+
+  // Atualizar o tema e garantir que seja persistido
+  const updateTheme = (newTheme: 'feminine' | 'masculine') => {
+    if (newTheme === 'masculine') {
+      setTheme(themes.masculine);
+      global.dashboardTheme = 'masculine';
+      saveThemeToStorage('masculine');
+    } else {
+      setTheme(themes.feminine);
+      global.dashboardTheme = 'feminine';
+      saveThemeToStorage('feminine');
+    }
+  };
+  
+  // Carregar tema do AsyncStorage no início
+  useEffect(() => {
+    const loadThemeFromStorage = async () => {
+      try {
+        const storedTheme = await AsyncStorage.getItem('@MyFinlove:theme');
+        if (storedTheme === 'masculine' && theme !== themes.masculine) {
+          updateTheme('masculine');
+        } else if (storedTheme === 'feminine' && theme !== themes.feminine) {
+          updateTheme('feminine');
+        }
+      } catch (error) {
+        console.error('Erro ao carregar tema do AsyncStorage:', error);
+      }
+    };
+    
+    loadThemeFromStorage();
+    
+    // Configurar listener para detectar quando o app volta ao primeiro plano
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      if (nextAppState === 'active') {
+        loadThemeFromStorage();
+      }
+    });
+    
+    return () => {
+      subscription.remove();
+    };
+  }, [theme]);
+
+  // Função para buscar o usuário atual e definir o tema baseado no gênero
+  useEffect(() => {
+    const fetchUserAndSetTheme = async () => {
+      try {
+        // Obter a sessão atual
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        
+        if (sessionError) {
+          console.error('Erro ao obter sessão:', sessionError);
+          return;
+        }
+        
+        if (!session?.user) {
+          console.log('Nenhuma sessão de usuário encontrada');
+          return;
+        }
+        
+        const userId = session.user.id;
+        
+        // Buscar o perfil do usuário atual
+        const { data: userProfile, error: userError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', userId)
+          .single();
+          
+        if (userError) {
+          console.error('Erro ao buscar perfil do usuário:', userError);
+          return;
+        }
+        
+        console.log('Perfil do usuário obtido do banco:', userProfile);
+        
+        // Definir o tema com base no gênero do usuário
+        if (userProfile && userProfile.gender) {
+          const gender = userProfile.gender.toLowerCase();
+          
+          if (gender === 'masculino' || gender === 'homem' || gender === 'male' || gender === 'm') {
+            console.log('Aplicando tema masculino (azul) com base no perfil');
+            updateTheme('masculine');
+          } else if (gender === 'feminino' || gender === 'mulher' || gender === 'female' || gender === 'f') {
+            console.log('Aplicando tema feminino (rosa) com base no perfil');
+            updateTheme('feminine');
+          } else {
+            // Se o gênero no perfil não for reconhecido, tentar obter dos metadados da sessão
+            const userMetadata = session.user.user_metadata;
+            const metadataGender = userMetadata?.gender || '';
+            
+            console.log('Verificando gênero dos metadados:', metadataGender);
+            
+            if (metadataGender && typeof metadataGender === 'string') {
+              const metaGenderLower = metadataGender.toLowerCase();
+              
+              if (metaGenderLower === 'masculino' || metaGenderLower === 'homem' || 
+                  metaGenderLower === 'male' || metaGenderLower === 'm') {
+                console.log('Aplicando tema masculino (azul) com base nos metadados');
+                updateTheme('masculine');
+              } else if (metaGenderLower === 'feminino' || metaGenderLower === 'mulher' || 
+                         metaGenderLower === 'female' || metaGenderLower === 'f') {
+                console.log('Aplicando tema feminino (rosa) com base nos metadados');
+                updateTheme('feminine');
+              } else {
+                // Usar o tema global ou padrão se o gênero nos metadados também não for reconhecido
+                if (global.dashboardTheme === 'masculine') {
+                  updateTheme('masculine');
+                  console.log('Aplicando tema masculino (azul) da variável global');
+                } else {
+                  updateTheme('feminine');
+                  console.log('Aplicando tema feminino (rosa) por padrão ou da variável global');
+                }
+              }
+            } else {
+              // Usar o tema global ou padrão se não houver gênero nos metadados
+              if (global.dashboardTheme === 'masculine') {
+                updateTheme('masculine');
+                console.log('Aplicando tema masculino (azul) da variável global');
+              } else {
+                updateTheme('feminine');
+                console.log('Aplicando tema feminino (rosa) por padrão ou da variável global');
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Erro ao buscar usuário e definir tema:', error);
+      }
+    };
+    
+    fetchUserAndSetTheme();
+  }, []);
 
   const toggleBudgetExpanded = (id: string) => {
     if (expandedBudget === id) {
@@ -380,7 +541,7 @@ export default function Planning() {
           </View>
         </View>
 
-        <View style={styles.tabs}>
+        <View style={styles.tabsContainer}>
           <TouchableOpacity 
             style={[styles.tab, activeTab === 'budget' && styles.activeTab]}
             onPress={() => setActiveTab('budget')}
@@ -553,9 +714,9 @@ export default function Planning() {
                             <View style={styles.userInfo}>
                               <View style={[
                                 styles.userIcon, 
-                                { backgroundColor: user.name === 'Maria' ? 'rgba(182, 135, 254, 0.2)' : 'rgba(0, 115, 234, 0.2)' }
+                                { backgroundColor: user.name === 'Maria' ? `rgba(${theme === themes.feminine ? '182, 135, 254' : '0, 115, 234'}, 0.2)` : `rgba(${theme === themes.feminine ? '0, 115, 234' : '182, 135, 254'}, 0.2)` }
                               ]}>
-                                <User size={16} color={user.name === 'Maria' ? '#b687fe' : '#0073ea'} />
+                                <User size={16} color={user.name === 'Maria' ? theme.primary : theme.shared} />
                               </View>
                               <Text style={styles.userName}>{user.name}</Text>
                             </View>
@@ -815,9 +976,9 @@ export default function Planning() {
                             <View style={styles.depositInfo}>
                               <View style={[
                                 styles.userIcon, 
-                                { backgroundColor: deposit.user === 'Maria' ? 'rgba(182, 135, 254, 0.2)' : 'rgba(0, 115, 234, 0.2)' }
+                                { backgroundColor: deposit.user === 'Maria' ? `rgba(${theme === themes.feminine ? '182, 135, 254' : '0, 115, 234'}, 0.2)` : `rgba(${theme === themes.feminine ? '0, 115, 234' : '182, 135, 254'}, 0.2)` }
                               ]}>
-                                <User size={16} color={deposit.user === 'Maria' ? '#b687fe' : '#0073ea'} />
+                                <User size={16} color={deposit.user === 'Maria' ? theme.primary : theme.shared} />
                               </View>
                               <View>
                                 <Text style={styles.depositUserName}>{deposit.user}</Text>
@@ -836,8 +997,8 @@ export default function Planning() {
                         <View style={styles.teamMembersProgress}>
                           {goal.teamContributions.map((member, index) => (
                             <View key={index} style={styles.teamMember}>
-                              <View style={[styles.teamMemberIcon, { backgroundColor: member.name === 'Maria' ? 'rgba(182, 135, 254, 0.2)' : 'rgba(0, 115, 234, 0.2)' }]}>
-                                <User size={18} color={member.name === 'Maria' ? '#b687fe' : '#0073ea'} />
+                              <View style={[styles.teamMemberIcon, { backgroundColor: member.name === 'Maria' ? `rgba(${theme === themes.feminine ? '182, 135, 254' : '0, 115, 234'}, 0.2)` : `rgba(${theme === themes.feminine ? '0, 115, 234' : '182, 135, 254'}, 0.2)` }]}>
+                                <User size={18} color={member.name === 'Maria' ? theme.primary : theme.shared} />
                               </View>
                               <View style={styles.teamMemberInfo}>
                                 <View style={styles.teamMemberNameRow}>
@@ -850,7 +1011,7 @@ export default function Planning() {
                                       styles.teamMemberBar, 
                                       { 
                                         width: `${member.percentage}%`,
-                                        backgroundColor: member.name === 'Maria' ? '#b687fe' : '#0073ea'
+                                        backgroundColor: member.name === 'Maria' ? theme.primary : theme.shared
                                       }
                                     ]} 
                                   />
@@ -1312,18 +1473,18 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    backgroundColor: '#f5f7fa',
+    backgroundColor: '#f9fafc',
   },
   header: {
-    paddingTop: Platform.OS === 'ios' ? 10 : 10,
-    paddingBottom: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: Platform.OS === 'ios' ? 50 : 20,
+    paddingBottom: 16,
     backgroundColor: '#fff',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 3,
-    zIndex: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
   },
   headerTop: {
     flexDirection: 'row',
@@ -1338,24 +1499,25 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 18,
-    color: '#333',
     fontFamily: fontFallbacks.Poppins_600SemiBold,
+    color: '#333',
+    flex: 1,
+    textAlign: 'center',
   },
   moreButton: {
     padding: 8,
     backgroundColor: 'rgba(0,0,0,0.03)',
     borderRadius: 12,
   },
-  tabs: {
+  tabsContainer: {
     flexDirection: 'row',
-    paddingHorizontal: 16,
     backgroundColor: '#fff',
-    paddingBottom: 15,
-    borderBottomColor: '#f0f0f0',
     borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
   },
   tab: {
-    paddingVertical: 10,
+    flex: 1,
+    paddingVertical: 16,
     paddingHorizontal: 16,
     marginRight: 16,
     borderBottomWidth: 3,
@@ -1364,7 +1526,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   activeTab: {
-    borderBottomColor: '#6930c3',
+    borderBottomColor: theme.primary,
   },
   tabText: {
     fontSize: 14,
@@ -1521,7 +1683,7 @@ const styles = StyleSheet.create({
   seeAllLink: {
     fontSize: 14,
     fontFamily: fontFallbacks.Poppins_500Medium,
-    color: '#6930c3',
+    color: theme.primary,
   },
   addButton: {
     marginTop: -30,
@@ -1769,12 +1931,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#6930c3',
+    backgroundColor: theme.primary,
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: 12,
     flex: 0.7,
-    shadowColor: '#6930c3',
+    shadowColor: theme.primary,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 4,
@@ -1838,8 +2000,8 @@ const styles = StyleSheet.create({
   goalDeadline: {
     fontSize: 11,
     fontFamily: fontFallbacks.Poppins_500Medium,
-    color: '#6930c3',
-    backgroundColor: 'rgba(105, 48, 195, 0.1)',
+    color: theme.primary,
+    backgroundColor: `rgba(${theme === themes.feminine ? '182, 135, 254' : '0, 115, 234'}, 0.1)`,
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 12,
@@ -1871,8 +2033,8 @@ const styles = StyleSheet.create({
   goalPercentageText: {
     fontSize: 14,
     fontFamily: fontFallbacks.Poppins_600SemiBold,
-    color: '#6930c3',
-    backgroundColor: 'rgba(105, 48, 195, 0.1)',
+    color: theme.primary,
+    backgroundColor: `rgba(${theme === themes.feminine ? '182, 135, 254' : '0, 115, 234'}, 0.1)`,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
@@ -1972,12 +2134,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#6930c3',
+    backgroundColor: theme.primary,
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: 12,
-    flex: 0.48,
-    shadowColor: '#6930c3',
+    marginRight: 12,
+    shadowColor: theme.primary,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 4,
@@ -1992,15 +2154,15 @@ const styles = StyleSheet.create({
   goalEditButton: {
     backgroundColor: 'transparent',
     borderWidth: 1,
-    borderColor: '#6930c3',
-    shadowColor: 'transparent',
+    borderColor: theme.primary,
+    marginRight: 0,
     shadowOpacity: 0,
     elevation: 0,
   },
   goalEditButtonText: {
-    color: '#6930c3',
     fontSize: 14,
     fontFamily: fontFallbacks.Poppins_500Medium,
+    color: theme.primary,
   },
   
   // Estilos para modais
@@ -2051,12 +2213,12 @@ const styles = StyleSheet.create({
     borderColor: '#efefef',
   },
   submitButton: {
-    backgroundColor: '#6930c3',
-    padding: width < 360 ? 14 : 16,
+    backgroundColor: theme.primary,
+    paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
-    marginTop: 24,
-    shadowColor: '#6930c3',
+    marginTop: 20,
+    shadowColor: theme.primary,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 4,
@@ -2099,8 +2261,8 @@ const styles = StyleSheet.create({
     flex: 0.48,
   },
   userSelectorButtonActive: {
-    backgroundColor: '#6930c3',
-    borderColor: '#6930c3',
+    backgroundColor: theme.primary,
+    borderColor: theme.primary,
   },
   userSelectorButtonText: {
     marginLeft: 8,
@@ -2186,9 +2348,9 @@ const styles = StyleSheet.create({
   },
   goalLegendPercent: {
     fontSize: 14,
-    color: '#6930c3',
+    color: theme.primary,
     fontFamily: fontFallbacks.Poppins_600SemiBold,
-    backgroundColor: 'rgba(105, 48, 195, 0.1)',
+    backgroundColor: `rgba(${theme === themes.feminine ? '182, 135, 254' : '0, 115, 234'}, 0.1)`,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
@@ -2361,5 +2523,19 @@ const styles = StyleSheet.create({
         shadowRadius: 8,
       }
     }),
+  },
+  userButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    alignItems: 'center',
+    marginHorizontal: 4,
+  },
+  selectedUserButton: {
+    backgroundColor: theme.primary,
+    borderColor: theme.primary,
   },
 }); 

@@ -517,6 +517,1066 @@ export default function Planning() {
     setShowAddDepositModal(true);
   };
 
+  // Definir estilos dentro do componente para ter acesso ao tema
+  const styles = StyleSheet.create({
+    safeArea: {
+      flex: 1,
+      backgroundColor: '#f5f7fa',
+    },
+    container: {
+      flex: 1,
+      backgroundColor: '#f9fafc',
+    },
+    header: {
+      paddingTop: Platform.OS === 'ios' ? 10 : 10,
+      paddingBottom: 10,
+      backgroundColor: '#fff',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.05,
+      shadowRadius: 3,
+      elevation: 3,
+      zIndex: 10,
+    },
+    headerTop: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingHorizontal: 16,
+    },
+    backButton: {
+      padding: 8,
+      backgroundColor: 'rgba(0,0,0,0.03)',
+      borderRadius: 12,
+    },
+    headerTitle: {
+      fontSize: 18,
+      color: '#333',
+      fontFamily: fontFallbacks.Poppins_600SemiBold,
+    },
+    moreButton: {
+      padding: 8,
+      backgroundColor: 'rgba(0,0,0,0.03)',
+      borderRadius: 12,
+    },
+    tabs: {
+      flexDirection: 'row',
+      paddingHorizontal: 16,
+      backgroundColor: '#fff',
+      paddingBottom: 15,
+      borderBottomColor: '#f0f0f0',
+      borderBottomWidth: 1,
+    },
+    tab: {
+      paddingVertical: 10,
+      paddingHorizontal: 16,
+      marginRight: 16,
+      borderBottomWidth: 3,
+      borderBottomColor: 'transparent',
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    activeTab: {
+      borderBottomColor: theme.primary,
+    },
+    tabText: {
+      fontSize: 14,
+      fontFamily: fontFallbacks.Poppins_500Medium,
+      color: '#777',
+    },
+    activeTabText: {
+      color: '#333',
+      fontFamily: fontFallbacks.Poppins_600SemiBold,
+    },
+    content: {
+      flex: 1,
+      marginBottom: 80, // Para não sobrepor a barra de navegação
+      backgroundColor: '#f9fafc',
+    },
+    scrollContainer: {
+      paddingBottom: 100, // Increased for better spacing at bottom
+      paddingHorizontal: 12, // Reduced for better fit on small screens
+      paddingTop: 16,
+    },
+    dateContainer: {
+      paddingHorizontal: 16,
+      paddingVertical: 20,
+      backgroundColor: '#fff',
+      marginBottom: 16,
+      borderRadius: 16,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 2,
+      borderWidth: 0.5,
+      borderColor: '#f0f0f0',
+      alignItems: 'center',  // Centraliza o conteúdo horizontalmente
+    },
+    dateText: {
+      fontSize: 14,
+      color: '#777',
+      fontFamily: fontFallbacks.Poppins_400Regular,
+      marginBottom: 4,
+      textAlign: 'center',  // Centraliza o texto
+    },
+    amountText: {
+      fontSize: width < 360 ? 24 : 28, // Responsive font size
+      color: '#000',
+      fontFamily: fontFallbacks.Poppins_600SemiBold,
+      marginBottom: 4,
+      textAlign: 'center',  // Centraliza o texto
+    },
+    amountLabel: {
+      fontSize: 14,
+      color: '#666',
+      fontFamily: fontFallbacks.Poppins_400Regular,
+      textAlign: 'center',  // Centraliza o texto
+    },
+    budgetContent: {
+      paddingHorizontal: width < 360 ? 8 : 16, // Responsive padding
+    },
+    goalsContent: {
+      paddingHorizontal: width < 360 ? 8 : 16, // Responsive padding
+    },
+    donutChartContainer: {
+      backgroundColor: '#fff',
+      borderRadius: 16,
+      padding: width < 360 ? 15 : 20, // Responsive padding
+      marginBottom: 16,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 2,
+      borderWidth: 0.5,
+      borderColor: '#f0f0f0',
+    },
+    chartRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      flexWrap: width < 360 ? 'wrap' : 'nowrap', // Allow wrapping on small screens
+    },
+    donutChart: {
+      width: width < 360 ? 140 : 160, // Responsive size
+      height: width < 360 ? 140 : 160, // Responsive size
+      borderRadius: width < 360 ? 70 : 80, // Responsive radius
+      borderWidth: 15,
+      borderColor: '#6C5CE7',
+      marginBottom: width < 360 ? 10 : 0, // Add margin on small screens
+      justifyContent: 'center',
+      alignItems: 'center',
+      position: 'relative',
+      borderLeftColor: '#74B9FF',
+      borderBottomColor: '#55EFC4',
+      borderRightColor: '#FF7675',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.1,
+      shadowRadius: 6,
+      elevation: 3,
+      alignSelf: 'center', // Center on all screen sizes
+    },
+    donutChartInner: {
+      width: width < 360 ? 110 : 130, // Responsive size
+      height: width < 360 ? 110 : 130, // Responsive size
+      borderRadius: width < 360 ? 55 : 65, // Responsive radius
+      backgroundColor: 'white',
+      justifyContent: 'center',
+      alignItems: 'center',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.05,
+      shadowRadius: 2,
+      elevation: 1,
+    },
+    legendContainer: {
+      flex: 1,
+      paddingLeft: 20,
+    },
+    legendItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 15,
+      justifyContent: 'space-between',
+    },
+    legendDot: {
+      width: 12,
+      height: 12,
+      borderRadius: 6,
+      marginRight: 12,  // Aumentado de 0 para 12 para criar espaço entre a bolinha e o texto
+    },
+    legendText: {
+      fontSize: 14,
+      color: '#333',
+      fontFamily: fontFallbacks.Poppins_500Medium,
+      flex: 1,
+    },
+    legendPercentValue: {
+      fontSize: 14,
+      color: '#555',
+      fontFamily: fontFallbacks.Poppins_600SemiBold,
+      marginLeft: 8,
+    },
+    sectionHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginTop: 24,
+      marginBottom: 16,
+    },
+    sectionTitle: {
+      fontSize: width < 360 ? 16 : 18, // Responsive font size
+      fontFamily: fontFallbacks.Poppins_600SemiBold,
+      color: '#333',
+    },
+    seeAllLink: {
+      fontSize: 14,
+      fontFamily: fontFallbacks.Poppins_500Medium,
+      color: theme.primary,
+    },
+    addButton: {
+      marginTop: -30,
+      backgroundColor: 'white',
+      width: 60,
+      height: 60,
+      borderRadius: 30,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    addButtonText: {
+      color: '#FFF',
+      fontSize: 14,
+      fontFamily: fontFallbacks.Poppins_500Medium,
+      marginLeft: 6,
+    },
+    
+    // Estilos para transações
+    transactionsList: {
+      backgroundColor: '#fff',
+      borderRadius: 16,
+      padding: 16,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 2,
+      borderWidth: 0.5,
+      borderColor: '#f0f0f0',
+    },
+    transactionItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: '#f0f0f0',
+    },
+    transactionIcon: {
+      width: 48,
+      height: 48,
+      borderRadius: 12,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginRight: 12,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.1,
+      shadowRadius: 2,
+      elevation: 1,
+    },
+    transactionInfo: {
+      flex: 1,
+    },
+    transactionTitle: {
+      fontSize: 16,
+      fontFamily: fontFallbacks.Poppins_500Medium,
+      color: '#333',
+      marginBottom: 4,
+    },
+    transactionTime: {
+      fontSize: 14,
+      fontFamily: fontFallbacks.Poppins_400Regular,
+      color: '#888',
+    },
+    transactionAmount: {
+      fontSize: 16,
+      fontFamily: fontFallbacks.Poppins_600SemiBold,
+      color: '#333',
+      marginLeft: 8,
+    },
+    incomeAmount: {
+      color: '#4CD964',
+    },
+    transferAmount: {
+      color: '#5856D6',
+    },
+    
+    // Estilos para orçamentos
+    budgetCard: {
+      backgroundColor: '#FFF',
+      borderRadius: 16,
+      marginBottom: 16,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 2,
+      overflow: 'hidden',
+      borderWidth: 0.5,
+      borderColor: '#f0f0f0',
+    },
+    budgetHeader: {
+      flexDirection: 'row',
+      padding: 16,
+    },
+    categoryIcon: {
+      width: width < 360 ? 40 : 50,
+      height: width < 360 ? 40 : 50,
+      borderRadius: 12,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginRight: 12,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.1,
+      shadowRadius: 2,
+      elevation: 1,
+    },
+    categoryIconText: {
+      fontSize: width < 360 ? 20 : 24,
+    },
+    budgetInfo: {
+      flex: 1,
+    },
+    budgetTitleRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 10,
+    },
+    categoryName: {
+      fontSize: width < 360 ? 14 : 16,
+      fontFamily: fontFallbacks.Poppins_600SemiBold,
+      color: '#333',
+    },
+    warningBadge: {
+      backgroundColor: '#FF3B30',
+      borderRadius: 12,
+      paddingHorizontal: 6,
+      paddingVertical: 4,
+    },
+    budgetBarContainer: {
+      height: 8,
+      backgroundColor: '#f0f0f0',
+      borderRadius: 4,
+      marginBottom: 12,
+    },
+    budgetBar: {
+      height: 8,
+      borderRadius: 4,
+    },
+    budgetDetails: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    spentText: {
+      fontSize: 14,
+      fontFamily: fontFallbacks.Poppins_500Medium,
+      color: '#333',
+    },
+    allocatedText: {
+      color: '#888',
+      fontFamily: fontFallbacks.Poppins_400Regular,
+    },
+    percentageText: {
+      fontSize: 14,
+      fontFamily: fontFallbacks.Poppins_600SemiBold,
+      color: '#333',
+      backgroundColor: '#f0f0f0',
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 12,
+    },
+    warningText: {
+      color: '#FF3B30',
+      backgroundColor: 'rgba(255, 59, 48, 0.1)',
+    },
+    budgetExpanded: {
+      padding: 16,
+      backgroundColor: '#f9f9f9',
+      borderTopWidth: 1,
+      borderTopColor: '#eee',
+    },
+    expandedSectionTitle: {
+      fontSize: 14,
+      fontFamily: fontFallbacks.Poppins_600SemiBold,
+      color: '#666',
+      marginBottom: 12,
+    },
+    spendingByPersonSection: {
+      marginBottom: 20,
+    },
+    userRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 12,
+    },
+    userInfo: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    userIcon: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginRight: 12,
+    },
+    userName: {
+      fontSize: 14,
+      fontFamily: fontFallbacks.Poppins_500Medium,
+      color: '#333',
+    },
+    userSpentInfo: {
+      alignItems: 'flex-end',
+    },
+    userSpentText: {
+      fontSize: 14,
+      fontFamily: fontFallbacks.Poppins_500Medium,
+      color: '#333',
+    },
+    userPercentageText: {
+      fontSize: 12,
+      fontFamily: fontFallbacks.Poppins_400Regular,
+      color: '#888',
+    },
+    transactionsSection: {
+      marginBottom: 20,
+    },
+    transactionRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 12,
+    },
+    transactionDesc: {
+      fontSize: 14,
+      fontFamily: fontFallbacks.Poppins_500Medium,
+      color: '#333',
+    },
+    transactionDate: {
+      fontSize: 12,
+      fontFamily: fontFallbacks.Poppins_400Regular,
+      color: '#888',
+    },
+    budgetActions: {
+      flexDirection: 'row',
+      marginTop: 20,
+      justifyContent: 'center',
+    },
+    budgetActionButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: theme.primary,
+      paddingVertical: 12,
+      paddingHorizontal: 20,
+      borderRadius: 12,
+      flex: 0.7,
+      shadowColor: theme.primary,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.3,
+      shadowRadius: 4,
+      elevation: 3,
+    },
+    budgetActionButtonText: {
+      fontSize: 14,
+      fontFamily: fontFallbacks.Poppins_500Medium,
+      color: '#FFF',
+      marginLeft: 8,
+    },
+    
+    // Estilos para metas financeiras
+    goalCard: {
+      backgroundColor: '#FFF',
+      borderRadius: 16,
+      marginBottom: 16,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 2,
+      overflow: 'hidden',
+      borderWidth: 0.5,
+      borderColor: '#f0f0f0',
+    },
+    goalHeader: {
+      flexDirection: 'row',
+      padding: 16,
+    },
+    goalIcon: {
+      width: width < 360 ? 40 : 50,
+      height: width < 360 ? 40 : 50,
+      borderRadius: 12,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginRight: 12,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.1,
+      shadowRadius: 2,
+      elevation: 1,
+    },
+    goalIconText: {
+      fontSize: width < 360 ? 20 : 24,
+    },
+    goalInfo: {
+      flex: 1,
+    },
+    goalTitleRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 10,
+    },
+    goalTitle: {
+      fontSize: width < 360 ? 14 : 16,
+      fontFamily: fontFallbacks.Poppins_600SemiBold,
+      color: '#333',
+    },
+    goalDeadline: {
+      fontSize: 11,
+      fontFamily: fontFallbacks.Poppins_500Medium,
+      color: theme.primary,
+      backgroundColor: `rgba(${theme === themes.feminine ? '182, 135, 254' : '0, 115, 234'}, 0.1)`,
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: 12,
+    },
+    goalBarContainer: {
+      height: 8,
+      backgroundColor: '#f0f0f0',
+      borderRadius: 4,
+      marginBottom: 12,
+    },
+    goalBar: {
+      height: 8,
+      borderRadius: 4,
+    },
+    goalDetails: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    goalAmountText: {
+      fontSize: 14,
+      fontFamily: fontFallbacks.Poppins_500Medium,
+      color: '#333',
+    },
+    goalTargetText: {
+      color: '#888',
+      fontFamily: fontFallbacks.Poppins_400Regular,
+    },
+    goalPercentageText: {
+      fontSize: 14,
+      fontFamily: fontFallbacks.Poppins_600SemiBold,
+      color: theme.primary,
+      backgroundColor: `rgba(${theme === themes.feminine ? '182, 135, 254' : '0, 115, 234'}, 0.1)`,
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 12,
+    },
+    goalExpanded: {
+      padding: 16,
+      backgroundColor: '#f9f9f9',
+      borderTopWidth: 1,
+      borderTopColor: '#eee',
+    },
+    goalDepositsSection: {
+      marginBottom: 20,
+    },
+    depositRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 12,
+    },
+    depositInfo: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    depositUserName: {
+      fontSize: 14,
+      fontFamily: fontFallbacks.Poppins_500Medium,
+      color: '#333',
+    },
+    depositDate: {
+      fontSize: 12,
+      fontFamily: fontFallbacks.Poppins_400Regular,
+      color: '#888',
+    },
+    depositAmount: {
+      fontSize: 14,
+      fontFamily: fontFallbacks.Poppins_500Medium,
+      color: '#4CD964',
+    },
+    teamProgress: {
+      marginBottom: 20,
+    },
+    teamMembersProgress: {
+      
+    },
+    teamMember: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 16,
+    },
+    teamMemberIcon: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginRight: 12,
+    },
+    teamMemberInfo: {
+      flex: 1,
+    },
+    teamMemberNameRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      marginBottom: 4,
+    },
+    teamMemberName: {
+      fontSize: 14,
+      fontFamily: fontFallbacks.Poppins_500Medium,
+      color: '#333',
+    },
+    teamMemberContribution: {
+      fontSize: 14,
+      fontFamily: fontFallbacks.Poppins_500Medium,
+      color: '#333',
+    },
+    teamMemberBarContainer: {
+      height: 6,
+      backgroundColor: '#f0f0f0',
+      borderRadius: 3,
+      marginBottom: 4,
+    },
+    teamMemberBar: {
+      height: 6,
+      borderRadius: 3,
+    },
+    teamMemberPercentage: {
+      fontSize: 12,
+      fontFamily: fontFallbacks.Poppins_400Regular,
+      color: '#888',
+    },
+    goalActions: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      marginTop: 20,
+    },
+    goalActionButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: theme.primary,
+      paddingVertical: 12,
+      paddingHorizontal: 20,
+      borderRadius: 12,
+      flex: 0.48,
+      shadowColor: theme.primary,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.3,
+      shadowRadius: 4,
+      elevation: 3,
+    },
+    goalActionButtonText: {
+      fontSize: 14,
+      fontFamily: fontFallbacks.Poppins_500Medium,
+      color: '#FFF',
+      marginLeft: 8,
+    },
+    goalEditButton: {
+      backgroundColor: 'transparent',
+      borderWidth: 1,
+      borderColor: theme.primary,
+      shadowColor: 'transparent',
+      shadowOpacity: 0,
+      elevation: 0,
+    },
+    goalEditButtonText: {
+      color: theme.primary,
+      fontSize: 14,
+      fontFamily: fontFallbacks.Poppins_500Medium,
+    },
+    
+    // Estilos para modais
+    modalContainer: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.5)',
+      justifyContent: 'flex-end',
+    },
+    modalContent: {
+      backgroundColor: 'white',
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      padding: 24,
+      maxHeight: height * 0.8, // Use percentage of screen height
+    },
+    modalHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 24,
+    },
+    modalTitle: {
+      fontSize: 20,
+      fontFamily: fontFallbacks.Poppins_600SemiBold,
+      color: '#333',
+    },
+    closeButton: {
+      padding: 8,
+      backgroundColor: 'rgba(0,0,0,0.05)',
+      borderRadius: 12,
+    },
+    inputGroup: {
+      marginBottom: 20,
+    },
+    inputLabel: {
+      fontSize: 14,
+      fontFamily: fontFallbacks.Poppins_500Medium,
+      color: '#666',
+      marginBottom: 8,
+    },
+    textInput: {
+      backgroundColor: '#f5f7fa',
+      padding: width < 360 ? 12 : 14,
+      borderRadius: 12,
+      fontSize: width < 360 ? 14 : 16,
+      fontFamily: fontFallbacks.Poppins_400Regular,
+      borderWidth: 1,
+      borderColor: '#efefef',
+    },
+    submitButton: {
+      backgroundColor: theme.primary,
+      padding: width < 360 ? 14 : 16,
+      borderRadius: 12,
+      alignItems: 'center',
+      marginTop: 24,
+      shadowColor: theme.primary,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.3,
+      shadowRadius: 4,
+      elevation: 3,
+    },
+    submitButtonText: {
+      color: 'white',
+      fontSize: 16,
+      fontFamily: fontFallbacks.Poppins_600SemiBold,
+    },
+    goalSummary: {
+      backgroundColor: '#f5f7fa',
+      padding: 16,
+      borderRadius: 8,
+      marginBottom: 16,
+    },
+    goalSummaryTitle: {
+      fontSize: 16,
+      fontFamily: fontFallbacks.Poppins_500Medium,
+      color: '#333',
+      marginBottom: 4,
+    },
+    goalSummaryAmount: {
+      fontSize: 14,
+      fontFamily: fontFallbacks.Poppins_400Regular,
+      color: '#666',
+    },
+    userSelectorContainer: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+    },
+    userSelectorButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: 12,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: '#ddd',
+      flex: 0.48,
+    },
+    userSelectorButtonActive: {
+      backgroundColor: theme.primary,
+      borderColor: theme.primary,
+    },
+    userSelectorButtonText: {
+      marginLeft: 8,
+      color: '#666',
+      fontSize: 14,
+      fontFamily: fontFallbacks.Poppins_500Medium,
+    },
+    userSelectorButtonTextActive: {
+      color: 'white',
+    },
+    goalCompletionText: {
+      fontSize: width < 360 ? 22 : 26, // Responsive font size
+      color: '#000',
+      fontFamily: fontFallbacks.Poppins_600SemiBold,
+      textAlign: 'center',
+    },
+    goalCompletionLabel: {
+      fontSize: 12,
+      color: '#888',
+      fontFamily: fontFallbacks.Poppins_400Regular,
+      textAlign: 'center',
+    },
+    chartHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 20,
+      paddingBottom: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: '#f0f0f0',
+    },
+    chartTitle: {
+      fontSize: 16,
+      fontFamily: fontFallbacks.Poppins_600SemiBold,
+      color: '#333',
+    },
+    chartTotalValue: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    chartTotalLabel: {
+      fontSize: 14,
+      fontFamily: fontFallbacks.Poppins_500Medium,
+      color: '#666',
+      marginRight: 8,
+    },
+    chartTotalAmount: {
+      fontSize: 14,
+      fontFamily: fontFallbacks.Poppins_500Medium,
+      color: '#333',
+    },
+    chartMainContent: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginTop: 10,
+      marginBottom: 10,
+    },
+    goalLegendContainer: {
+      flex: 1,
+      paddingLeft: 20,
+      marginTop: 5,
+    },
+    goalLegendItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 16,
+      paddingRight: 8,
+    },
+    goalLegendLeft: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flex: 1,
+    },
+    goalLegendText: {
+      fontSize: 14,
+      color: '#333',
+      fontFamily: fontFallbacks.Poppins_500Medium,
+      marginLeft: 8,
+      flex: 1,
+      paddingRight: 5,
+    },
+    goalLegendPercent: {
+      fontSize: 14,
+      color: theme.primary,
+      fontFamily: fontFallbacks.Poppins_600SemiBold,
+      backgroundColor: `rgba(${theme === themes.feminine ? '182, 135, 254' : '0, 115, 234'}, 0.1)`,
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: 12,
+      minWidth: 50,
+      textAlign: 'center',
+    },
+    legendTitle: {
+      fontSize: 16,
+      fontFamily: fontFallbacks.Poppins_600SemiBold,
+      color: '#333',
+      marginBottom: 16,
+    },
+    metricsContainer: {
+      marginTop: 20,
+      marginBottom: 20,
+    },
+    metricsSeparator: {
+      height: 1,
+      backgroundColor: '#f0f0f0',
+      marginBottom: 20,
+    },
+    goalsMetricsSummary: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    goalMetricItem: {
+      flex: 1,
+      alignItems: 'center',
+    },
+    goalDivider: {
+      width: 1,
+      height: 40,
+      backgroundColor: '#f0f0f0',
+    },
+    goalMetricValue: {
+      fontSize: 16,
+      fontFamily: fontFallbacks.Poppins_600SemiBold,
+      color: '#333',
+      marginBottom: 4,
+    },
+    goalMetricLabel: {
+      fontSize: 12,
+      fontFamily: fontFallbacks.Poppins_400Regular,
+      color: '#888',
+      textAlign: 'center',
+    },
+    
+    // Menu modal styles
+    menuModalContainer: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.5)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: 20,
+    },
+    menuModalContent: {
+      backgroundColor: 'white',
+      borderRadius: 20,
+      width: '100%',
+      padding: 20,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.3,
+      shadowRadius: 10,
+      elevation: 5,
+    },
+    menuHeader: {
+      alignItems: 'flex-end',
+      marginBottom: 20,
+    },
+    menuGrid: {
+      marginBottom: 30,
+    },
+    menuRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      marginBottom: 25,
+    },
+    menuItem: {
+      flex: 1,
+      alignItems: 'center',
+    },
+    menuIconContainer: {
+      width: 60,
+      height: 60,
+      borderRadius: 30,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginBottom: 8,
+    },
+    menuItemTitle: {
+      fontSize: 14,
+      fontFamily: fontFallbacks.Poppins_600SemiBold,
+      marginBottom: 4,
+    },
+    menuItemSubtitle: {
+      fontSize: 12,
+      fontFamily: fontFallbacks.Poppins_400Regular,
+    },
+    closeFullButton: {
+      padding: 16,
+      borderRadius: 16,
+      alignItems: 'center',
+    },
+    closeFullButtonText: {
+      color: 'white',
+      fontSize: 16,
+      fontFamily: fontFallbacks.Poppins_600SemiBold,
+    },
+    
+    // Bottom navigation
+    bottomNav: {
+      flexDirection: 'row',
+      justifyContent: 'space-around',
+      alignItems: 'center',
+      backgroundColor: 'white',
+      paddingVertical: 10,
+      paddingHorizontal: 15,
+      borderTopLeftRadius: 25,
+      borderTopRightRadius: 25,
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      zIndex: 1,
+      ...Platform.select({
+        ios: {
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: -4 },
+          shadowOpacity: 0.1,
+          shadowRadius: 4,
+        },
+        android: {
+          elevation: 5,
+        },
+      }),
+    },
+    navItem: {
+      alignItems: 'center',
+      width: 60,
+    },
+    navText: {
+      fontSize: 12,
+      fontFamily: fontFallbacks.Poppins_400Regular,
+      color: '#999',
+      marginTop: 4,
+    },
+    addButtonInner: {
+      width: 50,
+      height: 50,
+      borderRadius: 25,
+      justifyContent: 'center',
+      alignItems: 'center',
+      transform: [{ scale: 1 }],
+      ...Platform.select({
+        ios: {
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 3 },
+          shadowOpacity: 0.2,
+          shadowRadius: 6,
+        },
+        android: {
+          elevation: 5,
+        },
+        web: {
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 3 },
+          shadowOpacity: 0.2,
+          shadowRadius: 8,
+        }
+      }),
+    },
+  });
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <KeyboardAvoidingView 
@@ -541,7 +1601,7 @@ export default function Planning() {
           </View>
         </View>
 
-        <View style={styles.tabsContainer}>
+        <View style={styles.tabs}>
           <TouchableOpacity 
             style={[styles.tab, activeTab === 'budget' && styles.activeTab]}
             onPress={() => setActiveTab('budget')}
@@ -1288,7 +2348,7 @@ export default function Planning() {
                       router.replace('/(app)/dashboard');
                     }}
                   >
-                    <View style={[styles.menuIconContainer, { backgroundColor: 'rgba(182, 135, 254, 0.15)' }]}>
+                    <View style={[styles.menuIconContainer, { backgroundColor: `rgba(${theme === themes.feminine ? '182, 135, 254' : '0, 115, 234'}, 0.15)` }]}>
                       <Home size={24} color={theme.primary} />
                     </View>
                     <Text style={[styles.menuItemTitle, { color: '#333' }]}>Dashboard</Text>
@@ -1302,7 +2362,7 @@ export default function Planning() {
                       // Lógica para adicionar nova transação
                     }}
                   >
-                    <View style={[styles.menuIconContainer, { backgroundColor: 'rgba(182, 135, 254, 0.15)' }]}>
+                    <View style={[styles.menuIconContainer, { backgroundColor: `rgba(${theme === themes.feminine ? '182, 135, 254' : '0, 115, 234'}, 0.15)` }]}>
                       <PlusCircle size={24} color={theme.primary} />
                     </View>
                     <Text style={[styles.menuItemTitle, { color: '#333' }]}>Novo Registro</Text>
@@ -1310,7 +2370,7 @@ export default function Planning() {
                   </TouchableOpacity>
                   
                   <TouchableOpacity style={styles.menuItem}>
-                    <View style={[styles.menuIconContainer, { backgroundColor: 'rgba(182, 135, 254, 0.15)' }]}>
+                    <View style={[styles.menuIconContainer, { backgroundColor: `rgba(${theme === themes.feminine ? '182, 135, 254' : '0, 115, 234'}, 0.15)` }]}>
                       <Bell size={24} color={theme.primary} />
                     </View>
                     <Text style={[styles.menuItemTitle, { color: '#333' }]}>Notificações</Text>
@@ -1320,7 +2380,7 @@ export default function Planning() {
                 
                 <View style={styles.menuRow}>
                   <TouchableOpacity style={styles.menuItem}>
-                    <View style={[styles.menuIconContainer, { backgroundColor: 'rgba(182, 135, 254, 0.15)' }]}>
+                    <View style={[styles.menuIconContainer, { backgroundColor: `rgba(${theme === themes.feminine ? '182, 135, 254' : '0, 115, 234'}, 0.15)` }]}>
                       <BarChart size={24} color={theme.primary} />
                     </View>
                     <Text style={[styles.menuItemTitle, { color: '#333' }]}>Planejamento</Text>
@@ -1334,7 +2394,7 @@ export default function Planning() {
                       router.replace('/(app)/cards');
                     }}
                   >
-                    <View style={[styles.menuIconContainer, { backgroundColor: 'rgba(182, 135, 254, 0.15)' }]}>
+                    <View style={[styles.menuIconContainer, { backgroundColor: `rgba(${theme === themes.feminine ? '182, 135, 254' : '0, 115, 234'}, 0.15)` }]}>
                       <Wallet size={24} color={theme.primary} />
                     </View>
                     <Text style={[styles.menuItemTitle, { color: '#333' }]}>Cartões</Text>
@@ -1342,7 +2402,7 @@ export default function Planning() {
                   </TouchableOpacity>
                   
                   <TouchableOpacity style={styles.menuItem}>
-                    <View style={[styles.menuIconContainer, { backgroundColor: 'rgba(182, 135, 254, 0.15)' }]}>
+                    <View style={[styles.menuIconContainer, { backgroundColor: `rgba(${theme === themes.feminine ? '182, 135, 254' : '0, 115, 234'}, 0.15)` }]}>
                       <Receipt size={24} color={theme.primary} />
                     </View>
                     <Text style={[styles.menuItemTitle, { color: '#333' }]}>Contas</Text>
@@ -1358,7 +2418,7 @@ export default function Planning() {
                       router.replace('/(auth)/register');
                     }}
                   >
-                    <View style={[styles.menuIconContainer, { backgroundColor: 'rgba(182, 135, 254, 0.15)' }]}>
+                    <View style={[styles.menuIconContainer, { backgroundColor: `rgba(${theme === themes.feminine ? '182, 135, 254' : '0, 115, 234'}, 0.15)` }]}>
                       <Info size={24} color={theme.primary} />
                     </View>
                     <Text style={[styles.menuItemTitle, { color: '#333' }]}>Cadastro</Text>
@@ -1372,7 +2432,7 @@ export default function Planning() {
                       router.replace('/(auth)/login');
                     }}
                   >
-                    <View style={[styles.menuIconContainer, { backgroundColor: 'rgba(182, 135, 254, 0.15)' }]}>
+                    <View style={[styles.menuIconContainer, { backgroundColor: `rgba(${theme === themes.feminine ? '182, 135, 254' : '0, 115, 234'}, 0.15)` }]}>
                       <ExternalLink size={24} color={theme.primary} />
                     </View>
                     <Text style={[styles.menuItemTitle, { color: '#333' }]}>Logout</Text>
@@ -1464,1078 +2524,4 @@ export default function Planning() {
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
-}
-
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#f5f7fa',
-  },
-  container: {
-    flex: 1,
-    backgroundColor: '#f9fafc',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingTop: Platform.OS === 'ios' ? 50 : 20,
-    paddingBottom: 16,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  headerTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-  },
-  backButton: {
-    padding: 8,
-    backgroundColor: 'rgba(0,0,0,0.03)',
-    borderRadius: 12,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontFamily: fontFallbacks.Poppins_600SemiBold,
-    color: '#333',
-    flex: 1,
-    textAlign: 'center',
-  },
-  moreButton: {
-    padding: 8,
-    backgroundColor: 'rgba(0,0,0,0.03)',
-    borderRadius: 12,
-  },
-  tabsContainer: {
-    flexDirection: 'row',
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-    marginRight: 16,
-    borderBottomWidth: 3,
-    borderBottomColor: 'transparent',
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  activeTab: {
-    borderBottomColor: theme.primary,
-  },
-  tabText: {
-    fontSize: 14,
-    fontFamily: fontFallbacks.Poppins_500Medium,
-    color: '#777',
-  },
-  activeTabText: {
-    color: '#333',
-    fontFamily: fontFallbacks.Poppins_600SemiBold,
-  },
-  content: {
-    flex: 1,
-    marginBottom: 80, // Para não sobrepor a barra de navegação
-    backgroundColor: '#f9fafc',
-  },
-  scrollContainer: {
-    paddingBottom: 100, // Increased for better spacing at bottom
-    paddingHorizontal: 12, // Reduced for better fit on small screens
-    paddingTop: 16,
-  },
-  dateContainer: {
-    paddingHorizontal: 16,
-    paddingVertical: 20,
-    backgroundColor: '#fff',
-    marginBottom: 16,
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-    borderWidth: 0.5,
-    borderColor: '#f0f0f0',
-    alignItems: 'center',  // Centraliza o conteúdo horizontalmente
-  },
-  dateText: {
-    fontSize: 14,
-    color: '#777',
-    fontFamily: fontFallbacks.Poppins_400Regular,
-    marginBottom: 4,
-    textAlign: 'center',  // Centraliza o texto
-  },
-  amountText: {
-    fontSize: width < 360 ? 24 : 28, // Responsive font size
-    color: '#000',
-    fontFamily: fontFallbacks.Poppins_600SemiBold,
-    marginBottom: 4,
-    textAlign: 'center',  // Centraliza o texto
-  },
-  amountLabel: {
-    fontSize: 14,
-    color: '#666',
-    fontFamily: fontFallbacks.Poppins_400Regular,
-    textAlign: 'center',  // Centraliza o texto
-  },
-  budgetContent: {
-    paddingHorizontal: width < 360 ? 8 : 16, // Responsive padding
-  },
-  goalsContent: {
-    paddingHorizontal: width < 360 ? 8 : 16, // Responsive padding
-  },
-  donutChartContainer: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: width < 360 ? 15 : 20, // Responsive padding
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-    borderWidth: 0.5,
-    borderColor: '#f0f0f0',
-  },
-  chartRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    flexWrap: width < 360 ? 'wrap' : 'nowrap', // Allow wrapping on small screens
-  },
-  donutChart: {
-    width: width < 360 ? 140 : 160, // Responsive size
-    height: width < 360 ? 140 : 160, // Responsive size
-    borderRadius: width < 360 ? 70 : 80, // Responsive radius
-    borderWidth: 15,
-    borderColor: '#6C5CE7',
-    marginBottom: width < 360 ? 10 : 0, // Add margin on small screens
-    justifyContent: 'center',
-    alignItems: 'center',
-    position: 'relative',
-    borderLeftColor: '#74B9FF',
-    borderBottomColor: '#55EFC4',
-    borderRightColor: '#FF7675',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    elevation: 3,
-    alignSelf: 'center', // Center on all screen sizes
-  },
-  donutChartInner: {
-    width: width < 360 ? 110 : 130, // Responsive size
-    height: width < 360 ? 110 : 130, // Responsive size
-    borderRadius: width < 360 ? 55 : 65, // Responsive radius
-    backgroundColor: 'white',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  legendContainer: {
-    flex: 1,
-    paddingLeft: 20,
-  },
-  legendItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 15,
-    justifyContent: 'space-between',
-  },
-  legendDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    marginRight: 12,  // Aumentado de 0 para 12 para criar espaço entre a bolinha e o texto
-  },
-  legendText: {
-    fontSize: 14,
-    color: '#333',
-    fontFamily: fontFallbacks.Poppins_500Medium,
-    flex: 1,
-  },
-  legendPercentValue: {
-    fontSize: 14,
-    color: '#555',
-    fontFamily: fontFallbacks.Poppins_600SemiBold,
-    marginLeft: 8,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 24,
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: width < 360 ? 16 : 18, // Responsive font size
-    fontFamily: fontFallbacks.Poppins_600SemiBold,
-    color: '#333',
-  },
-  seeAllLink: {
-    fontSize: 14,
-    fontFamily: fontFallbacks.Poppins_500Medium,
-    color: theme.primary,
-  },
-  addButton: {
-    marginTop: -30,
-    backgroundColor: 'white',
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  addButtonText: {
-    color: '#FFF',
-    fontSize: 14,
-    fontFamily: fontFallbacks.Poppins_500Medium,
-    marginLeft: 6,
-  },
-  
-  // Estilos para transações
-  transactionsList: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-    borderWidth: 0.5,
-    borderColor: '#f0f0f0',
-  },
-  transactionItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  transactionIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  transactionInfo: {
-    flex: 1,
-  },
-  transactionTitle: {
-    fontSize: 16,
-    fontFamily: fontFallbacks.Poppins_500Medium,
-    color: '#333',
-    marginBottom: 4,
-  },
-  transactionTime: {
-    fontSize: 14,
-    fontFamily: fontFallbacks.Poppins_400Regular,
-    color: '#888',
-  },
-  transactionAmount: {
-    fontSize: 16,
-    fontFamily: fontFallbacks.Poppins_600SemiBold,
-    color: '#333',
-    marginLeft: 8,
-  },
-  incomeAmount: {
-    color: '#4CD964',
-  },
-  transferAmount: {
-    color: '#5856D6',
-  },
-  
-  // Estilos para orçamentos
-  budgetCard: {
-    backgroundColor: '#FFF',
-    borderRadius: 16,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-    overflow: 'hidden',
-    borderWidth: 0.5,
-    borderColor: '#f0f0f0',
-  },
-  budgetHeader: {
-    flexDirection: 'row',
-    padding: 16,
-  },
-  categoryIcon: {
-    width: width < 360 ? 40 : 50,
-    height: width < 360 ? 40 : 50,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  categoryIconText: {
-    fontSize: width < 360 ? 20 : 24,
-  },
-  budgetInfo: {
-    flex: 1,
-  },
-  budgetTitleRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  categoryName: {
-    fontSize: width < 360 ? 14 : 16,
-    fontFamily: fontFallbacks.Poppins_600SemiBold,
-    color: '#333',
-  },
-  warningBadge: {
-    backgroundColor: '#FF3B30',
-    borderRadius: 12,
-    paddingHorizontal: 6,
-    paddingVertical: 4,
-  },
-  budgetBarContainer: {
-    height: 8,
-    backgroundColor: '#f0f0f0',
-    borderRadius: 4,
-    marginBottom: 12,
-  },
-  budgetBar: {
-    height: 8,
-    borderRadius: 4,
-  },
-  budgetDetails: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  spentText: {
-    fontSize: 14,
-    fontFamily: fontFallbacks.Poppins_500Medium,
-    color: '#333',
-  },
-  allocatedText: {
-    color: '#888',
-    fontFamily: fontFallbacks.Poppins_400Regular,
-  },
-  percentageText: {
-    fontSize: 14,
-    fontFamily: fontFallbacks.Poppins_600SemiBold,
-    color: '#333',
-    backgroundColor: '#f0f0f0',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  warningText: {
-    color: '#FF3B30',
-    backgroundColor: 'rgba(255, 59, 48, 0.1)',
-  },
-  budgetExpanded: {
-    padding: 16,
-    backgroundColor: '#f9f9f9',
-    borderTopWidth: 1,
-    borderTopColor: '#eee',
-  },
-  expandedSectionTitle: {
-    fontSize: 14,
-    fontFamily: fontFallbacks.Poppins_600SemiBold,
-    color: '#666',
-    marginBottom: 12,
-  },
-  spendingByPersonSection: {
-    marginBottom: 20,
-  },
-  userRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  userInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  userIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  userName: {
-    fontSize: 14,
-    fontFamily: fontFallbacks.Poppins_500Medium,
-    color: '#333',
-  },
-  userSpentInfo: {
-    alignItems: 'flex-end',
-  },
-  userSpentText: {
-    fontSize: 14,
-    fontFamily: fontFallbacks.Poppins_500Medium,
-    color: '#333',
-  },
-  userPercentageText: {
-    fontSize: 12,
-    fontFamily: fontFallbacks.Poppins_400Regular,
-    color: '#888',
-  },
-  transactionsSection: {
-    marginBottom: 20,
-  },
-  transactionRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  transactionDesc: {
-    fontSize: 14,
-    fontFamily: fontFallbacks.Poppins_500Medium,
-    color: '#333',
-  },
-  transactionDate: {
-    fontSize: 12,
-    fontFamily: fontFallbacks.Poppins_400Regular,
-    color: '#888',
-  },
-  budgetActions: {
-    flexDirection: 'row',
-    marginTop: 20,
-    justifyContent: 'center',
-  },
-  budgetActionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: theme.primary,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 12,
-    flex: 0.7,
-    shadowColor: theme.primary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  budgetActionButtonText: {
-    fontSize: 14,
-    fontFamily: fontFallbacks.Poppins_500Medium,
-    color: '#FFF',
-    marginLeft: 8,
-  },
-  
-  // Estilos para metas financeiras
-  goalCard: {
-    backgroundColor: '#FFF',
-    borderRadius: 16,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-    overflow: 'hidden',
-    borderWidth: 0.5,
-    borderColor: '#f0f0f0',
-  },
-  goalHeader: {
-    flexDirection: 'row',
-    padding: 16,
-  },
-  goalIcon: {
-    width: width < 360 ? 40 : 50,
-    height: width < 360 ? 40 : 50,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  goalIconText: {
-    fontSize: width < 360 ? 20 : 24,
-  },
-  goalInfo: {
-    flex: 1,
-  },
-  goalTitleRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  goalTitle: {
-    fontSize: width < 360 ? 14 : 16,
-    fontFamily: fontFallbacks.Poppins_600SemiBold,
-    color: '#333',
-  },
-  goalDeadline: {
-    fontSize: 11,
-    fontFamily: fontFallbacks.Poppins_500Medium,
-    color: theme.primary,
-    backgroundColor: `rgba(${theme === themes.feminine ? '182, 135, 254' : '0, 115, 234'}, 0.1)`,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 12,
-  },
-  goalBarContainer: {
-    height: 8,
-    backgroundColor: '#f0f0f0',
-    borderRadius: 4,
-    marginBottom: 12,
-  },
-  goalBar: {
-    height: 8,
-    borderRadius: 4,
-  },
-  goalDetails: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  goalAmountText: {
-    fontSize: 14,
-    fontFamily: fontFallbacks.Poppins_500Medium,
-    color: '#333',
-  },
-  goalTargetText: {
-    color: '#888',
-    fontFamily: fontFallbacks.Poppins_400Regular,
-  },
-  goalPercentageText: {
-    fontSize: 14,
-    fontFamily: fontFallbacks.Poppins_600SemiBold,
-    color: theme.primary,
-    backgroundColor: `rgba(${theme === themes.feminine ? '182, 135, 254' : '0, 115, 234'}, 0.1)`,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  goalExpanded: {
-    padding: 16,
-    backgroundColor: '#f9f9f9',
-    borderTopWidth: 1,
-    borderTopColor: '#eee',
-  },
-  goalDepositsSection: {
-    marginBottom: 20,
-  },
-  depositRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  depositInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  depositUserName: {
-    fontSize: 14,
-    fontFamily: fontFallbacks.Poppins_500Medium,
-    color: '#333',
-  },
-  depositDate: {
-    fontSize: 12,
-    fontFamily: fontFallbacks.Poppins_400Regular,
-    color: '#888',
-  },
-  depositAmount: {
-    fontSize: 14,
-    fontFamily: fontFallbacks.Poppins_500Medium,
-    color: '#4CD964',
-  },
-  teamProgress: {
-    marginBottom: 20,
-  },
-  teamMembersProgress: {
-    
-  },
-  teamMember: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  teamMemberIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  teamMemberInfo: {
-    flex: 1,
-  },
-  teamMemberNameRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 4,
-  },
-  teamMemberName: {
-    fontSize: 14,
-    fontFamily: fontFallbacks.Poppins_500Medium,
-    color: '#333',
-  },
-  teamMemberContribution: {
-    fontSize: 14,
-    fontFamily: fontFallbacks.Poppins_500Medium,
-    color: '#333',
-  },
-  teamMemberBarContainer: {
-    height: 6,
-    backgroundColor: '#f0f0f0',
-    borderRadius: 3,
-    marginBottom: 4,
-  },
-  teamMemberBar: {
-    height: 6,
-    borderRadius: 3,
-  },
-  teamMemberPercentage: {
-    fontSize: 12,
-    fontFamily: fontFallbacks.Poppins_400Regular,
-    color: '#888',
-  },
-  goalActions: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 20,
-  },
-  goalActionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: theme.primary,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 12,
-    marginRight: 12,
-    shadowColor: theme.primary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  goalActionButtonText: {
-    fontSize: 14,
-    fontFamily: fontFallbacks.Poppins_500Medium,
-    color: '#FFF',
-    marginLeft: 8,
-  },
-  goalEditButton: {
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: theme.primary,
-    marginRight: 0,
-    shadowOpacity: 0,
-    elevation: 0,
-  },
-  goalEditButtonText: {
-    fontSize: 14,
-    fontFamily: fontFallbacks.Poppins_500Medium,
-    color: theme.primary,
-  },
-  
-  // Estilos para modais
-  modalContainer: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: 'white',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 24,
-    maxHeight: height * 0.8, // Use percentage of screen height
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontFamily: fontFallbacks.Poppins_600SemiBold,
-    color: '#333',
-  },
-  closeButton: {
-    padding: 8,
-    backgroundColor: 'rgba(0,0,0,0.05)',
-    borderRadius: 12,
-  },
-  inputGroup: {
-    marginBottom: 20,
-  },
-  inputLabel: {
-    fontSize: 14,
-    fontFamily: fontFallbacks.Poppins_500Medium,
-    color: '#666',
-    marginBottom: 8,
-  },
-  textInput: {
-    backgroundColor: '#f5f7fa',
-    padding: width < 360 ? 12 : 14,
-    borderRadius: 12,
-    fontSize: width < 360 ? 14 : 16,
-    fontFamily: fontFallbacks.Poppins_400Regular,
-    borderWidth: 1,
-    borderColor: '#efefef',
-  },
-  submitButton: {
-    backgroundColor: theme.primary,
-    paddingVertical: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginTop: 20,
-    shadowColor: theme.primary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  submitButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontFamily: fontFallbacks.Poppins_600SemiBold,
-  },
-  goalSummary: {
-    backgroundColor: '#f5f7fa',
-    padding: 16,
-    borderRadius: 8,
-    marginBottom: 16,
-  },
-  goalSummaryTitle: {
-    fontSize: 16,
-    fontFamily: fontFallbacks.Poppins_500Medium,
-    color: '#333',
-    marginBottom: 4,
-  },
-  goalSummaryAmount: {
-    fontSize: 14,
-    fontFamily: fontFallbacks.Poppins_400Regular,
-    color: '#666',
-  },
-  userSelectorContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  userSelectorButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    flex: 0.48,
-  },
-  userSelectorButtonActive: {
-    backgroundColor: theme.primary,
-    borderColor: theme.primary,
-  },
-  userSelectorButtonText: {
-    marginLeft: 8,
-    color: '#666',
-    fontSize: 14,
-    fontFamily: fontFallbacks.Poppins_500Medium,
-  },
-  userSelectorButtonTextActive: {
-    color: 'white',
-  },
-  goalCompletionText: {
-    fontSize: width < 360 ? 22 : 26, // Responsive font size
-    color: '#000',
-    fontFamily: fontFallbacks.Poppins_600SemiBold,
-    textAlign: 'center',
-  },
-  goalCompletionLabel: {
-    fontSize: 12,
-    color: '#888',
-    fontFamily: fontFallbacks.Poppins_400Regular,
-    textAlign: 'center',
-  },
-  chartHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  chartTitle: {
-    fontSize: 16,
-    fontFamily: fontFallbacks.Poppins_600SemiBold,
-    color: '#333',
-  },
-  chartTotalValue: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  chartTotalLabel: {
-    fontSize: 14,
-    fontFamily: fontFallbacks.Poppins_500Medium,
-    color: '#666',
-    marginRight: 8,
-  },
-  chartTotalAmount: {
-    fontSize: 14,
-    fontFamily: fontFallbacks.Poppins_500Medium,
-    color: '#333',
-  },
-  chartMainContent: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 10,
-    marginBottom: 10,
-  },
-  goalLegendContainer: {
-    flex: 1,
-    paddingLeft: 20,
-    marginTop: 5,
-  },
-  goalLegendItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-    paddingRight: 8,
-  },
-  goalLegendLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  goalLegendText: {
-    fontSize: 14,
-    color: '#333',
-    fontFamily: fontFallbacks.Poppins_500Medium,
-    marginLeft: 8,
-    flex: 1,
-    paddingRight: 5,
-  },
-  goalLegendPercent: {
-    fontSize: 14,
-    color: theme.primary,
-    fontFamily: fontFallbacks.Poppins_600SemiBold,
-    backgroundColor: `rgba(${theme === themes.feminine ? '182, 135, 254' : '0, 115, 234'}, 0.1)`,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-    minWidth: 50,
-    textAlign: 'center',
-  },
-  legendTitle: {
-    fontSize: 16,
-    fontFamily: fontFallbacks.Poppins_600SemiBold,
-    color: '#333',
-    marginBottom: 16,
-  },
-  metricsContainer: {
-    marginTop: 20,
-    marginBottom: 20,
-  },
-  metricsSeparator: {
-    height: 1,
-    backgroundColor: '#f0f0f0',
-    marginBottom: 20,
-  },
-  goalsMetricsSummary: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  goalMetricItem: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  goalDivider: {
-    width: 1,
-    height: 40,
-    backgroundColor: '#f0f0f0',
-  },
-  goalMetricValue: {
-    fontSize: 16,
-    fontFamily: fontFallbacks.Poppins_600SemiBold,
-    color: '#333',
-    marginBottom: 4,
-  },
-  goalMetricLabel: {
-    fontSize: 12,
-    fontFamily: fontFallbacks.Poppins_400Regular,
-    color: '#888',
-    textAlign: 'center',
-  },
-  
-  // Menu modal styles
-  menuModalContainer: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  menuModalContent: {
-    backgroundColor: 'white',
-    borderRadius: 20,
-    width: '100%',
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    elevation: 5,
-  },
-  menuHeader: {
-    alignItems: 'flex-end',
-    marginBottom: 20,
-  },
-  menuGrid: {
-    marginBottom: 30,
-  },
-  menuRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 25,
-  },
-  menuItem: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  menuIconContainer: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  menuItemTitle: {
-    fontSize: 14,
-    fontFamily: fontFallbacks.Poppins_600SemiBold,
-    marginBottom: 4,
-  },
-  menuItemSubtitle: {
-    fontSize: 12,
-    fontFamily: fontFallbacks.Poppins_400Regular,
-  },
-  closeFullButton: {
-    padding: 16,
-    borderRadius: 16,
-    alignItems: 'center',
-  },
-  closeFullButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontFamily: fontFallbacks.Poppins_600SemiBold,
-  },
-  
-  // Bottom navigation
-  bottomNav: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    backgroundColor: 'white',
-    paddingVertical: 10,
-    paddingHorizontal: 15,
-    borderTopLeftRadius: 25,
-    borderTopRightRadius: 25,
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    zIndex: 1,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: -4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-      },
-      android: {
-        elevation: 5,
-      },
-    }),
-  },
-  navItem: {
-    alignItems: 'center',
-    width: 60,
-  },
-  navText: {
-    fontSize: 12,
-    fontFamily: fontFallbacks.Poppins_400Regular,
-    color: '#999',
-    marginTop: 4,
-  },
-  addButtonInner: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    justifyContent: 'center',
-    alignItems: 'center',
-    transform: [{ scale: 1 }],
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 3 },
-        shadowOpacity: 0.2,
-        shadowRadius: 6,
-      },
-      android: {
-        elevation: 5,
-      },
-      web: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 3 },
-        shadowOpacity: 0.2,
-        shadowRadius: 8,
-      }
-    }),
-  },
-  userButton: {
-    flex: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    alignItems: 'center',
-    marginHorizontal: 4,
-  },
-  selectedUserButton: {
-    backgroundColor: theme.primary,
-    borderColor: theme.primary,
-  },
-}); 
+} 

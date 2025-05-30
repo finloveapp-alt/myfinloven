@@ -1694,7 +1694,7 @@ export default function Expenses() {
                 style={styles.closeButton}
                 onPress={() => setMenuModalVisible(false)}
               >
-                <Text style={[styles.closeButtonText, { color: theme.primary }]}>Fechar</Text>
+                <X size={24} color={theme.primary} />
               </TouchableOpacity>
             </View>
 

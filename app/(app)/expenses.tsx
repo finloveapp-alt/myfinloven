@@ -281,11 +281,20 @@ export default function Expenses() {
     return months[date.getMonth()];
   };
 
-  // Filtrar e organizar as despesas
-  const sortedExpenses = [...expenses].sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
-
-  // Cor para despesas atrasadas (vermelho)
-  const OVERDUE_COLOR = '#FF3B30';
+  // Definição de cores e constantes
+  const OVERDUE_COLOR = theme.expense;
+  const POSITIVE_COLOR = theme.income;
+  
+  // Ordenar as despesas por data de vencimento
+  const sortedExpenses = [...expenses].sort((a, b) => {
+    return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+  });
+  
+  // Filtrar as despesas pelo mês selecionado
+  const filteredExpenses = sortedExpenses.filter(expense => {
+    const expenseDate = new Date(expense.dueDate);
+    return expenseDate.getMonth() === currentMonth && expenseDate.getFullYear() === currentYear;
+  });
 
   // Abrir modal de adicionar despesa
   const openAddExpenseModal = () => {
@@ -786,7 +795,7 @@ export default function Expenses() {
             contentContainerStyle={styles.listContentContainer}
             showsVerticalScrollIndicator={false}
           >
-            {sortedExpenses.length === 0 ? (
+            {filteredExpenses.length === 0 ? (
               <View style={styles.emptyContainer}>
                 <Text style={styles.emptyText}>Nenhuma despesa encontrada</Text>
               </View>
@@ -799,7 +808,7 @@ export default function Expenses() {
                     <Text style={styles.statusText}>Atrasada</Text>
                   </View>
                   <View style={styles.statusItem}>
-                    <View style={[styles.statusDot, { backgroundColor: theme.positive }]} />
+                    <View style={[styles.statusDot, { backgroundColor: POSITIVE_COLOR }]} />
                     <Text style={styles.statusText}>Paga</Text>
                   </View>
                   <View style={styles.statusItem}>
@@ -808,10 +817,10 @@ export default function Expenses() {
                   </View>
                 </View>
 
-                {sortedExpenses.map((expense) => {
+                {filteredExpenses.map((expense) => {
                   const isExpenseOverdue = !expense.isPaid && isOverdue(new Date(expense.dueDate));
                   const statusColor = expense.isPaid 
-                    ? theme.positive 
+                    ? POSITIVE_COLOR 
                     : isExpenseOverdue 
                       ? OVERDUE_COLOR 
                       : theme.primary;
@@ -888,7 +897,7 @@ export default function Expenses() {
                                 styles.statusText,
                                 {
                                   color: expense.isPaid 
-                                    ? theme.positive 
+                                    ? POSITIVE_COLOR 
                                     : isExpenseOverdue 
                                       ? OVERDUE_COLOR 
                                       : theme.primary
@@ -1779,29 +1788,29 @@ export default function Expenses() {
       </Modal>
       
       {/* Menu Inferior */}
-      <View style={[styles.bottomNav, { backgroundColor: 'white' }]}>
+      <View style={[styles.bottomNav, { backgroundColor: theme.card }]}>
         <TouchableOpacity 
           style={styles.navItem}
           onPress={() => router.push('/dashboard')}
         >
-          <Svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#999" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <Line x1="12" y1="20" x2="12" y2="10" stroke="#999" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            <Line x1="18" y1="20" x2="18" y2="4" stroke="#999" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            <Line x1="6" y1="20" x2="6" y2="16" stroke="#999" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          <Svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={theme.text} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <Line x1="12" y1="20" x2="12" y2="10" stroke={theme.text} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            <Line x1="18" y1="20" x2="18" y2="4" stroke={theme.text} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            <Line x1="6" y1="20" x2="6" y2="16" stroke={theme.text} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
           </Svg>
-          <Text style={styles.navText}>Dashboard</Text>
+          <Text style={[styles.navText, { color: theme.text }]}>Dashboard</Text>
         </TouchableOpacity>
         
         <TouchableOpacity 
           style={styles.navItem}
           onPress={() => setMenuModalVisible(true)}
         >
-          <Svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#999" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <Line x1="4" y1="12" x2="20" y2="12" stroke="#999" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            <Line x1="4" y1="6" x2="20" y2="6" stroke="#999" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            <Line x1="4" y1="18" x2="20" y2="18" stroke="#999" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          <Svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={theme.text} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <Line x1="4" y1="12" x2="20" y2="12" stroke={theme.text} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            <Line x1="4" y1="6" x2="20" y2="6" stroke={theme.text} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            <Line x1="4" y1="18" x2="20" y2="18" stroke={theme.text} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
           </Svg>
-          <Text style={styles.navText}>Menu</Text>
+          <Text style={[styles.navText, { color: theme.text }]}>Menu</Text>
         </TouchableOpacity>
         
         <TouchableOpacity 
@@ -1820,22 +1829,22 @@ export default function Expenses() {
         <TouchableOpacity 
           style={styles.navItem}
         >
-          <Svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#999" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <Path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1-2-1Z" stroke="#999" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            <Path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8" stroke="#999" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            <Path d="M12 17V7" stroke="#999" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          <Svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={theme.text} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <Path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1-2-1Z" stroke={theme.text} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            <Path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8" stroke={theme.text} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            <Path d="M12 17V7" stroke={theme.text} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
           </Svg>
-          <Text style={styles.navText}>Notificações</Text>
+          <Text style={[styles.navText, { color: theme.text }]}>Notificações</Text>
         </TouchableOpacity>
         
         <TouchableOpacity 
           style={styles.navItem}
         >
-          <Svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#999" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <Rect width="20" height="14" x="2" y="5" rx="2" stroke="#999" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            <Line x1="2" y1="10" x2="22" y2="10" stroke="#999" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          <Svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={theme.text} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <Rect width="20" height="14" x="2" y="5" rx="2" stroke={theme.text} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            <Line x1="2" y1="10" x2="22" y2="10" stroke={theme.text} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
           </Svg>
-          <Text style={styles.navText}>Cartões</Text>
+          <Text style={[styles.navText, { color: theme.text }]}>Cartões</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -2578,7 +2587,6 @@ const styles = StyleSheet.create({
   navText: {
     fontSize: 12,
     fontFamily: fontFallbacks.Poppins_400Regular,
-    color: '#999',
     marginTop: 4,
   },
   addButtonInner: {
@@ -2598,19 +2606,12 @@ const styles = StyleSheet.create({
       android: {
         elevation: 5,
       },
-      web: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 3 },
-        shadowOpacity: 0.2,
-        shadowRadius: 8,
-      }
     }),
   },
   bottomNav: {
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
-    backgroundColor: 'white',
     paddingVertical: 10,
     paddingHorizontal: 15,
     borderTopLeftRadius: 25,
@@ -2619,7 +2620,6 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    zIndex: 1,
     ...Platform.select({
       ios: {
         shadowColor: '#000',

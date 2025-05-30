@@ -1235,7 +1235,7 @@ export default function Planning() {
         </Modal>
 
         {/* Bottom Navigation */}
-        <View style={[styles.bottomNav, { backgroundColor: 'white' }]}>
+        <View style={styles.bottomNav}>
           <TouchableOpacity 
             style={styles.navItem}
             onPress={() => router.push('/dashboard')}
@@ -2303,42 +2303,47 @@ const styles = StyleSheet.create({
   // Bottom navigation
   bottomNav: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'space-around',
     alignItems: 'center',
+    backgroundColor: 'white',
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    borderTopLeftRadius: 25,
+    borderTopRightRadius: 25,
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: 'white',
-    paddingVertical: 10,
-    paddingHorizontal: width < 360 ? 10 : 20, // Responsive padding
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 5,
-    height: 80,
+    zIndex: 1,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: -4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 5,
+      },
+    }),
   },
   navItem: {
     alignItems: 'center',
-    width: width < 360 ? 50 : 60, // Responsive width
+    width: 60,
   },
   navText: {
-    fontSize: 11, // Smaller font size for better fit
+    fontSize: 12,
     fontFamily: fontFallbacks.Poppins_400Regular,
     color: '#999',
     marginTop: 4,
-    textAlign: 'center', // Ensure text is centered
   },
   addButtonInner: {
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: '#b687fe',
     justifyContent: 'center',
     alignItems: 'center',
+    transform: [{ scale: 1 }],
     ...Platform.select({
       ios: {
         shadowColor: '#000',

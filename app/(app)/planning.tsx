@@ -2,10 +2,10 @@ import React, { useState, useRef } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Dimensions, Platform, TextInput, Modal, Alert, SafeAreaView, KeyboardAvoidingView } from 'react-native';
 import { ArrowLeft, MoreVertical, Plus, BarChart2, Target, Repeat, DollarSign, User, Clock, X, Edit2, AlertCircle, BarChart, Menu, Receipt, CreditCard, PlusCircle, Home, Bell, Wallet, Info, ExternalLink } from 'lucide-react-native';
 import { StatusBar } from 'expo-status-bar';
-import BottomNavigation from '@/components/BottomNavigation';
 import { router, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { fontFallbacks } from '@/utils/styles';
+import Svg, { Line, Circle, Path, Rect } from 'react-native-svg';
 
 const { width, height } = Dimensions.get('window');
 const theme = {
@@ -1235,12 +1235,16 @@ export default function Planning() {
         </Modal>
 
         {/* Bottom Navigation */}
-        <View style={styles.bottomNav}>
+        <View style={[styles.bottomNav, { backgroundColor: 'white' }]}>
           <TouchableOpacity 
             style={styles.navItem}
-            onPress={() => router.replace('/(app)/dashboard')}
+            onPress={() => router.push('/dashboard')}
           >
-            <BarChart size={22} color="#999" />
+            <Svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#999" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <Line x1="12" y1="20" x2="12" y2="10" stroke="#999" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              <Line x1="18" y1="20" x2="18" y2="4" stroke="#999" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              <Line x1="6" y1="20" x2="6" y2="16" stroke="#999" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </Svg>
             <Text style={styles.navText}>Dashboard</Text>
           </TouchableOpacity>
           
@@ -1248,12 +1252,16 @@ export default function Planning() {
             style={styles.navItem}
             onPress={() => setMenuModalVisible(true)}
           >
-            <Menu size={22} color="#999" />
+            <Svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#999" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <Line x1="4" y1="12" x2="20" y2="12" stroke="#999" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              <Line x1="4" y1="6" x2="20" y2="6" stroke="#999" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              <Line x1="4" y1="18" x2="20" y2="18" stroke="#999" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </Svg>
             <Text style={styles.navText}>Menu</Text>
           </TouchableOpacity>
           
           <TouchableOpacity 
-            style={styles.floatingAddButton}
+            style={styles.addButton}
             onPress={() => {
               if (activeTab === 'budget') {
                 openNewBudgetModal();
@@ -1262,21 +1270,33 @@ export default function Planning() {
               }
             }}
           >
-            <View style={styles.addButtonInner}>
-              <PlusCircle size={32} color="#fff" />
+            <View style={[styles.addButtonInner, { backgroundColor: theme.primary }]}>
+              <Svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <Circle cx="12" cy="12" r="10" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                <Path d="M8 12h8" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                <Path d="M12 8v8" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </Svg>
             </View>
           </TouchableOpacity>
           
-          <TouchableOpacity style={styles.navItem}>
-            <Receipt size={22} color="#999" />
+          <TouchableOpacity 
+            style={styles.navItem}
+          >
+            <Svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#999" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <Path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1-2-1Z" stroke="#999" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              <Path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8" stroke="#999" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              <Path d="M12 17V7" stroke="#999" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </Svg>
             <Text style={styles.navText}>Notificações</Text>
           </TouchableOpacity>
           
           <TouchableOpacity 
             style={styles.navItem}
-            onPress={() => router.replace('/(app)/cards')}
           >
-            <CreditCard size={22} color="#999" />
+            <Svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#999" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <Rect width="20" height="14" x="2" y="5" rx="2" stroke="#999" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              <Line x1="2" y1="10" x2="22" y2="10" stroke="#999" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </Svg>
             <Text style={styles.navText}>Cartões</Text>
           </TouchableOpacity>
         </View>
@@ -1504,17 +1524,13 @@ const styles = StyleSheet.create({
     color: '#6930c3',
   },
   addButton: {
-    flexDirection: 'row',
+    marginTop: -30,
+    backgroundColor: 'white',
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#6930c3',
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    borderRadius: 12,
-    shadowColor: '#6930c3',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 3,
   },
   addButtonText: {
     color: '#FFF',
@@ -2316,15 +2332,6 @@ const styles = StyleSheet.create({
     marginTop: 4,
     textAlign: 'center', // Ensure text is centered
   },
-  floatingAddButton: {
-    marginTop: -30,
-    backgroundColor: 'white',
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   addButtonInner: {
     width: 50,
     height: 50,
@@ -2332,5 +2339,22 @@ const styles = StyleSheet.create({
     backgroundColor: '#b687fe',
     justifyContent: 'center',
     alignItems: 'center',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.2,
+        shadowRadius: 6,
+      },
+      android: {
+        elevation: 5,
+      },
+      web: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.2,
+        shadowRadius: 8,
+      }
+    }),
   },
 }); 

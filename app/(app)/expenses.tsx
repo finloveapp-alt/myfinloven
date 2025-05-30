@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, ActivityIndicator, Modal, TextInput, Platform, KeyboardAvoidingView, Switch } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, ActivityIndicator, Modal, TextInput, Platform, KeyboardAvoidingView, Switch, AppState } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { ArrowLeft, Search, List, MoreVertical, AlertCircle, Plus, Calendar, Check, CheckCircle, ChevronDown, CreditCard, Filter, Clock, X, Edit, DollarSign, CreditCard as CardIcon, Percent, ChevronLeft, ChevronRight, Home, PlusCircle, Bell, BarChart, Wallet, ExternalLink, ArrowUpCircle } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
@@ -22,6 +22,15 @@ interface Expense {
   createdAt: Date;
 }
 
+// Função para obter o tema inicial
+const getInitialTheme = () => {
+  // Verificar primeiro se há um tema global definido
+  if (global.dashboardTheme === 'masculine') {
+    return themes.masculine;
+  }
+  return themes.feminine; // Tema padrão
+};
+
 export default function Expenses() {
   const router = useRouter();
   const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -30,7 +39,7 @@ export default function Expenses() {
   const [confirmModalVisible, setConfirmModalVisible] = useState(false);
   const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
   const [fees, setFees] = useState('0,00');
-  const [theme, setTheme] = useState(themes.feminine);
+  const [theme, setTheme] = useState(getInitialTheme());
   
   // Estado para o modal de adicionar despesa
   const [addExpenseModalVisible, setAddExpenseModalVisible] = useState(false);
@@ -108,6 +117,57 @@ export default function Expenses() {
   // Estado para o modal de menu
   const [menuModalVisible, setMenuModalVisible] = useState(false);
   
+  // Salvar o tema no AsyncStorage quando ele for alterado
+  const saveThemeToStorage = async (themeValue: string) => {
+    try {
+      await AsyncStorage.setItem('@MyFinlove:theme', themeValue);
+      console.log('Tema salvo no AsyncStorage:', themeValue);
+    } catch (error) {
+      console.error('Erro ao salvar tema no AsyncStorage:', error);
+    }
+  };
+
+  // Atualizar o tema e garantir que seja persistido
+  const updateTheme = (newTheme: 'feminine' | 'masculine') => {
+    if (newTheme === 'masculine') {
+      setTheme(themes.masculine);
+      global.dashboardTheme = 'masculine';
+      saveThemeToStorage('masculine');
+    } else {
+      setTheme(themes.feminine);
+      global.dashboardTheme = 'feminine';
+      saveThemeToStorage('feminine');
+    }
+  };
+
+  // Verificar mudanças na variável global do tema
+  useEffect(() => {
+    // Criar uma função para verificar o tema atual
+    const checkGlobalTheme = () => {
+      const currentGlobalTheme = global.dashboardTheme;
+      if (currentGlobalTheme === 'masculine' && theme !== themes.masculine) {
+        setTheme(themes.masculine);
+      } else if (currentGlobalTheme !== 'masculine' && theme !== themes.feminine) {
+        setTheme(themes.feminine);
+      }
+    };
+
+    // Verificar o tema quando o componente monta
+    checkGlobalTheme();
+
+    // Configurar o listener do AppState para verificar quando o app volta ao primeiro plano
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      if (nextAppState === 'active') {
+        checkGlobalTheme();
+      }
+    });
+
+    // Limpar o listener quando o componente for desmontado
+    return () => {
+      subscription.remove();
+    };
+  }, [theme]);
+  
   // Carregar tema e despesas
   useEffect(() => {
     const loadData = async () => {
@@ -116,14 +176,14 @@ export default function Expenses() {
         
         // Carregar tema - usando a variável global definida no dashboard, similar ao dashboard
         if (global.dashboardTheme === 'masculine') {
-          setTheme(themes.masculine);
+          updateTheme('masculine');
         } else {
           // Verificar o AsyncStorage como fallback
           const storedTheme = await AsyncStorage.getItem('@MyFinlove:theme');
           if (storedTheme === 'masculine') {
-            setTheme(themes.masculine);
+            updateTheme('masculine');
           } else {
-            setTheme(themes.feminine);
+            updateTheme('feminine');
           }
         }
         

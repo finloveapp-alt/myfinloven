@@ -9,7 +9,7 @@ import {
   Platform,
   ScrollView
 } from 'react-native';
-import { router } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ArrowLeft, Calendar, Search } from 'lucide-react-native';
 import { StatusBar } from 'expo-status-bar';
@@ -20,6 +20,7 @@ export default function HistoricoCreditos() {
   const [selectedPerson, setSelectedPerson] = useState('Todos');
   const [filterDate, setFilterDate] = useState('2025 (Ano todo)');
   const [selectedType, setSelectedType] = useState('Despesas');
+  const router = useRouter();
   
   // Função para voltar à página anterior
   const goBack = () => {

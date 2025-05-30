@@ -20,7 +20,7 @@ import {
   Clock,
   CheckCircle
 } from 'lucide-react-native';
-import { router } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -41,6 +41,7 @@ interface Income {
 }
 
 export default function HistoricoReceitasScreen() {
+  const router = useRouter();
   const [theme, setTheme] = useState(themes.masculine);
   const [loading, setLoading] = useState(true);
   const [incomes, setIncomes] = useState<Income[]>([]);

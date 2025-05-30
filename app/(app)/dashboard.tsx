@@ -42,6 +42,7 @@ interface UserProfile {
 }
 
 export default function Dashboard() {
+  const router = useRouter();
   const [theme, setTheme] = useState(getInitialTheme());
   const [currentTransactionIndex, setCurrentTransactionIndex] = useState(0);
   const [menuModalVisible, setMenuModalVisible] = useState(false);

@@ -24,7 +24,7 @@ import {
   Search,
   Filter
 } from 'lucide-react-native';
-import { router } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -45,6 +45,7 @@ interface Expense {
 }
 
 export default function HistoricoDespesasScreen() {
+  const router = useRouter();
   const [theme, setTheme] = useState(themes.masculine);
   const [loading, setLoading] = useState(true);
   const [expenses, setExpenses] = useState<Expense[]>([]);

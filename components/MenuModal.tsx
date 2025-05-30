@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, Modal, TouchableOpacity, Platform } from 'react-native';
-import { Home, PlusCircle, Bell, BarChart, CreditCard, Wallet, ArrowUpCircle, ExternalLink } from 'lucide-react-native';
+import { Home, PlusCircle, Bell, BarChart, CreditCard, Wallet, ArrowUpCircle, ExternalLink, X } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { fontFallbacks } from '@/utils/styles';
 import themes from '@/constants/themes';
@@ -133,7 +133,7 @@ export default function MenuModal({ visible, onClose, theme }: MenuModalProps) {
               style={styles.closeButton}
               onPress={onClose}
             >
-              <Text style={[styles.closeButtonText, { color: theme.primary }]}>Fechar</Text>
+              <X size={24} color={theme.primary} />
             </TouchableOpacity>
           </View>
 

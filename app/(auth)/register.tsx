@@ -137,8 +137,24 @@ export default function Register() {
       return;
     }
     
-    if (password.length < 6) {
-      Alert.alert('Erro', 'A senha deve ter pelo menos 6 caracteres');
+    // Validação robusta da senha
+    if (password.length < 8) {
+      Alert.alert('Erro', 'A senha deve ter pelo menos 8 caracteres');
+      return;
+    }
+    
+    if (!/[A-Z]/.test(password)) {
+      Alert.alert('Erro', 'A senha deve conter pelo menos 1 letra maiúscula (A-Z)');
+      return;
+    }
+    
+    if (!/[a-z]/.test(password)) {
+      Alert.alert('Erro', 'A senha deve conter pelo menos 1 letra minúscula (a-z)');
+      return;
+    }
+    
+    if (!/[0-9]/.test(password)) {
+      Alert.alert('Erro', 'A senha deve conter pelo menos 1 número (0-9)');
       return;
     }
     

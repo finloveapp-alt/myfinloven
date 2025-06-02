@@ -770,20 +770,15 @@ export default function Dashboard() {
           throw new Error('Falha ao criar avatar.');
         }
         
-        Alert.alert(
-          'Avatar Criado',
-          `O avatar "${inviteName}" foi criado com sucesso! Agora você pode atribuir gastos e receitas a ele.`,
-          [{ text: 'OK', onPress: () => {
-            setInviteModalVisible(false);
-            setIsInviteAvatar(false);
-            setInviteName('');
-            setInviteEmail('');
-            setAvatarPhoto(null); // Limpar foto do avatar
-            // Atualizar os dados do usuário e parceiro
-            fetchUserAndPartner();
-          }}]
-        );
+        // Fechar modal e limpar estados
+        setInviteModalVisible(false);
+        setIsInviteAvatar(false);
+        setInviteName('');
+        setInviteEmail('');
+        setAvatarPhoto(null);
         
+        // Atualizar os dados do usuário e parceiro imediatamente
+        fetchUserAndPartner();
       } else {
         // Fluxo normal para convites de usuários reais
         try {

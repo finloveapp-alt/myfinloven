@@ -1597,18 +1597,18 @@ export default function Registers() {
                 style={[
                   styles.transactionTypeButton,
                   transactionType === 'transfer' && [styles.activeTypeButton, { 
-                    backgroundColor: `${theme.shared}15`, 
-                    borderColor: theme.shared 
+                    backgroundColor: 'rgba(255, 204, 0, 0.15)', 
+                    borderColor: 'rgb(255, 204, 0)' 
                   }]
                 ]}
                 onPress={() => setTransactionType('transfer')}
               >
-                <View style={[styles.transactionIconContainer, { backgroundColor: transactionType === 'transfer' ? theme.shared : '#f5f5f5' }]}>
+                <View style={[styles.transactionIconContainer, { backgroundColor: transactionType === 'transfer' ? 'rgb(255, 204, 0)' : '#f5f5f5' }]}>
                   <RefreshCw size={20} color={transactionType === 'transfer' ? 'white' : '#666'} />
                 </View>
                 <Text style={[
                   styles.transactionTypeText,
-                  transactionType === 'transfer' && [styles.activeTypeText, { color: theme.shared }]
+                  transactionType === 'transfer' && [styles.activeTypeText, { color: 'rgb(255, 204, 0)' }]
                 ]}>Transferência</Text>
               </TouchableOpacity>
             </View>

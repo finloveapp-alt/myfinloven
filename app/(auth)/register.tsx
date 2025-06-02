@@ -3,7 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView, Plat
 import { router, useLocalSearchParams } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { fontFallbacks } from '@/utils/styles';
-import { Eye, EyeOff } from 'lucide-react-native';
+import { Eye, EyeOff, Check, X } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { registerFromCoupleInvitation } from '@/app/supabase/couples-invite-helper';
 
@@ -31,6 +31,44 @@ export default function Register() {
   const [successModalVisible, setSuccessModalVisible] = useState(false);
   const [coupleInviteSentModalVisible, setCoupleInviteSentModalVisible] = useState(false);
   const [emailVerificationNeededModalVisible, setEmailVerificationNeededModalVisible] = useState(false);
+
+  // Funções para verificar regras de senha
+  const checkPasswordLength = (password: string) => password.length >= 8;
+  const checkUpperCase = (password: string) => /[A-Z]/.test(password);
+  const checkLowerCase = (password: string) => /[a-z]/.test(password);
+  const checkNumber = (password: string) => /[0-9]/.test(password);
+
+  // Componente para mostrar regras de senha
+  const PasswordRules = ({ password }: { password: string }) => {
+    if (!password) return null;
+
+    const rules = [
+      { text: 'Mínimo de 8 caracteres', check: checkPasswordLength(password) },
+      { text: 'Pelo menos 1 letra maiúscula (A-Z)', check: checkUpperCase(password) },
+      { text: 'Pelo menos 1 letra minúscula (a-z)', check: checkLowerCase(password) },
+      { text: 'Pelo menos 1 número (0-9)', check: checkNumber(password) },
+    ];
+
+    return (
+      <View style={styles.passwordRulesContainer}>
+        {rules.map((rule, index) => (
+          <View key={index} style={styles.passwordRule}>
+            {rule.check ? (
+              <Check size={16} color="#22c55e" />
+            ) : (
+              <X size={16} color="#ef4444" />
+            )}
+            <Text style={[
+              styles.passwordRuleText,
+              { color: rule.check ? '#22c55e' : '#ef4444' }
+            ]}>
+              {rule.text}
+            </Text>
+          </View>
+        ))}
+      </View>
+    );
+  };
 
   useEffect(() => {
     return () => setMounted(false);
@@ -138,22 +176,22 @@ export default function Register() {
     }
     
     // Validação robusta da senha
-    if (password.length < 8) {
+    if (!checkPasswordLength(password)) {
       Alert.alert('Erro', 'A senha deve ter pelo menos 8 caracteres');
       return;
     }
     
-    if (!/[A-Z]/.test(password)) {
+    if (!checkUpperCase(password)) {
       Alert.alert('Erro', 'A senha deve conter pelo menos 1 letra maiúscula (A-Z)');
       return;
     }
     
-    if (!/[a-z]/.test(password)) {
+    if (!checkLowerCase(password)) {
       Alert.alert('Erro', 'A senha deve conter pelo menos 1 letra minúscula (a-z)');
       return;
     }
     
-    if (!/[0-9]/.test(password)) {
+    if (!checkNumber(password)) {
       Alert.alert('Erro', 'A senha deve conter pelo menos 1 número (0-9)');
       return;
     }
@@ -620,6 +658,8 @@ export default function Register() {
               </TouchableOpacity>
             </View>
 
+            <PasswordRules password={password} />
+
             <TouchableOpacity
               onPress={signUpWithEmail}
               style={styles.registerButton}
@@ -939,5 +979,23 @@ const styles = StyleSheet.create({
   },
   inputDisabled: {
     backgroundColor: '#f0f0f0',
+  },
+  passwordRulesContainer: {
+    marginBottom: 16,
+    backgroundColor: '#f8f9fa',
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+  },
+  passwordRule: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  passwordRuleText: {
+    marginLeft: 8,
+    fontSize: 14,
+    fontFamily: fontFallbacks.Poppins_400Regular,
   },
 });

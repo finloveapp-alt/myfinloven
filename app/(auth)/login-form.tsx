@@ -376,48 +376,27 @@ export default function LoginForm() {
           }
           
           // Verificar se existem associações pendentes
-          const { data: pendingData, error: pendingError } = await supabase
-            .from('pending_couple_associations')
+          const { data: coupleData, error: coupleError } = await supabase
+            .from('couples')
             .select('*')
-            .eq('user_id', data.user.id)
-            .eq('processed', false)
+            .or(`user1_id.eq.${data.user.id},user2_id.eq.${data.user.id}`)
             .order('created_at', { ascending: false })
             .limit(1);
             
-          if (pendingError) {
-            console.error("Erro ao verificar associações pendentes:", pendingError);
-          } else if (pendingData && pendingData.length > 0) {
-            console.log("Associação pendente encontrada:", pendingData[0]);
+          if (coupleError) {
+            console.error('Erro ao verificar associação de casal:', coupleError);
+          } else if (coupleData && coupleData.length > 0) {
+            console.log('Associação de casal encontrada:', coupleData[0]);
             
-            // Processar associação pendente
-            const { data: processResult, error: processError } = await supabase
-              .rpc('process_pending_couple_association', {
-                p_user_id: data.user.id
-              });
-              
-            if (processError) {
-              console.error("Erro ao processar associação:", processError);
-            } else if (processResult.success) {
-              console.log("Associação processada com sucesso:", processResult);
-              
-              // Mostrar mensagem de sucesso
-              Alert.alert(
-                'Parabéns!',
-                'Sua conta de casal foi ativada. Agora vocês podem compartilhar informações financeiras!',
-                [{ 
-                  text: 'OK', 
-                  onPress: () => {
-                    // Navegar para o dashboard após fechar o alerta
-                    setTimeout(() => {
-                      router.replace('/(app)/dashboard');
-                    }, 100);
-                  }
-                }]
-              );
-              return;
+            // Verificar se é um convite pendente
+            if (coupleData[0].status === 'pending') {
+              console.log('Convite pendente encontrado, mas NÃO será ativado automaticamente');
+              console.log('Convites devem ser ativados apenas via accept_couple_invitation');
+            } else if (coupleData[0].status === 'active') {
+              console.log('Convite já está ativo');
             }
           } else {
-            console.log("Nenhuma associação pendente encontrada para este usuário");
+            console.log('Não há associação de casal para este usuário');
           }
         } catch (pendingError) {
           console.error("Exceção ao processar pendências:", pendingError);
@@ -525,35 +504,8 @@ export default function LoginForm() {
             
             // Verificar se é um convite pendente
             if (coupleData[0].status === 'pending') {
-              console.log('Atualizando status do casal para active');
-              
-              // Atualizar status para active
-              const { error: updateError } = await supabase
-                .from('couples')
-                .update({ status: 'active' })
-                .eq('id', coupleData[0].id);
-                
-              if (updateError) {
-                console.error('Erro ao atualizar status do casal:', updateError);
-              } else {
-                console.log('Status do casal atualizado com sucesso');
-                
-                // Mostrar mensagem de sucesso
-                Alert.alert(
-                  'Parabéns!',
-                  'Sua conta de casal está ativa. Agora vocês podem compartilhar informações financeiras!',
-                  [{ 
-                    text: 'OK', 
-                    onPress: () => {
-                      // Navegar para o dashboard após fechar o alerta
-                      setTimeout(() => {
-                        router.replace('/(app)/dashboard');
-                      }, 100);
-                    }
-                  }]
-                );
-                return;
-              }
+              console.log('Convite pendente encontrado, mas NÃO será ativado automaticamente');
+              console.log('Convites devem ser ativados apenas via accept_couple_invitation');
             }
           } else {
             console.log('Não há associação de casal para este usuário');

@@ -284,7 +284,7 @@ export default function Dashboard() {
       // Buscar todos os relacionamentos de casal ativos
       const { data: couplesData, error: couplesError } = await supabase
         .from('couples')
-        .select('id, user1_id, user2_id, is_avatar')
+        .select('id, user1_id, user2_id, is_avatar, avatar_name, avatar_photo_url')
         .or(`user1_id.eq.${userId},user2_id.eq.${userId}`)
         .eq('status', 'active');
         
@@ -302,40 +302,55 @@ export default function Dashboard() {
         
         // Para cada casal, buscar o perfil do parceiro
         for (const coupleData of couplesData) {
-          // Determinar o ID do parceiro
-          const partnerId = coupleData.user1_id === userId ? coupleData.user2_id : coupleData.user1_id;
-          
-          if (partnerId) {
-            // Buscar o perfil do parceiro
-            const { data: partnerProfile, error: partnerError } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('id', partnerId)
-              .single();
-              
-            if (partnerError) {
-              console.error(`Erro ao buscar perfil do parceiro (${partnerId}):`, partnerError);
-              continue;
-            }
+          if (coupleData.is_avatar) {
+            // Para avatars, usar os dados diretamente da tabela couples
+            const avatarProfileData: UserProfile = {
+              id: coupleData.id, // Usar o ID do casal como ID do avatar
+              name: coupleData.avatar_name || 'Avatar',
+              email: '',
+              gender: '',
+              profile_picture_url: coupleData.avatar_photo_url || null,
+              avatar_url: coupleData.avatar_photo_url || 'https://randomuser.me/api/portraits/lego/1.jpg', // Imagem padrão para avatar
+              is_avatar: true
+            };
             
-            if (partnerProfile) {
-              const partnerProfileData: UserProfile = {
-                id: partnerProfile.id,
-                name: partnerProfile.name || 'Parceiro',
-                email: partnerProfile.email || '',
-                gender: partnerProfile.gender || '',
-                profile_picture_url: partnerProfile.profile_picture_url || null,
-                avatar_url: partnerProfile.profile_picture_url || (partnerProfile.gender?.toLowerCase() === 'homem' ? 
-                  'https://randomuser.me/api/portraits/men/42.jpg' : 
-                  'https://randomuser.me/api/portraits/women/33.jpg'),
-                is_avatar: coupleData.is_avatar || false
-              };
+            partnerProfiles.push(avatarProfileData);
+          } else {
+            // Para usuários reais, buscar o perfil normalmente
+            const partnerId = coupleData.user1_id === userId ? coupleData.user2_id : coupleData.user1_id;
+            
+            if (partnerId) {
+              // Buscar o perfil do parceiro
+              const { data: partnerProfile, error: partnerError } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', partnerId)
+                .single();
+                
+              if (partnerError) {
+                console.error(`Erro ao buscar perfil do parceiro (${partnerId}):`, partnerError);
+                continue;
+              }
               
-              partnerProfiles.push(partnerProfileData);
-              
-              // Se não havia parceiro principal definido ainda, define o primeiro como principal
-              if (!partnerUser && !coupleData.is_avatar) {
-                setPartnerUser(partnerProfileData);
+              if (partnerProfile) {
+                const partnerProfileData: UserProfile = {
+                  id: partnerProfile.id,
+                  name: partnerProfile.name || 'Parceiro',
+                  email: partnerProfile.email || '',
+                  gender: partnerProfile.gender || '',
+                  profile_picture_url: partnerProfile.profile_picture_url || null,
+                  avatar_url: partnerProfile.profile_picture_url || (partnerProfile.gender?.toLowerCase() === 'homem' ? 
+                    'https://randomuser.me/api/portraits/men/42.jpg' : 
+                    'https://randomuser.me/api/portraits/women/33.jpg'),
+                  is_avatar: false
+                };
+                
+                partnerProfiles.push(partnerProfileData);
+                
+                // Se não havia parceiro principal definido ainda, define o primeiro como principal
+                if (!partnerUser) {
+                  setPartnerUser(partnerProfileData);
+                }
               }
             }
           }
@@ -745,7 +760,8 @@ export default function Dashboard() {
             invitation_email: null, // Avatar não tem email
             status: 'active', // Avatar é ativado imediatamente
             is_avatar: true,
-            avatar_name: inviteName.trim() // Armazenar o nome do avatar
+            avatar_name: inviteName.trim(), // Armazenar o nome do avatar
+            avatar_photo_url: avatarPhoto // Armazenar a URL da foto do avatar
           })
           .select('id')
           .single();

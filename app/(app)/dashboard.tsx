@@ -62,6 +62,8 @@ export default function Dashboard() {
   const [inviting, setInviting] = useState(false);
   const [isUserInviter, setIsUserInviter] = useState(false);
   const [isInviteAvatar, setIsInviteAvatar] = useState(false); // Novo estado para marcar convite como avatar
+  const [inviteSuccessModalVisible, setInviteSuccessModalVisible] = useState(false); // Modal de sucesso do convite
+  const [invitedEmail, setInvitedEmail] = useState(''); // Email do usuário convidado para exibir no modal
   
   // Salvar o tema no AsyncStorage quando ele for alterado
   const saveThemeToStorage = async (themeValue: string) => {
@@ -818,16 +820,15 @@ export default function Dashboard() {
             throw new Error(`Falha ao enviar convite: ${errorData.error || 'Erro desconhecido'}`);
           }
           
-          Alert.alert(
-            'Convite Enviado',
-            `Um convite foi enviado para ${inviteEmail}. Seu convidado receberá instruções para aceitar o convite.`,
-            [{ text: 'OK', onPress: () => {
-              setInviteModalVisible(false);
-              setIsInviteAvatar(false);
-              setInviteName('');
-              setInviteEmail('');
-            }}]
-          );
+          // Armazenar o email convidado e mostrar modal de sucesso
+          setInvitedEmail(inviteEmail.trim().toLowerCase());
+          setInviteModalVisible(false);
+          setInviteSuccessModalVisible(true);
+          
+          // Limpar campos
+          setInviteEmail('');
+          setInviteName('');
+          setIsInviteAvatar(false);
         } catch (error) {
           console.error('Erro ao enviar convite:', error);
           Alert.alert('Erro', error.message || 'Falha ao enviar o convite');
@@ -1872,6 +1873,46 @@ export default function Dashboard() {
                 </TouchableOpacity>
               </>
             )}
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal de Sucesso do Convite */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={inviteSuccessModalVisible}
+        onRequestClose={() => setInviteSuccessModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Convite Enviado!</Text>
+              <TouchableOpacity 
+                style={styles.closeButton}
+                onPress={() => setInviteSuccessModalVisible(false)}
+              >
+                <X size={24} color="#333" />
+              </TouchableOpacity>
+            </View>
+            
+            <View style={styles.successIconContainer}>
+              <View style={[styles.successIcon, { backgroundColor: theme.primary }]}>
+                <Check size={32} color="#fff" />
+              </View>
+            </View>
+            
+            <Text style={styles.successTitle}>Convite enviado com sucesso!</Text>
+            <Text style={styles.successMessage}>
+              Um convite foi enviado para {invitedEmail}. Seu convidado receberá instruções para aceitar o convite e começar a compartilhar finanças com você.
+            </Text>
+            
+            <TouchableOpacity
+              style={[styles.successButton, { backgroundColor: theme.primary }]}
+              onPress={() => setInviteSuccessModalVisible(false)}
+            >
+              <Text style={styles.successButtonText}>Entendi</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -3239,5 +3280,63 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 14,
     fontFamily: fontFallbacks.Poppins_500Medium,
+  },
+  successIconContainer: {
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  successIcon: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
+  },
+  successTitle: {
+    fontSize: 18,
+    fontFamily: fontFallbacks.Poppins_600SemiBold,
+    color: '#333',
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  successMessage: {
+    fontSize: 14,
+    fontFamily: fontFallbacks.Poppins_400Regular,
+    color: '#666',
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 30,
+  },
+  successButton: {
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
+  },
+  successButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontFamily: fontFallbacks.Poppins_600SemiBold,
   },
 }); 

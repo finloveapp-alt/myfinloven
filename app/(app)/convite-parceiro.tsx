@@ -8,7 +8,8 @@ import {
   SafeAreaView,
   ActivityIndicator,
   Alert,
-  Image 
+  Image,
+  Switch 
 } from 'react-native';
 import { router } from 'expo-router';
 import { supabase } from '@/lib/supabase';
@@ -18,6 +19,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 
 export default function ConviteParceiro() {
   const [email, setEmail] = useState('');
+  const [name, setName] = useState('');
+  const [isAvatar, setIsAvatar] = useState(false);
   const [loading, setLoading] = useState(false);
   
   const handleBack = () => {
@@ -25,9 +28,17 @@ export default function ConviteParceiro() {
   };
   
   const handleSendInvitation = async () => {
-    if (!email || !email.trim()) {
-      Alert.alert('Erro', 'Por favor, informe o email do seu parceiro');
-      return;
+    // Validação baseada no tipo (avatar ou parceiro real)
+    if (isAvatar) {
+      if (!name || !name.trim()) {
+        Alert.alert('Erro', 'Por favor, informe o nome do avatar');
+        return;
+      }
+    } else {
+      if (!email || !email.trim()) {
+        Alert.alert('Erro', 'Por favor, informe o email do seu parceiro');
+        return;
+      }
     }
     
     setLoading(true);
@@ -52,55 +63,87 @@ export default function ConviteParceiro() {
         throw new Error('Falha ao obter seu perfil. Por favor, tente novamente.');
       }
       
-      // Gerar token único para o convite
-      const invitationToken = Math.random().toString(36).substring(2, 15) + 
-        Math.random().toString(36).substring(2, 15);
-      
-      // Criar registro na tabela couples
-      const { data: coupleData, error: coupleError } = await supabase
-        .from('couples')
-        .insert({
-          user1_id: currentUserId,
-          invitation_token: invitationToken,
-          invitation_email: email.trim().toLowerCase(),
-          status: 'pending'
-        })
-        .select('id')
-        .single();
+      if (isAvatar) {
+        // Lógica para criar avatar (sem envio de email)
+        const invitationToken = Math.random().toString(36).substring(2, 15) + 
+          Math.random().toString(36).substring(2, 15);
         
-      if (coupleError) {
-        throw new Error('Falha ao criar convite. Verifique se o email é válido.');
+        // Criar registro na tabela couples para avatar
+        const { data: coupleData, error: coupleError } = await supabase
+          .from('couples')
+          .insert({
+            user1_id: currentUserId,
+            invitation_token: invitationToken,
+            invitation_email: null, // Avatar não tem email
+            status: 'active', // Avatar é ativado imediatamente
+            is_avatar: true,
+            avatar_name: name.trim() // Armazenar o nome do avatar
+          })
+          .select('id')
+          .single();
+          
+        if (coupleError) {
+          throw new Error('Falha ao criar avatar.');
+        }
+        
+        Alert.alert(
+          'Avatar Criado',
+          `O avatar "${name}" foi criado com sucesso! Agora você pode atribuir gastos e receitas a ele.`,
+          [{ text: 'OK', onPress: () => router.back() }]
+        );
+        
+      } else {
+        // Lógica original para convite real
+        const invitationToken = Math.random().toString(36).substring(2, 15) + 
+          Math.random().toString(36).substring(2, 15);
+        
+        // Criar registro na tabela couples
+        const { data: coupleData, error: coupleError } = await supabase
+          .from('couples')
+          .insert({
+            user1_id: currentUserId,
+            invitation_token: invitationToken,
+            invitation_email: email.trim().toLowerCase(),
+            status: 'pending',
+            is_avatar: false
+          })
+          .select('id')
+          .single();
+          
+        if (coupleError) {
+          throw new Error('Falha ao criar convite. Verifique se o email é válido.');
+        }
+        
+        // Enviar convite por email usando a Edge Function
+        const inviteResponse = await fetch(`${supabase.supabaseUrl}/functions/v1/send-couple-invitation`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            partnerEmail: email.trim().toLowerCase(),
+            inviterName: currentUserProfile.name || 'Seu parceiro',
+            inviterId: currentUserId,
+            invitationToken: invitationToken,
+            coupleId: coupleData.id
+          })
+        });
+        
+        if (!inviteResponse.ok) {
+          const errorData = await inviteResponse.json();
+          throw new Error(`Falha ao enviar convite: ${errorData.error || 'Erro desconhecido'}`);
+        }
+        
+        Alert.alert(
+          'Convite Enviado',
+          `Um convite foi enviado para ${email}. Seu parceiro receberá instruções para aceitar o convite.`,
+          [{ text: 'OK', onPress: () => router.back() }]
+        );
       }
-      
-      // Enviar convite por email usando a Edge Function
-      const inviteResponse = await fetch(`${supabase.supabaseUrl}/functions/v1/send-couple-invitation`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          partnerEmail: email.trim().toLowerCase(),
-          inviterName: currentUserProfile.name || 'Seu parceiro',
-          inviterId: currentUserId,
-          invitationToken: invitationToken,
-          coupleId: coupleData.id
-        })
-      });
-      
-      if (!inviteResponse.ok) {
-        const errorData = await inviteResponse.json();
-        throw new Error(`Falha ao enviar convite: ${errorData.error || 'Erro desconhecido'}`);
-      }
-      
-      Alert.alert(
-        'Convite Enviado',
-        `Um convite foi enviado para ${email}. Seu parceiro receberá instruções para aceitar o convite.`,
-        [{ text: 'OK', onPress: () => router.back() }]
-      );
       
     } catch (error) {
-      console.error('Erro ao enviar convite:', error);
-      Alert.alert('Erro', error.message || 'Falha ao enviar convite. Por favor, tente novamente.');
+      console.error('Erro ao processar:', error);
+      Alert.alert('Erro', error.message || 'Falha ao processar. Por favor, tente novamente.');
     } finally {
       setLoading(false);
     }
@@ -119,13 +162,19 @@ export default function ConviteParceiro() {
           >
             <ArrowLeft size={24} color="#333" />
           </TouchableOpacity>
-          <Text style={styles.title}>Convidar Parceiro</Text>
+          <Text style={styles.title}>
+            {isAvatar ? 'Criar Avatar' : 'Convidar Parceiro'}
+          </Text>
           <View style={{ width: 24 }} />
         </View>
         
         <View style={styles.imageContainer}>
           <Image 
-            source={{ uri: 'https://img.freepik.com/free-vector/couple-planning-budget-together_74855-5466.jpg?w=1380&t=st=1684430660~exp=1684431260~hmac=84097f1d4a2da09976795a95e9d8e9dc0436c259dbc266d70a99e7ca5b2b881a' }} 
+            source={{ 
+              uri: isAvatar 
+                ? 'https://img.freepik.com/free-vector/user-avatar-profile-icon-vector-illustration_276184-162.jpg?w=1380'
+                : 'https://img.freepik.com/free-vector/couple-planning-budget-together_74855-5466.jpg?w=1380&t=st=1684430660~exp=1684431260~hmac=84097f1d4a2da09976795a95e9d8e9dc0436c259dbc266d70a99e7ca5b2b881a'
+            }} 
             style={styles.image}
             resizeMode="contain"
           />
@@ -133,20 +182,50 @@ export default function ConviteParceiro() {
         
         <View style={styles.formContainer}>
           <Text style={styles.subtitle}>
-            Convide seu parceiro para compartilhar finanças e organizar o orçamento juntos.
+            {isAvatar 
+              ? 'Crie um avatar para organizar gastos e receitas de forma categorizada.'
+              : 'Convide seu parceiro para compartilhar finanças e organizar o orçamento juntos.'
+            }
           </Text>
           
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Email do Parceiro</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Digite o email do seu parceiro"
-              keyboardType="email-address"
-              autoCapitalize="none"
-              value={email}
-              onChangeText={setEmail}
+          {/* Toggle Avatar */}
+          <View style={styles.toggleContainer}>
+            <Text style={styles.toggleLabel}>Criar Avatar</Text>
+            <Switch
+              value={isAvatar}
+              onValueChange={setIsAvatar}
+              trackColor={{ false: '#E0E0E0', true: '#b687fe' }}
+              thumbColor={isAvatar ? '#fff' : '#f4f3f4'}
             />
           </View>
+          
+          {/* Campo Nome (sempre visível) */}
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>
+              {isAvatar ? 'Nome do Avatar' : 'Nome do Parceiro (opcional)'}
+            </Text>
+            <TextInput
+              style={styles.input}
+              placeholder={isAvatar ? 'Ex: Gastos Pessoais, Investimentos...' : 'Nome do seu parceiro'}
+              value={name}
+              onChangeText={setName}
+            />
+          </View>
+          
+          {/* Campo Email (só aparece quando não é avatar) */}
+          {!isAvatar && (
+            <View style={styles.inputContainer}>
+              <Text style={styles.label}>Email do Parceiro</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Digite o email do seu parceiro"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                value={email}
+                onChangeText={setEmail}
+              />
+            </View>
+          )}
           
           <TouchableOpacity
             style={styles.button}
@@ -156,7 +235,9 @@ export default function ConviteParceiro() {
             {loading ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.buttonText}>Enviar Convite</Text>
+              <Text style={styles.buttonText}>
+                {isAvatar ? 'Criar Avatar' : 'Enviar Convite'}
+              </Text>
             )}
           </TouchableOpacity>
         </View>
@@ -213,6 +294,21 @@ const styles = StyleSheet.create({
     color: '#666',
     marginBottom: 20,
     textAlign: 'center',
+  },
+  toggleContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    backgroundColor: '#F8F8F8',
+    borderRadius: 8,
+  },
+  toggleLabel: {
+    fontSize: 16,
+    fontFamily: fontFallbacks.Poppins_500Medium,
+    color: '#333',
   },
   inputContainer: {
     marginBottom: 20,

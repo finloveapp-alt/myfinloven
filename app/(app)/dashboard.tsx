@@ -55,6 +55,7 @@ export default function Dashboard() {
   const [uploading, setUploading] = useState(false);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [inviteModalVisible, setInviteModalVisible] = useState(false);
+  const [typeSelectionModalVisible, setTypeSelectionModalVisible] = useState(false); // Novo modal de seleção
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteName, setInviteName] = useState(''); // Novo estado para nome
   const [inviting, setInviting] = useState(false);
@@ -862,7 +863,7 @@ export default function Dashboard() {
               {currentUser && (isUserInviter || currentUser.account_type !== 'couple') && (
                 <TouchableOpacity 
                   style={styles.addUserAvatar}
-                  onPress={() => setInviteModalVisible(true)}
+                  onPress={() => setTypeSelectionModalVisible(true)}
                 >
                   <Text style={styles.addUserText}>+</Text>
                 </TouchableOpacity>
@@ -1534,6 +1535,68 @@ export default function Dashboard() {
                 )}
               </>
             )}
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal de Seleção de Tipo */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={typeSelectionModalVisible}
+        onRequestClose={() => setTypeSelectionModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Escolha uma opção</Text>
+              <TouchableOpacity 
+                style={styles.closeButton}
+                onPress={() => setTypeSelectionModalVisible(false)}
+              >
+                <X size={24} color="#333" />
+              </TouchableOpacity>
+            </View>
+            
+            <Text style={styles.modalSubtitle}>
+              O que você gostaria de fazer?
+            </Text>
+            
+            <View style={styles.optionButtonsContainer}>
+              <TouchableOpacity
+                style={[styles.optionButton, { backgroundColor: theme.primary }]}
+                onPress={() => {
+                  setTypeSelectionModalVisible(false);
+                  setIsInviteAvatar(true);
+                  setInviteModalVisible(true);
+                }}
+              >
+                <View style={styles.optionButtonContent}>
+                  <BookUser size={28} color="#fff" style={styles.optionButtonIcon} />
+                  <Text style={styles.optionButtonTitle}>Criar Avatar</Text>
+                  <Text style={styles.optionButtonSubtitle}>
+                    Organize gastos por categoria ou finalidade
+                  </Text>
+                </View>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[styles.optionButton, { backgroundColor: theme.secondary }]}
+                onPress={() => {
+                  setTypeSelectionModalVisible(false);
+                  setIsInviteAvatar(false);
+                  setInviteModalVisible(true);
+                }}
+              >
+                <View style={styles.optionButtonContent}>
+                  <Users size={28} color="#fff" style={styles.optionButtonIcon} />
+                  <Text style={styles.optionButtonTitle}>Convidar Usuário</Text>
+                  <Text style={styles.optionButtonSubtitle}>
+                    Convide alguém para compartilhar finanças
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
@@ -2902,5 +2965,47 @@ const styles = StyleSheet.create({
     color: '#666',
     marginTop: 6,
     fontStyle: 'italic',
+  },
+  optionButtonsContainer: {
+    flexDirection: 'column',
+    gap: 15,
+    marginTop: 20,
+  },
+  optionButton: {
+    width: '100%',
+    padding: 20,
+    borderRadius: 12,
+    alignItems: 'center',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
+  },
+  optionButtonContent: {
+    flexDirection: 'column',
+    alignItems: 'center',
+  },
+  optionButtonIcon: {
+    marginBottom: 5,
+  },
+  optionButtonTitle: {
+    fontSize: 18,
+    fontFamily: fontFallbacks.Poppins_600SemiBold,
+    color: '#ffffff',
+    marginBottom: 4,
+  },
+  optionButtonSubtitle: {
+    fontSize: 14,
+    fontFamily: fontFallbacks.Poppins_400Regular,
+    color: 'rgba(255, 255, 255, 0.9)',
+    textAlign: 'center',
+    lineHeight: 20,
   },
 }); 

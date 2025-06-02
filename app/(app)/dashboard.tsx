@@ -1590,18 +1590,18 @@ export default function Dashboard() {
                   <Text style={styles.checkboxLabel}>Criar Avatar</Text>
                 </TouchableOpacity>
                 
-                {/* Campo Nome (sempre visível) */}
-                <View style={styles.inputContainer}>
-                  <Text style={styles.inputLabel}>
-                    {isInviteAvatar ? 'Nome do Avatar' : 'Nome do Convidado (opcional)'}
-                  </Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder={isInviteAvatar ? 'Ex: Gastos Pessoais, Investimentos...' : 'Nome do convidado'}
-                    value={inviteName}
-                    onChangeText={setInviteName}
-                  />
-                </View>
+                {/* Campo Nome (apenas para avatar) */}
+                {isInviteAvatar && (
+                  <View style={styles.inputContainer}>
+                    <Text style={styles.inputLabel}>Nome do Avatar</Text>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="Ex: Gastos Pessoais, Investimentos..."
+                      value={inviteName}
+                      onChangeText={setInviteName}
+                    />
+                  </View>
+                )}
                 
                 {/* Campo Email (só aparece quando não é avatar) */}
                 {!isInviteAvatar && (

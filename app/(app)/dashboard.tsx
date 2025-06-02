@@ -58,6 +58,7 @@ export default function Dashboard() {
   const [typeSelectionModalVisible, setTypeSelectionModalVisible] = useState(false); // Novo modal de seleção
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteName, setInviteName] = useState(''); // Novo estado para nome
+  const [avatarPhoto, setAvatarPhoto] = useState<string | null>(null); // Estado para foto do avatar
   const [inviting, setInviting] = useState(false);
   const [isUserInviter, setIsUserInviter] = useState(false);
   const [isInviteAvatar, setIsInviteAvatar] = useState(false); // Novo estado para marcar convite como avatar
@@ -585,6 +586,115 @@ export default function Dashboard() {
     }
   };
 
+  // Função para upload de foto do avatar
+  const uploadAvatarImage = async (uri: string) => {
+    try {
+      // Obter sessão do usuário
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session?.user) {
+        throw new Error('Falha ao obter sessão do usuário');
+      }
+
+      // Converter imagem para blob
+      const response = await fetch(uri);
+      const blob = await response.blob();
+      
+      // Gerar nome de arquivo único para avatar
+      const fileExt = uri.split('.').pop() || 'jpg';
+      const fileName = `avatar_${session.user.id}_${Date.now()}.${fileExt}`;
+      const filePath = `avatar_pictures/${fileName}`;
+
+      // Upload para o storage
+      const { error: uploadError } = await supabase.storage
+        .from('user_uploads')
+        .upload(filePath, blob);
+
+      if (uploadError) {
+        throw uploadError;
+      }
+
+      // Obter URL pública da imagem
+      const { data: urlData } = await supabase.storage
+        .from('user_uploads')
+        .getPublicUrl(filePath);
+
+      // Atualizar estado local com a foto do avatar
+      setAvatarPhoto(urlData.publicUrl);
+      
+    } catch (error) {
+      console.error('Erro ao fazer upload da imagem do avatar:', error);
+      Alert.alert('Erro', 'Não foi possível fazer o upload da imagem');
+    }
+  };
+
+  // Função para selecionar imagem do avatar
+  const pickAvatarImage = async () => {
+    try {
+      const ImagePicker = Platform.OS !== 'web' 
+        ? await import('expo-image-picker') 
+        : null;
+      
+      if (!ImagePicker) {
+        Alert.alert('Não suportado', 'Essa funcionalidade não está disponível nesta plataforma.');
+        return;
+      }
+
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permissão negada', 'Precisamos de permissão para acessar sua galeria.');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.5,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        await uploadAvatarImage(result.assets[0].uri);
+      }
+    } catch (error) {
+      console.error('Erro ao selecionar imagem do avatar:', error);
+      Alert.alert('Erro', 'Não foi possível selecionar a imagem');
+    }
+  };
+
+  // Função para tirar foto do avatar
+  const takeAvatarPhoto = async () => {
+    try {
+      const ImagePicker = Platform.OS !== 'web' 
+        ? await import('expo-image-picker') 
+        : null;
+      
+      if (!ImagePicker) {
+        Alert.alert('Não suportado', 'Essa funcionalidade não está disponível nesta plataforma.');
+        return;
+      }
+
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permissão negada', 'Precisamos de permissão para acessar sua câmera.');
+        return;
+      }
+
+      const result = await ImagePicker.launchCameraAsync({
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.5,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        await uploadAvatarImage(result.assets[0].uri);
+      }
+    } catch (error) {
+      console.error('Erro ao tirar foto do avatar:', error);
+      Alert.alert('Erro', 'Não foi possível tirar a foto');
+    }
+  };
+
   // Alternativa para upload de foto em ambiente web
   const handleImageInputChange = async (event) => {
     try {
@@ -652,6 +762,7 @@ export default function Dashboard() {
             setIsInviteAvatar(false);
             setInviteName('');
             setInviteEmail('');
+            setAvatarPhoto(null); // Limpar foto do avatar
             // Atualizar os dados do usuário e parceiro
             fetchUserAndPartner();
           }}]
@@ -716,6 +827,7 @@ export default function Dashboard() {
       
       setInviteEmail('');
       setInviteName('');
+      setAvatarPhoto(null); // Limpar foto do avatar
       setInviting(false);
     } catch (error) {
       console.error('Erro ao processar operação:', error);
@@ -1652,6 +1764,75 @@ export default function Dashboard() {
                       value={inviteName}
                       onChangeText={setInviteName}
                     />
+                  </View>
+                )}
+                
+                {/* Seção de foto do avatar */}
+                {isInviteAvatar && (
+                  <View style={styles.inputContainer}>
+                    <Text style={styles.inputLabel}>Foto do Avatar (opcional)</Text>
+                    
+                    {avatarPhoto ? (
+                      <View style={styles.avatarPhotoContainer}>
+                        <Image source={{ uri: avatarPhoto }} style={styles.avatarPhotoPreview} />
+                        <TouchableOpacity 
+                          style={[styles.changePhotoButton, { backgroundColor: theme.secondary }]}
+                          onPress={() => setAvatarPhoto(null)}
+                        >
+                          <Text style={styles.changePhotoText}>Alterar Foto</Text>
+                        </TouchableOpacity>
+                      </View>
+                    ) : (
+                      <View style={styles.photoButtonsContainer}>
+                        {Platform.OS === 'web' ? (
+                          <TouchableOpacity 
+                            style={[styles.avatarPhotoButton, { backgroundColor: theme.secondary }]}
+                            onPress={() => {
+                              // Disparar o input file via JS
+                              const fileInput = document.getElementById('avatar-picture-input');
+                              if (fileInput) fileInput.click();
+                            }}
+                          >
+                            <Upload size={20} color="#fff" style={styles.photoButtonIcon} />
+                            <Text style={styles.photoButtonText}>Escolher Foto</Text>
+                          </TouchableOpacity>
+                        ) : (
+                          <>
+                            <TouchableOpacity 
+                              style={[styles.avatarPhotoButton, { backgroundColor: theme.secondary }]}
+                              onPress={takeAvatarPhoto}
+                            >
+                              <Camera size={20} color="#fff" style={styles.photoButtonIcon} />
+                              <Text style={styles.photoButtonText}>Tirar Foto</Text>
+                            </TouchableOpacity>
+                            
+                            <TouchableOpacity 
+                              style={[styles.avatarPhotoButton, { backgroundColor: theme.primary }]}
+                              onPress={pickAvatarImage}
+                            >
+                              <ImageIcon size={20} color="#fff" style={styles.photoButtonIcon} />
+                              <Text style={styles.photoButtonText}>Galeria</Text>
+                            </TouchableOpacity>
+                          </>
+                        )}
+                      </View>
+                    )}
+                    
+                    {/* Input file oculto para web */}
+                    {Platform.OS === 'web' && (
+                      <input
+                        type="file"
+                        id="avatar-picture-input"
+                        accept="image/*"
+                        onChange={async (event) => {
+                          if (event.target.files && event.target.files.length > 0) {
+                            const file = event.target.files[0];
+                            await uploadAvatarImage(URL.createObjectURL(file));
+                          }
+                        }}
+                        style={{ display: 'none' }}
+                      />
+                    )}
                   </View>
                 )}
                 
@@ -2996,5 +3177,56 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.9)',
     textAlign: 'center',
     lineHeight: 20,
+  },
+  avatarPhotoContainer: {
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  avatarPhotoPreview: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    marginBottom: 10,
+  },
+  changePhotoButton: {
+    padding: 10,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  changePhotoText: {
+    color: 'white',
+    fontSize: 14,
+    fontFamily: fontFallbacks.Poppins_500Medium,
+  },
+  photoButtonsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 10,
+    marginBottom: 10,
+  },
+  avatarPhotoButton: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
+  },
+  photoButtonIcon: {
+    marginBottom: 5,
+  },
+  photoButtonText: {
+    color: 'white',
+    fontSize: 14,
+    fontFamily: fontFallbacks.Poppins_500Medium,
   },
 }); 

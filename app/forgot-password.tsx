@@ -87,14 +87,14 @@ export default function ForgotPassword() {
       style={styles.container}
     >
       <SafeAreaView style={styles.safeArea}>
-        <TouchableOpacity style={styles.topBackButton} onPress={() => router.replace('/(auth)/login')}>
+        <TouchableOpacity style={styles.topBackButton} onPress={() => router.push('/(auth)/login')}>
           <ArrowLeft size={24} color="#ffffff" />
         </TouchableOpacity>
         <View style={styles.cardContent}>
           <View style={styles.imageContainer}>
             <TouchableOpacity 
               style={styles.backButton}
-              onPress={() => router.back()}
+              onPress={() => router.push('/(auth)/login')}
             >
               <ArrowLeft size={24} color="#ffffff" />
             </TouchableOpacity>
@@ -163,7 +163,7 @@ export default function ForgotPassword() {
             <View style={styles.buttonsContainer}>
               <TouchableOpacity 
                 style={styles.returnButton}
-                onPress={() => router.replace('/(auth)/login')}
+                onPress={() => router.push('/(auth)/login')}
               >
                 <Text style={styles.returnButtonText}>Voltar para o login</Text>
               </TouchableOpacity>
@@ -204,14 +204,15 @@ const styles = StyleSheet.create({
   },
   backButton: {
     position: 'absolute',
-    top: 20,
+    top: Platform.OS === 'ios' ? 60 : 40,
     left: 20,
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(0,0,0,0.2)',
+    backgroundColor: 'rgba(0,0,0,0.3)',
     justifyContent: 'center',
     alignItems: 'center',
+    zIndex: 100,
   },
   textContainer: {
     width: '100%',
@@ -286,13 +287,14 @@ const styles = StyleSheet.create({
   },
   topBackButton: {
     position: 'absolute',
-    top: 20,
+    top: Platform.OS === 'ios' ? 60 : 40,
     left: 20,
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(0,0,0,0.2)',
+    backgroundColor: 'rgba(0,0,0,0.3)',
     justifyContent: 'center',
     alignItems: 'center',
+    zIndex: 1000,
   },
 });

@@ -1642,17 +1642,6 @@ export default function Dashboard() {
                     : 'Convide alguém para compartilhar finanças e organizar o orçamento juntos.'}
                 </Text>
                 
-                {/* Adicionar opção de avatar */}
-                <TouchableOpacity 
-                  style={styles.checkboxContainer}
-                  onPress={() => setIsInviteAvatar(!isInviteAvatar)}
-                >
-                  <View style={[styles.checkbox, isInviteAvatar ? { backgroundColor: theme.primary, borderColor: theme.primary } : {}]}>
-                    {isInviteAvatar && <Check size={16} color="#fff" />}
-                  </View>
-                  <Text style={styles.checkboxLabel}>Criar Avatar</Text>
-                </TouchableOpacity>
-                
                 {/* Campo Nome (apenas para avatar) */}
                 {isInviteAvatar && (
                   <View style={styles.inputContainer}>

@@ -2550,6 +2550,11 @@ export default function Registers() {
           style={styles.navItem}
           onPress={() => router.replace('/(app)/cards')}
         >
+          <CreditCard size={24} color="#999" />
+          <Text style={styles.navText}>Cartões</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
   );
 }
 

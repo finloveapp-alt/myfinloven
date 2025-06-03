@@ -1384,7 +1384,7 @@ const styles = StyleSheet.create({
   },
   emojiDropdown: {
     position: 'absolute',
-    top: 60,
+    top: -20,
     left: 0,
     right: 0,
     backgroundColor: '#ffffff',

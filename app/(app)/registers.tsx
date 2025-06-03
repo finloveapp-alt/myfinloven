@@ -1321,7 +1321,6 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
   },
   emojiSelectorButton: {
     width: 48,

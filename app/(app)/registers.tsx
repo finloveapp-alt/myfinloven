@@ -1309,104 +1309,104 @@ const styles = StyleSheet.create({
     color: '#666',
     marginLeft: 4,
   },
-  newCategoryFieldsContainer: {
+  newCategoryFormContainer: {
+    marginTop: 12,
+    padding: 12,
+    borderWidth: 1.5,
+    borderRadius: 12,
+    // backgroundColor e borderColor serão aplicados inline
+  },
+  categoryFormRow: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-    gap: 12,
-  },
-  newCategoryIconContainer: {
-    width: 80,
     alignItems: 'center',
+    gap: 8,
   },
-  newCategoryFieldLabel: {
-    fontSize: 12,
-    fontFamily: fontFallbacks.Poppins_400Regular,
-    color: '#666',
-    marginBottom: 6,
-    textAlign: 'center',
-  },
-  newCategoryIconSelector: {
-    width: 60,
-    height: 60,
+  emojiSelectorButton: {
+    width: 48,
+    height: 48,
+    backgroundColor: '#ffffff',
     borderWidth: 1,
     borderColor: '#e0e0e0',
-    borderRadius: 12,
+    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#fff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
-  newCategorySelectedIcon: {
-    fontSize: 28,
+  emojiSelectorText: {
+    fontSize: 24,
   },
-  newCategoryIconPlaceholder: {
-    fontSize: 28,
-    color: '#ccc',
-  },
-  newCategoryNameContainer: {
+  categoryNameInput: {
     flex: 1,
-  },
-  newCategoryNameInput: {
-    height: 60,
+    height: 48,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
-    borderRadius: 12,
-    fontSize: 16,
+    borderRadius: 8,
+    fontSize: 14,
     fontFamily: fontFallbacks.Poppins_400Regular,
-    color: '#333333',
+    color: '#333',
+    backgroundColor: '#ffffff',
+  },
+  addCategorySubmitButton: {
     paddingHorizontal: 16,
-    backgroundColor: '#fff',
-  },
-  newCategoryButtonsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 12,
-  },
-  newCategoryCancelButton: {
-    flex: 1,
-    backgroundColor: '#f8f9fa',
-    borderWidth: 1,
-    borderColor: '#e9ecef',
-    borderRadius: 12,
-    paddingVertical: 14,
+    paddingVertical: 12,
+    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
+    minWidth: 80,
   },
-  newCategoryCancelButtonText: {
-    fontSize: 16,
-    fontFamily: fontFallbacks.Poppins_500Medium,
-    color: '#6c757d',
-  },
-  newCategoryAddButton: {
-    flex: 1,
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  newCategoryAddButtonText: {
-    fontSize: 16,
+  addCategorySubmitText: {
+    fontSize: 14,
     fontFamily: fontFallbacks.Poppins_600SemiBold,
-    color: '#fff',
   },
-  newCategoryIconsDropdown: {
+  closeCategoryFormButton: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 8,
+    backgroundColor: '#f5f5f5',
+  },
+  emojiDropdown: {
     position: 'absolute',
-    top: 70,
-    left: -10,
-    right: -10,
-    backgroundColor: 'white',
+    top: 60,
+    left: 0,
+    right: 0,
+    backgroundColor: '#ffffff',
     borderWidth: 1,
     borderColor: '#e0e0e0',
-    borderRadius: 12,
-    marginTop: 4,
-    maxHeight: 200,
+    borderRadius: 8,
+    padding: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.15,
     shadowRadius: 8,
-    elevation: 8,
-    zIndex: 9999,
+    elevation: 10,
+    zIndex: 1000,
+  },
+  emojiGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  emojiGridItem: {
+    width: '14.28%', // 7 colunas: 100% / 7
+    aspectRatio: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+    borderRadius: 6,
+    backgroundColor: 'transparent',
+  },
+  emojiGridItemSelected: {
+    backgroundColor: '#f0f0f0',
+  },
+  emojiGridText: {
+    fontSize: 20,
   },
 });
 
@@ -2857,7 +2857,7 @@ export default function Registers() {
     setNewCategoryIconsVisible(false);
   };
 
-  const saveNewCategory = () => {
+  const saveNewCategory = async () => {
     if (!newCategoryName.trim()) {
       alert('Por favor, informe um nome para a categoria.');
       return;
@@ -2868,17 +2868,61 @@ export default function Registers() {
       return;
     }
     
-    // Criar a nova categoria (aqui você pode implementar a lógica de salvamento no banco)
-    const newCategory = `${newCategoryIcon} ${newCategoryName.trim()}`;
-    setSelectedCategory(newCategory);
-    
-    // Resetar e fechar
-    setNewCategoryName('');
-    setNewCategoryIcon('');
-    setIsAddingCategory(false);
-    setNewCategoryIconsVisible(false);
-    
-    alert('Categoria criada com sucesso!');
+    try {
+      // Obter a sessão atual para o ID do usuário
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) {
+        alert('Usuário não autenticado.');
+        return;
+      }
+      
+      const userId = session.user.id;
+      
+      // Determinar a cor automática baseada no tipo de transação
+      const categoryColor = transactionType === 'expense' ? '#FF5252' : 
+                           transactionType === 'income' ? '#9AFFCB' : '#666666';
+      
+      // Preparar os dados da categoria
+      const categoryData = {
+        user_id: userId,
+        nome: newCategoryName.trim(),
+        tipo: transactionType === 'expense' ? 'despesa' : 
+              transactionType === 'income' ? 'receita' : 'transferencia',
+        icone: newCategoryIcon,
+        cor: categoryColor,
+        created_at: new Date().toISOString()
+      };
+      
+      // Inserir a categoria no banco de dados
+      const { data, error } = await supabase
+        .from('user_categories')
+        .insert([categoryData])
+        .select();
+      
+      if (error) {
+        console.error('Erro ao salvar categoria:', error);
+        alert(`Erro ao salvar categoria: ${error.message}`);
+        return;
+      }
+      
+      console.log('Categoria salva com sucesso:', data);
+      
+      // Criar a nova categoria formatada para uso local
+      const newCategory = `${newCategoryIcon} ${newCategoryName.trim()}`;
+      setSelectedCategory(newCategory);
+      
+      // Resetar e fechar o formulário
+      setNewCategoryName('');
+      setNewCategoryIcon('');
+      setIsAddingCategory(false);
+      setNewCategoryIconsVisible(false);
+      
+      alert('Categoria criada com sucesso!');
+      
+    } catch (error) {
+      console.error('Erro ao salvar categoria:', error);
+      alert('Ocorreu um erro ao salvar a categoria. Por favor, tente novamente.');
+    }
   };
 
   const cancelAddCategory = () => {
@@ -3565,79 +3609,91 @@ export default function Registers() {
               
               {/* Campo para adicionar nova categoria */}
               {isAddingCategory && (
-                <View style={[styles.newCategoryContainer, { borderColor: theme.primary }]}>
-                  <Text style={[styles.newCategoryTitle, { color: theme.primary }]}>Nova Categoria</Text>
-                  
-                  {/* Container horizontal para ícone e nome */}
-                  <View style={styles.newCategoryFieldsContainer}>
-                    {/* Seletor de ícone para categoria */}
-                    <View style={[styles.newCategoryIconContainer, { zIndex: 15 }]}>
-                      <Text style={styles.newCategoryFieldLabel}>Ícone</Text>
-                      <TouchableOpacity 
-                        style={[
-                          styles.newCategoryIconSelector,
-                          newCategoryIcon ? { borderColor: theme.primary, borderWidth: 1.5 } : null
-                        ]} 
-                        onPress={toggleNewCategoryIcons}
-                      >
-                        {newCategoryIcon ? (
-                          <Text style={styles.newCategorySelectedIcon}>{newCategoryIcon}</Text>
-                        ) : (
-                          <Text style={styles.newCategoryIconPlaceholder}>🏷️</Text>
-                        )}
-                      </TouchableOpacity>
-                      
-                      {newCategoryIconsVisible && (
-                        <View style={styles.newCategoryIconsDropdown}>
-                          <ScrollView style={styles.iconsScrollView} horizontal={false} showsVerticalScrollIndicator={true}>
-                            <View style={styles.iconsGrid}>
-                              {availableIcons.map((item, index) => (
-                                <TouchableOpacity 
-                                  key={index} 
-                                  style={[
-                                    styles.iconItem,
-                                    newCategoryIcon === item.emoji && styles.selectedIconItem
-                                  ]} 
-                                  onPress={() => selectNewCategoryIcon(item.emoji)}
-                                >
-                                  <Text style={styles.iconEmoji}>{item.emoji}</Text>
-                                </TouchableOpacity>
-                              ))}
-                            </View>
-                          </ScrollView>
-                        </View>
-                      )}
-                    </View>
-                    
-                    {/* Campo de nome da categoria */}
-                    <View style={styles.newCategoryNameContainer}>
-                      <Text style={styles.newCategoryFieldLabel}>Nome da nova categoria</Text>
-                      <TextInput
-                        style={styles.newCategoryNameInput}
-                        value={newCategoryName}
-                        onChangeText={setNewCategoryName}
-                        placeholder="Nome da nova categoria"
-                        placeholderTextColor="#999"
-                      />
-                    </View>
-                  </View>
-                  
-                  {/* Botões de ação */}
-                  <View style={styles.newCategoryButtonsContainer}>
+                <View style={[
+                  styles.newCategoryFormContainer,
+                  {
+                    backgroundColor: transactionType === 'expense' ? 'rgba(255, 82, 82, 0.1)' :
+                                   transactionType === 'income' ? 'rgba(154, 255, 203, 0.1)' : '#ffffff',
+                    borderColor: transactionType === 'expense' ? '#FF5252' :
+                               transactionType === 'income' ? '#9AFFCB' : '#e0e0e0'
+                  }
+                ]}>
+                  {/* Container horizontal com elementos */}
+                  <View style={styles.categoryFormRow}>
+                    {/* Botão seletor de emoji */}
                     <TouchableOpacity 
-                      style={[styles.newCategoryCancelButton]}
-                      onPress={cancelAddCategory}
+                      style={styles.emojiSelectorButton}
+                      onPress={toggleNewCategoryIcons}
                     >
-                      <Text style={styles.newCategoryCancelButtonText}>Cancelar</Text>
+                      <Text style={styles.emojiSelectorText}>
+                        {newCategoryIcon || '📝'}
+                      </Text>
                     </TouchableOpacity>
                     
+                    {/* Campo de entrada de texto */}
+                    <TextInput
+                      style={[
+                        styles.categoryNameInput,
+                        {
+                          borderColor: transactionType === 'expense' ? '#FF5252' :
+                                     transactionType === 'income' ? '#9AFFCB' : '#e0e0e0'
+                        }
+                      ]}
+                      value={newCategoryName}
+                      onChangeText={setNewCategoryName}
+                      placeholder="Nome da nova categoria"
+                      placeholderTextColor="#999"
+                    />
+                    
+                    {/* Botão Adicionar */}
                     <TouchableOpacity 
-                      style={[styles.newCategoryAddButton, { backgroundColor: theme.primary }]}
+                      style={[
+                        styles.addCategorySubmitButton,
+                        {
+                          backgroundColor: transactionType === 'expense' ? '#FF5252' :
+                                         transactionType === 'income' ? '#9AFFCB' : theme.primary
+                        }
+                      ]}
                       onPress={saveNewCategory}
                     >
-                      <Text style={styles.newCategoryAddButtonText}>Adicionar</Text>
+                      <Text style={[
+                        styles.addCategorySubmitText,
+                        {
+                          color: transactionType === 'income' ? '#000' : '#fff'
+                        }
+                      ]}>
+                        Adicionar
+                      </Text>
+                    </TouchableOpacity>
+                    
+                    {/* Botão fechar */}
+                    <TouchableOpacity 
+                      style={styles.closeCategoryFormButton}
+                      onPress={cancelAddCategory}
+                    >
+                      <X size={18} color="#666" />
                     </TouchableOpacity>
                   </View>
+                  
+                  {/* Seletor de emojis dropdown */}
+                  {newCategoryIconsVisible && (
+                    <View style={styles.emojiDropdown}>
+                      <View style={styles.emojiGrid}>
+                        {['📝', '🍽️', '🏠', '🚗', '🏥', '🎭', '💰', '🛒', '✈️', '📱', '📚', '🎁', '📊', '👕'].map((emoji, index) => (
+                          <TouchableOpacity 
+                            key={index}
+                            style={[
+                              styles.emojiGridItem,
+                              newCategoryIcon === emoji && styles.emojiGridItemSelected
+                            ]}
+                            onPress={() => selectNewCategoryIcon(emoji)}
+                          >
+                            <Text style={styles.emojiGridText}>{emoji}</Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    </View>
+                  )}
                 </View>
               )}
             </View>

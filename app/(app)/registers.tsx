@@ -1310,15 +1310,19 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   newCategoryFormContainer: {
-    marginTop: 12,
-    padding: 12,
-    borderWidth: 1.5,
-    borderRadius: 12,
-    // backgroundColor e borderColor serão aplicados inline
+    position: 'relative',
+    flexDirection: 'row',
+    overflow: 'hidden',
+    borderRadius: 12, // 0.75rem = 12px
+    borderWidth: 1,
+    // borderColor e backgroundColor serão aplicados inline baseados no tipo de transação
   },
   categoryFormRow: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     gap: 8,
   },
   emojiSelectorButton: {
@@ -1326,18 +1330,19 @@ const styles = StyleSheet.create({
     height: 48,
     backgroundColor: '#ffffff',
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: 'rgb(229, 231, 235)', // #e5e7eb
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.05,
     shadowRadius: 2,
-    elevation: 2,
+    elevation: 1,
   },
   emojiSelectorText: {
     fontSize: 24,
+    lineHeight: 24,
   },
   categoryNameInput: {
     flex: 1,
@@ -1345,10 +1350,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderWidth: 1,
+    borderColor: 'rgb(229, 231, 235)', // #e5e7eb
     borderRadius: 8,
     fontSize: 14,
+    lineHeight: 20,
     fontFamily: fontFallbacks.Poppins_400Regular,
-    color: '#333',
+    color: 'rgb(44, 44, 44)', // Cor do texto conforme CSS
     backgroundColor: '#ffffff',
   },
   addCategorySubmitButton: {
@@ -1358,9 +1365,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     minWidth: 80,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   },
   addCategorySubmitText: {
     fontSize: 14,
+    lineHeight: 20,
     fontFamily: fontFallbacks.Poppins_600SemiBold,
   },
   closeCategoryFormButton: {
@@ -1369,7 +1382,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 8,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: 'rgb(248, 250, 252)', // Cor mais suave
+    borderWidth: 1,
+    borderColor: 'rgb(229, 231, 235)',
   },
   emojiDropdown: {
     position: 'absolute',
@@ -1378,12 +1393,12 @@ const styles = StyleSheet.create({
     right: 0,
     backgroundColor: '#ffffff',
     borderWidth: 1,
-    borderColor: '#e0e0e0',
-    borderRadius: 8,
+    borderColor: 'rgb(229, 231, 235)', // #e5e7eb
+    borderRadius: 12,
     padding: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
+    shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 10,
     zIndex: 1000,
@@ -1403,10 +1418,13 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   emojiGridItemSelected: {
-    backgroundColor: '#f0f0f0',
+    backgroundColor: 'rgb(243, 244, 246)', // Cor mais suave para seleção
+    borderWidth: 1,
+    borderColor: 'rgb(209, 213, 219)',
   },
   emojiGridText: {
     fontSize: 20,
+    lineHeight: 24,
   },
 });
 
@@ -3612,10 +3630,11 @@ export default function Registers() {
                 <View style={[
                   styles.newCategoryFormContainer,
                   {
-                    backgroundColor: transactionType === 'expense' ? 'rgba(255, 82, 82, 0.1)' :
-                                   transactionType === 'income' ? 'rgba(154, 255, 203, 0.1)' : '#ffffff',
-                    borderColor: transactionType === 'expense' ? '#FF5252' :
-                               transactionType === 'income' ? '#9AFFCB' : '#e0e0e0'
+                    backgroundColor: transactionType === 'expense' ? 'rgb(254, 242, 242)' : // #fef2f2
+                                   transactionType === 'income' ? 'rgb(240, 253, 244)' : '#ffffff', // #f0fdf4
+                    borderColor: transactionType === 'expense' ? 'rgb(254, 202, 202)' : // #fecaca
+                               transactionType === 'income' ? 'rgb(187, 247, 208)' : 'rgb(229, 231, 235)', // #bbf7d0 : #e5e7eb
+                    marginTop: 12,
                   }
                 ]}>
                   {/* Container horizontal com elementos */}
@@ -3635,14 +3654,14 @@ export default function Registers() {
                       style={[
                         styles.categoryNameInput,
                         {
-                          borderColor: transactionType === 'expense' ? '#FF5252' :
-                                     transactionType === 'income' ? '#9AFFCB' : '#e0e0e0'
+                          borderColor: transactionType === 'expense' ? 'rgb(254, 202, 202)' : // #fecaca
+                                     transactionType === 'income' ? 'rgb(187, 247, 208)' : 'rgb(229, 231, 235)', // #bbf7d0 : #e5e7eb
                         }
                       ]}
                       value={newCategoryName}
                       onChangeText={setNewCategoryName}
                       placeholder="Nome da nova categoria"
-                      placeholderTextColor="#999"
+                      placeholderTextColor="rgb(156, 163, 175)" // #9ca3af
                     />
                     
                     {/* Botão Adicionar */}
@@ -3650,8 +3669,8 @@ export default function Registers() {
                       style={[
                         styles.addCategorySubmitButton,
                         {
-                          backgroundColor: transactionType === 'expense' ? '#FF5252' :
-                                         transactionType === 'income' ? '#9AFFCB' : theme.primary
+                          backgroundColor: transactionType === 'expense' ? 'rgb(239, 68, 68)' : // #ef4444
+                                         transactionType === 'income' ? 'rgb(34, 197, 94)' : 'rgb(59, 130, 246)', // #22c55e : #3b82f6
                         }
                       ]}
                       onPress={saveNewCategory}
@@ -3659,7 +3678,7 @@ export default function Registers() {
                       <Text style={[
                         styles.addCategorySubmitText,
                         {
-                          color: transactionType === 'income' ? '#000' : '#fff'
+                          color: '#ffffff'
                         }
                       ]}>
                         Adicionar
@@ -3671,7 +3690,7 @@ export default function Registers() {
                       style={styles.closeCategoryFormButton}
                       onPress={cancelAddCategory}
                     >
-                      <X size={18} color="#666" />
+                      <X size={18} color="rgb(107, 114, 128)" />
                     </TouchableOpacity>
                   </View>
                   

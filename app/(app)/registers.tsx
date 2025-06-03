@@ -2864,6 +2864,29 @@ export default function Registers() {
 
   const toggleNewCategoryIcons = () => {
     setNewCategoryIconsVisible(!newCategoryIconsVisible);
+    
+    // Fechar outros dropdowns se estiverem abertos
+    if (paymentMethodsVisible) {
+      setPaymentMethodsVisible(false);
+    }
+    if (calendarVisible) {
+      setCalendarVisible(false);
+    }
+    if (accountsVisible) {
+      setAccountsVisible(false);
+    }
+    if (iconsVisible) {
+      setIconsVisible(false);
+    }
+    if (partnersVisible) {
+      setPartnersVisible(false);
+    }
+    if (recurrenceVisible) {
+      setRecurrenceVisible(false);
+    }
+    if (recurrenceEndDateVisible) {
+      setRecurrenceEndDateVisible(false);
+    }
   };
 
   const selectNewCategoryIcon = (icon: string) => {

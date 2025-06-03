@@ -1324,7 +1324,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   emojiSelectorButton: {
-    width: 48,
+    width: 30,
     height: 48,
     backgroundColor: '#ffffff',
     borderWidth: 1,

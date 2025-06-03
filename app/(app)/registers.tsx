@@ -1328,7 +1328,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderWidth: 1,
     borderColor: 'rgb(229, 231, 235)', // #e5e7eb
-    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
@@ -1349,7 +1348,6 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderWidth: 1,
     borderColor: 'rgb(229, 231, 235)', // #e5e7eb
-    borderRadius: 8,
     fontSize: 14,
     lineHeight: 20,
     fontFamily: fontFallbacks.Poppins_400Regular,
@@ -1359,7 +1357,6 @@ const styles = StyleSheet.create({
   addCategorySubmitButton: {
     paddingHorizontal: 16,
     paddingVertical: 12,
-    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
     minWidth: 80,
@@ -1379,7 +1376,6 @@ const styles = StyleSheet.create({
     height: 40,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 8,
     backgroundColor: 'rgb(248, 250, 252)', // Cor mais suave
     borderWidth: 1,
     borderColor: 'rgb(229, 231, 235)',

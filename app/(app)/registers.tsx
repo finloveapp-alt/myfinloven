@@ -1343,6 +1343,7 @@ const styles = StyleSheet.create({
   },
   categoryNameInput: {
     flex: 1,
+    maxWidth: '40%',
     height: 48,
     paddingHorizontal: 12,
     paddingVertical: 8,

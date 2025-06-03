@@ -1344,6 +1344,7 @@ const styles = StyleSheet.create({
   categoryNameInput: {
     flex: 1,
     maxWidth: '60%',
+    minWidth: '30%',
     height: 48,
     paddingHorizontal: 12,
     paddingVertical: 8,

@@ -1474,7 +1474,7 @@ export default function Registers() {
   const [recurrenceEndPickerDay, setRecurrenceEndPickerDay] = useState(new Date().getDate());
   const [isAddingCategory, setIsAddingCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
-  const [newCategoryIcon, setNewCategoryIcon] = useState('');
+  const [newCategoryIcon, setNewCategoryIcon] = useState('📝');
   const [newCategoryIconsVisible, setNewCategoryIconsVisible] = useState(false);
   
   // Lista de ícones disponíveis para seleção

@@ -1312,6 +1312,7 @@ const styles = StyleSheet.create({
   newCategoryFormContainer: {
     position: 'relative',
     flexDirection: 'row',
+    overflow: 'visible',
     borderRadius: 12, // 0.75rem = 12px
     height: 36,
     borderWidth: 1,

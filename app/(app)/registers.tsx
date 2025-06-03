@@ -1309,6 +1309,105 @@ const styles = StyleSheet.create({
     color: '#666',
     marginLeft: 4,
   },
+  newCategoryFieldsContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+    gap: 12,
+  },
+  newCategoryIconContainer: {
+    width: 80,
+    alignItems: 'center',
+  },
+  newCategoryFieldLabel: {
+    fontSize: 12,
+    fontFamily: fontFallbacks.Poppins_400Regular,
+    color: '#666',
+    marginBottom: 6,
+    textAlign: 'center',
+  },
+  newCategoryIconSelector: {
+    width: 60,
+    height: 60,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fff',
+  },
+  newCategorySelectedIcon: {
+    fontSize: 28,
+  },
+  newCategoryIconPlaceholder: {
+    fontSize: 28,
+    color: '#ccc',
+  },
+  newCategoryNameContainer: {
+    flex: 1,
+  },
+  newCategoryNameInput: {
+    height: 60,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    borderRadius: 12,
+    fontSize: 16,
+    fontFamily: fontFallbacks.Poppins_400Regular,
+    color: '#333333',
+    paddingHorizontal: 16,
+    backgroundColor: '#fff',
+  },
+  newCategoryButtonsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  newCategoryCancelButton: {
+    flex: 1,
+    backgroundColor: '#f8f9fa',
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  newCategoryCancelButtonText: {
+    fontSize: 16,
+    fontFamily: fontFallbacks.Poppins_500Medium,
+    color: '#6c757d',
+  },
+  newCategoryAddButton: {
+    flex: 1,
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  newCategoryAddButtonText: {
+    fontSize: 16,
+    fontFamily: fontFallbacks.Poppins_600SemiBold,
+    color: '#fff',
+  },
+  newCategoryIconsDropdown: {
+    position: 'absolute',
+    top: 70,
+    left: -10,
+    right: -10,
+    backgroundColor: 'white',
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    borderRadius: 12,
+    marginTop: 4,
+    maxHeight: 200,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 8,
+    zIndex: 9999,
+  },
 });
 
 export default function Registers() {
@@ -3469,76 +3568,74 @@ export default function Registers() {
                 <View style={[styles.newCategoryContainer, { borderColor: theme.primary }]}>
                   <Text style={[styles.newCategoryTitle, { color: theme.primary }]}>Nova Categoria</Text>
                   
-                  {/* Seletor de ícone para categoria */}
-                  <View style={[styles.inputGroup, { marginBottom: 12, zIndex: 15 }]}>
-                    <Text style={styles.inputLabel}>Ícone</Text>
-                    <TouchableOpacity 
-                      style={[
-                        styles.iconSelector,
-                        newCategoryIcon ? { borderColor: theme.primary, borderWidth: 1.5 } : null
-                      ]} 
-                      onPress={toggleNewCategoryIcons}
-                    >
-                      {newCategoryIcon ? (
-                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                          <Text style={styles.selectedIconText}>{newCategoryIcon}</Text>
-                          <Text style={[styles.selectedIconLabel, { color: theme.primary }]}>Ícone selecionado</Text>
+                  {/* Container horizontal para ícone e nome */}
+                  <View style={styles.newCategoryFieldsContainer}>
+                    {/* Seletor de ícone para categoria */}
+                    <View style={[styles.newCategoryIconContainer, { zIndex: 15 }]}>
+                      <Text style={styles.newCategoryFieldLabel}>Ícone</Text>
+                      <TouchableOpacity 
+                        style={[
+                          styles.newCategoryIconSelector,
+                          newCategoryIcon ? { borderColor: theme.primary, borderWidth: 1.5 } : null
+                        ]} 
+                        onPress={toggleNewCategoryIcons}
+                      >
+                        {newCategoryIcon ? (
+                          <Text style={styles.newCategorySelectedIcon}>{newCategoryIcon}</Text>
+                        ) : (
+                          <Text style={styles.newCategoryIconPlaceholder}>🏷️</Text>
+                        )}
+                      </TouchableOpacity>
+                      
+                      {newCategoryIconsVisible && (
+                        <View style={styles.newCategoryIconsDropdown}>
+                          <ScrollView style={styles.iconsScrollView} horizontal={false} showsVerticalScrollIndicator={true}>
+                            <View style={styles.iconsGrid}>
+                              {availableIcons.map((item, index) => (
+                                <TouchableOpacity 
+                                  key={index} 
+                                  style={[
+                                    styles.iconItem,
+                                    newCategoryIcon === item.emoji && styles.selectedIconItem
+                                  ]} 
+                                  onPress={() => selectNewCategoryIcon(item.emoji)}
+                                >
+                                  <Text style={styles.iconEmoji}>{item.emoji}</Text>
+                                </TouchableOpacity>
+                              ))}
+                            </View>
+                          </ScrollView>
                         </View>
-                      ) : (
-                        <Text style={styles.iconSelectorText}>Escolha um ícone</Text>
                       )}
-                      <ChevronRight size={18} color="#666" style={{ transform: [{ rotate: '90deg' }] as any }} />
-                    </TouchableOpacity>
+                    </View>
                     
-                    {newCategoryIconsVisible && (
-                      <View style={styles.iconsDropdown}>
-                        <ScrollView style={styles.iconsScrollView} horizontal={false} showsVerticalScrollIndicator={true}>
-                          <View style={styles.iconsGrid}>
-                            {availableIcons.map((item, index) => (
-                              <TouchableOpacity 
-                                key={index} 
-                                style={[
-                                  styles.iconItem,
-                                  newCategoryIcon === item.emoji && styles.selectedIconItem
-                                ]} 
-                                onPress={() => selectNewCategoryIcon(item.emoji)}
-                              >
-                                <Text style={styles.iconEmoji}>{item.emoji}</Text>
-                              </TouchableOpacity>
-                            ))}
-                          </View>
-                        </ScrollView>
-                      </View>
-                    )}
-                  </View>
-                  
-                  {/* Campo de nome da categoria */}
-                  <View style={[styles.inputGroup, { marginBottom: 12 }]}>
-                    <Text style={styles.inputLabel}>Nome da Categoria</Text>
-                    <TextInput
-                      style={styles.textInput}
-                      value={newCategoryName}
-                      onChangeText={setNewCategoryName}
-                      placeholder="Ex: Alimentação, Transporte, Lazer"
-                      placeholderTextColor="#999"
-                    />
+                    {/* Campo de nome da categoria */}
+                    <View style={styles.newCategoryNameContainer}>
+                      <Text style={styles.newCategoryFieldLabel}>Nome da nova categoria</Text>
+                      <TextInput
+                        style={styles.newCategoryNameInput}
+                        value={newCategoryName}
+                        onChangeText={setNewCategoryName}
+                        placeholder="Nome da nova categoria"
+                        placeholderTextColor="#999"
+                      />
+                    </View>
                   </View>
                   
                   {/* Botões de ação */}
-                  <View style={styles.categoryButtonsContainer}>
+                  <View style={styles.newCategoryButtonsContainer}>
                     <TouchableOpacity 
-                      style={[styles.categoryButton, styles.cancelButton]}
+                      style={[styles.newCategoryCancelButton]}
                       onPress={cancelAddCategory}
                     >
-                      <X size={16} color="#666" />
-                      <Text style={styles.cancelButtonText}>Cancelar</Text>
+                      <Text style={styles.newCategoryCancelButtonText}>Cancelar</Text>
                     </TouchableOpacity>
                     
                     <TouchableOpacity 
-                      style={[styles.categoryButton, styles.saveButton, { backgroundColor: theme.primary }]}
+                      style={[styles.newCategoryAddButton, { backgroundColor: theme.primary }]}
                       onPress={saveNewCategory}
                     >
-                      <Text style={styles.saveButtonText}>Adicionar</Text>
+                      <Text style={styles.newCategoryAddButtonText}>Adicionar</Text>
                     </TouchableOpacity>
                   </View>
                 </View>

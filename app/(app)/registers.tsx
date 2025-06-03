@@ -774,6 +774,21 @@ export default function Registers() {
   };
 
   const toggleRecurrenceEndCalendar = () => {
+    // Usar as mesmas variáveis do calendário principal
+    if (!recurrenceEndDateVisible) {
+      // Ao abrir, sincronizar com a data atual ou data já selecionada
+      if (recurrenceEndDate) {
+        const [day, month, year] = recurrenceEndDate.split('/').map(Number);
+        setPickerMonth(month - 1);
+        setPickerYear(year);
+        setPickerDay(day);
+      } else {
+        const today = new Date();
+        setPickerMonth(today.getMonth());
+        setPickerYear(today.getFullYear());
+        setPickerDay(today.getDate());
+      }
+    }
     setRecurrenceEndDateVisible(!recurrenceEndDateVisible);
   };
 
@@ -796,8 +811,8 @@ export default function Registers() {
   };
 
   const selectRecurrenceEndDateFromPicker = (day: number) => {
-    setRecurrenceEndPickerDay(day);
-    const newDate = `${String(day).padStart(2, '0')}/${String(recurrenceEndPickerMonth + 1).padStart(2, '0')}/${recurrenceEndPickerYear}`;
+    setPickerDay(day);
+    const newDate = `${String(day).padStart(2, '0')}/${String(pickerMonth + 1).padStart(2, '0')}/${pickerYear}`;
     setRecurrenceEndDate(newDate);
     setRecurrenceEndDateVisible(false);
   };
@@ -1162,7 +1177,7 @@ export default function Registers() {
   };
 
   // Renderizar os dias do calendário em formato de grade para o modal
-  const renderPickerCalendarGrid = () => {
+  const renderPickerCalendarGrid = (isRecurrenceEndDate = false) => {
     const days = generatePickerCalendarDays();
     const rows: JSX.Element[] = [];
     let cells: JSX.Element[] = [];
@@ -1181,10 +1196,10 @@ export default function Registers() {
 
     // Agrupar os dias em semanas
     days.forEach((day, index) => {
-      // Verificar se este dia tem transações (apenas se for do mês atual do picker)
+      // Verificar se este dia tem transações (apenas se for do mês atual do picker e não for para recorrência)
       const isCurrentMonthDay = day.currentMonth && pickerMonth === currentMonth && pickerYear === currentYear;
       const dayKey = day.day.toString();
-      const hasTransactions = isCurrentMonthDay && monthTransactions[dayKey];
+      const hasTransactions = !isRecurrenceEndDate && isCurrentMonthDay && monthTransactions[dayKey];
       const isSelected = pickerDay === day.day && day.currentMonth;
       
       cells.push(
@@ -1195,7 +1210,7 @@ export default function Registers() {
             day.currentMonth ? styles.pickerCurrentMonthCell : styles.pickerOtherMonthCell,
             isSelected ? styles.pickerSelectedCell : null
           ]}
-          onPress={() => day.currentMonth && selectDateFromPicker(day.day)}
+          onPress={() => day.currentMonth && (isRecurrenceEndDate ? selectRecurrenceEndDateFromPicker(day.day) : selectDateFromPicker(day.day))}
         >
           <View
             style={[
@@ -1213,7 +1228,7 @@ export default function Registers() {
               {day.day}
             </Text>
             
-            {/* Indicadores de transações */}
+            {/* Indicadores de transações - só mostrar se não for para recorrência */}
             {hasTransactions && (
               <View style={[
                 styles.pickerTransactionIndicatorsContainer,

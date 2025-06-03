@@ -873,43 +873,67 @@ export default function Registers() {
   };
 
   const renderRecurrenceEndPickerCalendarGrid = () => {
-    const calendarDays = generateRecurrenceEndPickerCalendarDays();
-    
-    return (
-      <View style={styles.calendarGrid}>
-        {/* Cabeçalho dos dias da semana */}
-        <View style={styles.weekDaysHeader}>
-          {weekDays.map((day, index) => (
-            <Text key={index} style={styles.weekDayText}>{day}</Text>
-          ))}
-        </View>
-        
-        {/* Grid dos dias */}
-        <View style={styles.daysGrid}>
-          {calendarDays.map((dayInfo, index) => (
-            <TouchableOpacity
-              key={index}
-              style={[
-                styles.dayCell,
-                dayInfo.isSelected && [styles.selectedDayCell, { backgroundColor: theme.primary }],
-                dayInfo.isToday && !dayInfo.isSelected && styles.todayCell
-              ]}
-              onPress={() => dayInfo.currentMonth && selectRecurrenceEndDateFromPicker(dayInfo.day)}
-              disabled={!dayInfo.currentMonth}
-            >
-              <Text style={[
-                styles.dayText,
-                !dayInfo.currentMonth && styles.inactiveDayText,
-                dayInfo.isSelected && styles.selectedDayText,
-                dayInfo.isToday && !dayInfo.isSelected && styles.todayText
-              ]}>
-                {dayInfo.day}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+    const days = generateRecurrenceEndPickerCalendarDays();
+    const rows: JSX.Element[] = [];
+    let cells: JSX.Element[] = [];
+
+    // Adicionar cabeçalho dos dias da semana
+    const headerCells = weekDays.map((day, index) => (
+      <View key={`picker-header-${index}`} style={styles.pickerCalendarHeaderCell}>
+        <Text style={styles.pickerCalendarHeaderText}>{day}</Text>
+      </View>
+    ));
+    rows.push(
+      <View key="picker-header" style={styles.pickerCalendarRow}>
+        {headerCells}
       </View>
     );
+
+    // Agrupar os dias em semanas
+    days.forEach((day, index) => {
+      const isSelected = pickerDay === day.day && day.currentMonth;
+      
+      cells.push(
+        <TouchableOpacity
+          key={`picker-day-${index}`}
+          style={[
+            styles.pickerCalendarCell,
+            day.currentMonth ? styles.pickerCurrentMonthCell : styles.pickerOtherMonthCell,
+            isSelected ? styles.pickerSelectedCell : null
+          ]}
+          onPress={() => day.currentMonth && selectRecurrenceEndDateFromPicker(day.day)}
+        >
+          <View
+            style={[
+              styles.pickerDayCircle,
+              isSelected ? styles.pickerSelectedDayCircle : null
+            ]}
+          >
+            <Text
+              style={[
+                styles.pickerCalendarDay,
+                day.currentMonth ? styles.pickerCurrentMonthDay : styles.pickerOtherMonthDay,
+                isSelected ? [styles.pickerSelectedDayText, { color: theme.primary }] : null
+              ]}
+            >
+              {day.day}
+            </Text>
+          </View>
+        </TouchableOpacity>
+      );
+
+      // Completar uma semana
+      if ((index + 1) % 7 === 0 || index === days.length - 1) {
+        rows.push(
+          <View key={`picker-row-${Math.floor(index / 7)}`} style={styles.pickerCalendarRow}>
+            {cells}
+          </View>
+        );
+        cells = [];
+      }
+    });
+
+    return rows;
   };
 
   // Função para salvar a nova transação

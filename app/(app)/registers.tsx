@@ -1314,6 +1314,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     overflow: 'hidden',
     borderRadius: 12, // 0.75rem = 12px
+    height: 36,
     // borderColor e backgroundColor removidos - sem borda e sem fundo
   },
   categoryFormRow: {

@@ -1312,7 +1312,7 @@ const styles = StyleSheet.create({
   newCategoryFormContainer: {
     position: 'relative',
     flexDirection: 'row',
-    overflow: 'visible',
+    overflow: 'hidden',
     borderRadius: 12, // 0.75rem = 12px
     height: 36,
     borderWidth: 1,
@@ -3710,29 +3710,29 @@ export default function Registers() {
                       <X size={18} color="rgb(107, 114, 128)" />
                     </TouchableOpacity>
                   </View>
-                  
-                  {/* Seletor de emojis dropdown */}
-                  {newCategoryIconsVisible && (
-                    <View style={styles.emojiDropdown}>
-                      <View style={styles.emojiGrid}>
-                        {['📝', '🍽️', '🏠', '🚗', '🏥', '🎭', '💰', '🛒', '✈️', '📱', '📚', '🎁', '📊', '👕'].map((emoji, index) => (
-                          <TouchableOpacity 
-                            key={index}
-                            style={[
-                              styles.emojiGridItem,
-                              newCategoryIcon === emoji && styles.emojiGridItemSelected
-                            ]}
-                            onPress={() => selectNewCategoryIcon(emoji)}
-                          >
-                            <Text style={styles.emojiGridText}>{emoji}</Text>
-                          </TouchableOpacity>
-                        ))}
-                      </View>
-                    </View>
-                  )}
                 </View>
               )}
             </View>
+
+            {/* Seletor de emojis dropdown - movido para fora do container */}
+            {isAddingCategory && newCategoryIconsVisible && (
+              <View style={[styles.emojiDropdown, { position: 'relative', marginTop: 8 }]}>
+                <View style={styles.emojiGrid}>
+                  {['📝', '🍽️', '🏠', '🚗', '🏥', '🎭', '💰', '🛒', '✈️', '📱', '📚', '🎁', '📊', '👕'].map((emoji, index) => (
+                    <TouchableOpacity 
+                      key={index}
+                      style={[
+                        styles.emojiGridItem,
+                        newCategoryIcon === emoji && styles.emojiGridItemSelected
+                      ]}
+                      onPress={() => selectNewCategoryIcon(emoji)}
+                    >
+                      <Text style={styles.emojiGridText}>{emoji}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            )}
 
             {/* Conta */}
             <View style={[styles.inputGroup, { zIndex: 9 }]}>

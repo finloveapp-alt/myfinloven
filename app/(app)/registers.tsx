@@ -1315,7 +1315,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderRadius: 12, // 0.75rem = 12px
     height: 36,
-    // borderColor e backgroundColor removidos - sem borda e sem fundo
+    borderWidth: 1,
+    // borderColor será aplicado inline baseado no tipo de transação
   },
   categoryFormRow: {
     flex: 1,
@@ -3624,6 +3625,8 @@ export default function Registers() {
                 <View style={[
                   styles.newCategoryFormContainer,
                   {
+                    borderColor: transactionType === 'expense' ? 'rgb(254, 202, 202)' : // #fecaca
+                               transactionType === 'income' ? 'rgb(187, 247, 208)' : 'rgb(229, 231, 235)', // #bbf7d0 : #e5e7eb
                     marginTop: 12,
                   }
                 ]}>

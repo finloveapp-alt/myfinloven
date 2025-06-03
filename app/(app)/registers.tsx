@@ -623,7 +623,7 @@ export default function Registers() {
         }
         
         // Criar um mapa de ID -> perfil para facilitar acesso
-        const profileMap = {};
+        const profileMap: {[key: string]: any} = {};
         if (partnerProfiles) {
           partnerProfiles.forEach(profile => {
             profileMap[profile.id] = profile;
@@ -1013,7 +1013,7 @@ export default function Registers() {
       console.log('Transação salva com sucesso:', data);
       
       // Se for recorrente, criar as transações futuras
-      if (isRecurrent && recurrenceEndDate) {
+      if (isRecurrent && recurrenceEndDate && parsedRecurrenceEndDate) {
         await createRecurringTransactions(transactionData, parsedDate, parsedRecurrenceEndDate);
       }
       
@@ -2375,7 +2375,7 @@ export default function Registers() {
           <View style={[styles.menuModalContent, { backgroundColor: theme.card }]}>
             <View style={styles.menuHeader}>
               <TouchableOpacity 
-                style={styles.closeButton}
+                style={styles.menuCloseButton}
                 onPress={() => setMenuModalVisible(false)}
               >
                 <X size={24} color={theme.primary} />
@@ -3195,7 +3195,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     marginBottom: 20,
   },
-  closeButton: {
+  menuCloseButton: {
     padding: 10,
     borderRadius: 20,
   },
@@ -3641,7 +3641,7 @@ const styles = StyleSheet.create({
   todayText: {
     color: '#0073ea',
   },
-  selectedDayText: {
+  calendarSelectedDayText: {
     color: '#FFF',
   },
 }); 

@@ -1422,6 +1422,133 @@ const styles = StyleSheet.create({
     fontSize: 20,
     lineHeight: 24,
   },
+  newAccountFormContainer: {
+    position: 'relative',
+    marginTop: 12,
+    padding: 16,
+    borderWidth: 1.5,
+    borderRadius: 12,
+    backgroundColor: 'rgba(0, 115, 234, 0.05)',
+    borderColor: '#0073ea',
+  },
+  newAccountTitle: {
+    fontSize: 16,
+    fontFamily: fontFallbacks.Poppins_600SemiBold,
+    marginBottom: 12,
+    color: '#0073ea',
+  },
+  accountFormRow: {
+    marginBottom: 12,
+  },
+  accountFormLabel: {
+    fontSize: 14,
+    fontFamily: fontFallbacks.Poppins_500Medium,
+    color: '#333',
+    marginBottom: 6,
+  },
+  accountFormInput: {
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    fontFamily: fontFallbacks.Poppins_400Regular,
+    color: '#333',
+    backgroundColor: '#fff',
+  },
+  accountFormSelector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    borderRadius: 8,
+    backgroundColor: '#fff',
+  },
+  accountFormSelectorText: {
+    fontSize: 16,
+    fontFamily: fontFallbacks.Poppins_400Regular,
+    color: '#666',
+    flex: 1,
+  },
+  accountFormSelectedText: {
+    fontSize: 16,
+    fontFamily: fontFallbacks.Poppins_500Medium,
+    color: '#0073ea',
+    flex: 1,
+  },
+  accountFormDropdown: {
+    position: 'absolute',
+    top: 45,
+    left: 0,
+    right: 0,
+    backgroundColor: 'white',
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    borderRadius: 8,
+    marginTop: 4,
+    maxHeight: 200,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+    zIndex: 9999,
+  },
+  accountFormOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  accountFormOptionSelected: {
+    backgroundColor: 'rgba(0, 115, 234, 0.15)',
+  },
+  accountFormOptionText: {
+    fontSize: 16,
+    fontFamily: fontFallbacks.Poppins_500Medium,
+    color: '#333',
+  },
+  accountFormOptionTextSelected: {
+    color: '#0073ea',
+    fontFamily: fontFallbacks.Poppins_600SemiBold,
+  },
+  accountFormButtonsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 16,
+  },
+  accountFormButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    flex: 0.48,
+  },
+  accountFormSaveButton: {
+    backgroundColor: '#0073ea',
+  },
+  accountFormCancelButton: {
+    backgroundColor: '#f5f5f5',
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  accountFormSaveButtonText: {
+    fontSize: 14,
+    fontFamily: fontFallbacks.Poppins_600SemiBold,
+    color: '#fff',
+    marginLeft: 4,
+  },
+  accountFormCancelButtonText: {
+    fontSize: 14,
+    fontFamily: fontFallbacks.Poppins_500Medium,
+    color: '#666',
+    marginLeft: 4,
+  },
 });
 
 export default function Registers() {
@@ -1476,6 +1603,13 @@ export default function Registers() {
   const [newCategoryName, setNewCategoryName] = useState('');
   const [newCategoryIcon, setNewCategoryIcon] = useState('📝');
   const [newCategoryIconsVisible, setNewCategoryIconsVisible] = useState(false);
+  const [isAddingAccount, setIsAddingAccount] = useState(false);
+  const [newAccountName, setNewAccountName] = useState('');
+  const [newAccountInitialBalance, setNewAccountInitialBalance] = useState('');
+  const [newAccountType, setNewAccountType] = useState('');
+  const [newAccountOwner, setNewAccountOwner] = useState('');
+  const [accountTypesVisible, setAccountTypesVisible] = useState(false);
+  const [accountOwnersVisible, setAccountOwnersVisible] = useState(false);
   
   // Lista de ícones disponíveis para seleção
   const availableIcons = [
@@ -2969,6 +3103,133 @@ export default function Registers() {
     setNewCategoryIconsVisible(false);
   };
 
+  // Funções para gerenciar adição de conta
+  const toggleAddAccount = () => {
+    setIsAddingAccount(!isAddingAccount);
+    if (!isAddingAccount) {
+      // Resetar campos ao abrir
+      setNewAccountName('');
+      setNewAccountInitialBalance('');
+      setNewAccountType('');
+      setNewAccountOwner('');
+      setAccountTypesVisible(false);
+      setAccountOwnersVisible(false);
+    }
+  };
+
+  const toggleAccountTypes = () => {
+    setAccountTypesVisible(!accountTypesVisible);
+    if (accountOwnersVisible) {
+      setAccountOwnersVisible(false);
+    }
+  };
+
+  const selectAccountType = (type: string) => {
+    setNewAccountType(type);
+    setAccountTypesVisible(false);
+  };
+
+  const toggleAccountOwners = () => {
+    setAccountOwnersVisible(!accountOwnersVisible);
+    if (accountTypesVisible) {
+      setAccountTypesVisible(false);
+    }
+  };
+
+  const selectAccountOwner = (owner: string) => {
+    setNewAccountOwner(owner);
+    setAccountOwnersVisible(false);
+  };
+
+  const saveNewAccount = async () => {
+    if (!newAccountName.trim()) {
+      alert('Por favor, informe um nome para a conta.');
+      return;
+    }
+    
+    if (!newAccountType) {
+      alert('Por favor, selecione um tipo de conta.');
+      return;
+    }
+    
+    if (!newAccountOwner) {
+      alert('Por favor, selecione o proprietário da conta.');
+      return;
+    }
+    
+    try {
+      // Obter a sessão atual para o ID do usuário
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) {
+        alert('Usuário não autenticado.');
+        return;
+      }
+      
+      const userId = session.user.id;
+      
+      // Preparar os dados da conta
+      const accountData = {
+        name: newAccountName.trim(),
+        type: newAccountType,
+        initial_balance: parseFloat(newAccountInitialBalance.replace(',', '.')) || 0,
+        current_balance: parseFloat(newAccountInitialBalance.replace(',', '.')) || 0,
+        owner_id: newAccountOwner === 'Você' ? userId : 
+                  userPartners.find(p => p.name === newAccountOwner)?.id || userId,
+        partner_id: newAccountOwner !== 'Você' ? userId : null,
+        color: '#0073ea', // Cor padrão
+        created_at: new Date().toISOString()
+      };
+      
+      // Inserir a conta no banco de dados
+      const { data, error } = await supabase
+        .from('accounts')
+        .insert([accountData])
+        .select();
+      
+      if (error) {
+        console.error('Erro ao salvar conta:', error);
+        alert(`Erro ao salvar conta: ${error.message}`);
+        return;
+      }
+      
+      console.log('Conta salva com sucesso:', data);
+      
+      // Atualizar a lista de contas
+      await fetchUserAccounts();
+      
+      // Selecionar a nova conta automaticamente
+      if (data && data[0]) {
+        setSelectedAccount(data[0].name);
+        setSelectedAccountId(data[0].id);
+      }
+      
+      // Resetar e fechar o formulário
+      setNewAccountName('');
+      setNewAccountInitialBalance('');
+      setNewAccountType('');
+      setNewAccountOwner('');
+      setIsAddingAccount(false);
+      setAccountTypesVisible(false);
+      setAccountOwnersVisible(false);
+      
+      alert('Conta criada com sucesso!');
+      
+    } catch (error) {
+      console.error('Erro ao salvar conta:', error);
+      alert('Ocorreu um erro ao salvar a conta. Por favor, tente novamente.');
+    }
+  };
+
+  const cancelAddAccount = () => {
+    setNewAccountName('');
+    setNewAccountInitialBalance('');
+    setNewAccountType('');
+    setNewAccountOwner('');
+    setIsAddingAccount(false);
+    setAccountTypesVisible(false);
+    setAccountOwnersVisible(false);
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <StatusBar style="light" />
@@ -3795,11 +4056,158 @@ export default function Registers() {
               
               <TouchableOpacity 
                 style={styles.addCategoryButton}
-                onPress={() => router.push('/(app)/accounts')}
+                onPress={toggleAddAccount}
               >
                 <PlusCircle size={16} color={theme.primary} />
                 <Text style={[styles.addCategoryText, { color: theme.primary }]}>Adicionar Nova Conta</Text>
               </TouchableOpacity>
+              
+              {/* Campo para adicionar nova conta */}
+              {isAddingAccount && (
+                <View style={styles.newAccountFormContainer}>
+                  <Text style={styles.newAccountTitle}>Nova Conta</Text>
+                  
+                  {/* Nome da conta */}
+                  <View style={styles.accountFormRow}>
+                    <Text style={styles.accountFormLabel}>Nome da Conta</Text>
+                    <TextInput
+                      style={styles.accountFormInput}
+                      value={newAccountName}
+                      onChangeText={setNewAccountName}
+                      placeholder="Ex: Nubank, Santander, Carteira"
+                      placeholderTextColor="#999"
+                    />
+                  </View>
+                  
+                  {/* Valor inicial */}
+                  <View style={styles.accountFormRow}>
+                    <Text style={styles.accountFormLabel}>Valor Inicial</Text>
+                    <View style={styles.amountInputContainer}>
+                      <Text style={styles.currencySymbol}>R$</Text>
+                      <TextInput
+                        style={styles.amountInput}
+                        value={newAccountInitialBalance}
+                        onChangeText={setNewAccountInitialBalance}
+                        placeholder="0,00"
+                        keyboardType="numeric"
+                        placeholderTextColor="#999"
+                      />
+                    </View>
+                  </View>
+                  
+                  {/* Tipo de conta */}
+                  <View style={[styles.accountFormRow, { zIndex: 20 }]}>
+                    <Text style={styles.accountFormLabel}>Tipo de Conta</Text>
+                    <TouchableOpacity 
+                      style={styles.accountFormSelector}
+                      onPress={toggleAccountTypes}
+                    >
+                      {newAccountType ? (
+                        <Text style={styles.accountFormSelectedText}>{newAccountType}</Text>
+                      ) : (
+                        <Text style={styles.accountFormSelectorText}>Selecione o tipo</Text>
+                      )}
+                      <ChevronRight size={18} color="#666" style={{ transform: [{ rotate: '90deg' }] as any }} />
+                    </TouchableOpacity>
+                    
+                    {accountTypesVisible && (
+                      <View style={styles.accountFormDropdown}>
+                        {['Conta Corrente', 'Poupança', 'Investimento', 'Dinheiro Físico', 'Cartão Pré-pago'].map((type, index) => (
+                          <TouchableOpacity 
+                            key={index}
+                            style={[
+                              styles.accountFormOption,
+                              newAccountType === type && styles.accountFormOptionSelected,
+                              index === 4 && { borderBottomWidth: 0 }
+                            ]} 
+                            onPress={() => selectAccountType(type)}
+                          >
+                            <Text style={[
+                              styles.accountFormOptionText,
+                              newAccountType === type && styles.accountFormOptionTextSelected
+                            ]}>
+                              {type}
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    )}
+                  </View>
+                  
+                  {/* Proprietário */}
+                  <View style={[styles.accountFormRow, { zIndex: 19 }]}>
+                    <Text style={styles.accountFormLabel}>Proprietário</Text>
+                    <TouchableOpacity 
+                      style={styles.accountFormSelector}
+                      onPress={toggleAccountOwners}
+                    >
+                      {newAccountOwner ? (
+                        <Text style={styles.accountFormSelectedText}>{newAccountOwner}</Text>
+                      ) : (
+                        <Text style={styles.accountFormSelectorText}>Selecione o proprietário</Text>
+                      )}
+                      <ChevronRight size={18} color="#666" style={{ transform: [{ rotate: '90deg' }] as any }} />
+                    </TouchableOpacity>
+                    
+                    {accountOwnersVisible && (
+                      <View style={styles.accountFormDropdown}>
+                        <TouchableOpacity 
+                          style={[
+                            styles.accountFormOption,
+                            newAccountOwner === 'Você' && styles.accountFormOptionSelected
+                          ]} 
+                          onPress={() => selectAccountOwner('Você')}
+                        >
+                          <Text style={[
+                            styles.accountFormOptionText,
+                            newAccountOwner === 'Você' && styles.accountFormOptionTextSelected
+                          ]}>
+                            Você
+                          </Text>
+                        </TouchableOpacity>
+                        
+                        {userPartners.map((partner, index) => (
+                          <TouchableOpacity 
+                            key={index}
+                            style={[
+                              styles.accountFormOption,
+                              newAccountOwner === partner.name && styles.accountFormOptionSelected,
+                              index === userPartners.length - 1 && { borderBottomWidth: 0 }
+                            ]} 
+                            onPress={() => selectAccountOwner(partner.name)}
+                          >
+                            <Text style={[
+                              styles.accountFormOptionText,
+                              newAccountOwner === partner.name && styles.accountFormOptionTextSelected
+                            ]}>
+                              {partner.name}
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    )}
+                  </View>
+                  
+                  {/* Botões */}
+                  <View style={styles.accountFormButtonsContainer}>
+                    <TouchableOpacity 
+                      style={[styles.accountFormButton, styles.accountFormCancelButton]}
+                      onPress={cancelAddAccount}
+                    >
+                      <X size={16} color="#666" />
+                      <Text style={styles.accountFormCancelButtonText}>Cancelar</Text>
+                    </TouchableOpacity>
+                    
+                    <TouchableOpacity 
+                      style={[styles.accountFormButton, styles.accountFormSaveButton]}
+                      onPress={saveNewAccount}
+                    >
+                      <PlusCircle size={16} color="#fff" />
+                      <Text style={styles.accountFormSaveButtonText}>Criar Conta</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
             </View>
 
             {/* Mensagem de erro */}

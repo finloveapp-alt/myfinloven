@@ -1,21 +1,56 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Dimensions, Modal, TextInput, KeyboardAvoidingView, Platform, Alert } from 'react-native';
 import { Plus, CreditCard, X, BarChart, Menu, PlusCircle, Receipt, Home, Bell, Info, ExternalLink, Wallet } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
 import { fontFallbacks } from '@/utils/styles';
+import { supabase } from '@/lib/supabase';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width } = Dimensions.get('window');
 const cardWidth = width * 0.6;
 const cardHeight = cardWidth * 0.6;
 
-const theme = {
-  primary: '#b687fe',
-  card: '#ffffff',
+// Definição de temas
+const themes = {
+  feminine: {
+    primary: '#b687fe',
+    secondary: '#8B5CF6',
+    accent: '#FF3B30',
+    background: '#f5f7fa',
+    card: '#ffffff',
+    expense: '#FF3B30',
+    income: '#4CD964',
+    shared: '#0073ea',
+    text: '#333333'
+  },
+  masculine: {
+    primary: '#0073ea',
+    secondary: '#3c79e6',
+    accent: '#FF3B30',
+    background: '#f5f7fa',
+    card: '#ffffff',
+    expense: '#FF3B30',
+    income: '#4CD964',
+    shared: '#8B5CF6',
+    text: '#333333'
+  }
+};
+
+// Função para obter o tema inicial
+const getInitialTheme = () => {
+  // Verificar primeiro se há um tema global definido
+  if (global.dashboardTheme === 'masculine') {
+    return themes.masculine;
+  }
+  
+  // Se não houver tema global, usar o tema padrão feminino
+  return themes.feminine;
 };
 
 export default function Cards() {
+  const [theme, setTheme] = useState(getInitialTheme());
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [menuModalVisible, setMenuModalVisible] = useState(false);
   const [cardNumber, setCardNumber] = useState('');
@@ -23,6 +58,177 @@ export default function Cards() {
   const [expiryDate, setExpiryDate] = useState('');
   const [cvv, setCvv] = useState('');
   const [selectedType, setSelectedType] = useState('');
+
+  // useEffect para carregar o tema com base no gênero do usuário
+  useEffect(() => {
+    fetchUserTheme();
+  }, []);
+
+  // Função para buscar o tema baseado no perfil do usuário
+  const fetchUserTheme = async () => {
+    try {
+      // Obter a sessão atual
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError) {
+        console.error('Erro ao obter sessão:', sessionError);
+        return;
+      }
+      
+      if (!session?.user) {
+        console.log('Nenhuma sessão de usuário encontrada');
+        return;
+      }
+      
+      const userId = session.user.id;
+      
+      // Buscar o perfil do usuário atual
+      const { data: userProfile, error: userError } = await supabase
+        .from('profiles')
+        .select('gender')
+        .eq('id', userId)
+        .single();
+        
+      if (userError) {
+        console.error('Erro ao buscar perfil do usuário:', userError);
+        return;
+      }
+      
+      console.log('Perfil do usuário obtido do banco:', userProfile);
+      
+      // Definir o tema com base no gênero do usuário
+      if (userProfile && userProfile.gender) {
+        const gender = userProfile.gender.toLowerCase();
+        
+        if (gender === 'masculino' || gender === 'homem' || gender === 'male' || gender === 'm') {
+          console.log('Aplicando tema masculino (azul) com base no perfil');
+          updateTheme('masculine');
+        } else if (gender === 'feminino' || gender === 'mulher' || gender === 'female' || gender === 'f') {
+          console.log('Aplicando tema feminino (rosa) com base no perfil');
+          updateTheme('feminine');
+        } else {
+          // Se o gênero no perfil não for reconhecido, tentar obter dos metadados da sessão
+          const userMetadata = session.user.user_metadata;
+          const metadataGender = userMetadata?.gender || '';
+          
+          console.log('Verificando gênero dos metadados:', metadataGender);
+          
+          if (metadataGender && typeof metadataGender === 'string') {
+            const metaGenderLower = metadataGender.toLowerCase();
+            
+            if (metaGenderLower === 'masculino' || metaGenderLower === 'homem' || 
+                metaGenderLower === 'male' || metaGenderLower === 'm') {
+              console.log('Aplicando tema masculino (azul) com base nos metadados');
+              updateTheme('masculine');
+            } else if (metaGenderLower === 'feminino' || metaGenderLower === 'mulher' || 
+                       metaGenderLower === 'female' || metaGenderLower === 'f') {
+              console.log('Aplicando tema feminino (rosa) com base nos metadados');
+              updateTheme('feminine');
+            } else {
+              // Usar o tema global ou padrão se o gênero nos metadados também não for reconhecido
+              if (global.dashboardTheme === 'masculine') {
+                updateTheme('masculine');
+                console.log('Aplicando tema masculino (azul) da variável global');
+              } else {
+                updateTheme('feminine');
+                console.log('Aplicando tema feminino (rosa) por padrão ou da variável global');
+              }
+            }
+          } else {
+            // Usar o tema global ou padrão se não houver gênero nos metadados
+            if (global.dashboardTheme === 'masculine') {
+              updateTheme('masculine');
+              console.log('Aplicando tema masculino (azul) da variável global');
+            } else {
+              updateTheme('feminine');
+              console.log('Aplicando tema feminino (rosa) por padrão ou da variável global');
+            }
+          }
+        }
+      } else {
+        // Se não encontrou perfil ou gênero no perfil, tentar obter dos metadados da sessão
+        const userMetadata = session.user.user_metadata;
+        const metadataGender = userMetadata?.gender || '';
+        
+        console.log('Perfil não encontrado. Verificando gênero dos metadados:', metadataGender);
+        
+        if (metadataGender && typeof metadataGender === 'string') {
+          const metaGenderLower = metadataGender.toLowerCase();
+          
+          if (metaGenderLower === 'masculino' || metaGenderLower === 'homem' || 
+              metaGenderLower === 'male' || metaGenderLower === 'm') {
+            console.log('Aplicando tema masculino (azul) com base nos metadados');
+            updateTheme('masculine');
+          } else if (metaGenderLower === 'feminino' || metaGenderLower === 'mulher' || 
+                     metaGenderLower === 'female' || metaGenderLower === 'f') {
+            console.log('Aplicando tema feminino (rosa) com base nos metadados');
+            updateTheme('feminine');
+          } else {
+            // Usar o tema global ou padrão se o gênero nos metadados não for reconhecido
+            if (global.dashboardTheme === 'masculine') {
+              updateTheme('masculine');
+              console.log('Aplicando tema masculino (azul) da variável global');
+            } else {
+              updateTheme('feminine');
+              console.log('Aplicando tema feminino (rosa) por padrão ou da variável global');
+            }
+          }
+        } else {
+          // Usar o tema global ou padrão se não houver gênero nos metadados
+          if (global.dashboardTheme === 'masculine') {
+            updateTheme('masculine');
+            console.log('Aplicando tema masculino (azul) da variável global');
+          } else {
+            updateTheme('feminine');
+            console.log('Aplicando tema feminino (rosa) por padrão ou da variável global');
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Erro ao definir tema:', error);
+    }
+  };
+
+  // Função para salvar o tema no AsyncStorage
+  const saveThemeToStorage = async (themeValue: string) => {
+    try {
+      await AsyncStorage.setItem('@MyFinlove:theme', themeValue);
+      console.log('Tema salvo no AsyncStorage:', themeValue);
+    } catch (error) {
+      console.error('Erro ao salvar tema no AsyncStorage:', error);
+    }
+  };
+
+  // Função para atualizar o tema e garantir que seja persistido
+  const updateTheme = (newTheme: 'feminine' | 'masculine') => {
+    if (newTheme === 'masculine') {
+      setTheme(themes.masculine);
+      global.dashboardTheme = 'masculine';
+      saveThemeToStorage('masculine');
+    } else {
+      setTheme(themes.feminine);
+      global.dashboardTheme = 'feminine';
+      saveThemeToStorage('feminine');
+    }
+  };
+
+  // useEffect para carregar o tema do AsyncStorage no início, caso não esteja definido globalmente
+  useEffect(() => {
+    const loadThemeFromStorage = async () => {
+      try {
+        const storedTheme = await AsyncStorage.getItem('@MyFinlove:theme');
+        if (storedTheme === 'masculine' && theme !== themes.masculine) {
+          updateTheme('masculine');
+        } else if (storedTheme === 'feminine' && theme !== themes.feminine) {
+          updateTheme('feminine');
+        }
+      } catch (error) {
+        console.error('Erro ao carregar tema do AsyncStorage:', error);
+      }
+    };
+    
+    loadThemeFromStorage();
+  }, []);
 
   const handleAddCard = () => {
     if (!cardNumber || !cardName || !expiryDate || !cvv || !selectedType) {
@@ -84,7 +290,7 @@ export default function Cards() {
   ];
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
       <StatusBar style="dark" />
       <ScrollView style={styles.scrollView}>
         <View style={styles.header}>
@@ -104,13 +310,13 @@ export default function Cards() {
             onPress={() => setIsModalVisible(true)}
           >
             <View style={styles.addCardContent}>
-              <Plus size={20} color="#b687fe" />
-              <Text style={styles.addCardText}>Adicionar novo cartão</Text>
+              <Plus size={20} color={theme.primary} />
+              <Text style={[styles.addCardText, { color: theme.primary }]}>Adicionar novo cartão</Text>
             </View>
           </TouchableOpacity>
 
           <LinearGradient
-            colors={['#b687fe', '#9157ec']}
+            colors={[theme.primary, theme.secondary]}
             style={styles.card}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
@@ -135,7 +341,7 @@ export default function Cards() {
           </LinearGradient>
 
           <LinearGradient
-            colors={['#0073ea', '#0056b3']}
+            colors={theme === themes.masculine ? [theme.shared, '#0056b3'] : ['#0073ea', '#0056b3']}
             style={styles.card}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
@@ -182,7 +388,7 @@ export default function Cards() {
               </View>
               <Text style={[
                 styles.transactionAmount,
-                { color: transaction.type === 'expense' ? '#FF3B30' : '#4CD964' }
+                { color: transaction.type === 'expense' ? theme.expense : theme.income }
               ]}>
                 {transaction.type === 'expense' ? '-' : '+'}R$ {transaction.amount}
               </Text>
@@ -213,7 +419,7 @@ export default function Cards() {
           style={styles.addButton}
           onPress={() => router.push('/(app)/registers')}
         >
-          <View style={styles.addButtonInner}>
+          <View style={[styles.addButtonInner, { backgroundColor: theme.primary }]}>
             <PlusCircle size={32} color="#fff" />
           </View>
         </TouchableOpacity>
@@ -262,7 +468,7 @@ export default function Cards() {
                     router.push('/(app)/dashboard');
                   }}
                 >
-                  <View style={[styles.menuIconContainer, { backgroundColor: `rgba(182, 135, 254, 0.15)` }]}>
+                  <View style={[styles.menuIconContainer, { backgroundColor: `${theme.primary}26` }]}>
                     <Home size={28} color={theme.primary} />
                   </View>
                   <Text style={[styles.menuItemTitle, { color: '#333' }]}>Dashboard</Text>
@@ -276,7 +482,7 @@ export default function Cards() {
                     router.push('/(app)/registers');
                   }}
                 >
-                  <View style={[styles.menuIconContainer, { backgroundColor: `rgba(182, 135, 254, 0.15)` }]}>
+                  <View style={[styles.menuIconContainer, { backgroundColor: `${theme.primary}26` }]}>
                     <PlusCircle size={28} color={theme.primary} />
                   </View>
                   <Text style={[styles.menuItemTitle, { color: '#333' }]}>Novo Registro</Text>
@@ -290,7 +496,7 @@ export default function Cards() {
                     router.push('/(app)/notifications');
                   }}
                 >
-                  <View style={[styles.menuIconContainer, { backgroundColor: `rgba(182, 135, 254, 0.15)` }]}>
+                  <View style={[styles.menuIconContainer, { backgroundColor: `${theme.primary}26` }]}>
                     <Bell size={28} color={theme.primary} />
                   </View>
                   <Text style={[styles.menuItemTitle, { color: '#333' }]}>Notificações</Text>
@@ -307,7 +513,7 @@ export default function Cards() {
                     router.push('/(app)/planning' as any);
                   }}
                 >
-                  <View style={[styles.menuIconContainer, { backgroundColor: `rgba(182, 135, 254, 0.15)` }]}>
+                  <View style={[styles.menuIconContainer, { backgroundColor: `${theme.primary}26` }]}>
                     <BarChart size={28} color={theme.primary} />
                   </View>
                   <Text style={[styles.menuItemTitle, { color: '#333' }]}>Planejamento</Text>
@@ -321,7 +527,7 @@ export default function Cards() {
                     router.push('/(app)/cards');
                   }}
                 >
-                  <View style={[styles.menuIconContainer, { backgroundColor: `rgba(182, 135, 254, 0.15)` }]}>
+                  <View style={[styles.menuIconContainer, { backgroundColor: `${theme.primary}26` }]}>
                     <CreditCard size={28} color={theme.primary} />
                   </View>
                   <Text style={[styles.menuItemTitle, { color: '#333' }]}>Cartões</Text>
@@ -335,7 +541,7 @@ export default function Cards() {
                     router.push('/(app)/accounts');
                   }}
                 >
-                  <View style={[styles.menuIconContainer, { backgroundColor: `rgba(182, 135, 254, 0.15)` }]}>
+                  <View style={[styles.menuIconContainer, { backgroundColor: `${theme.primary}26` }]}>
                     <Wallet size={28} color={theme.primary} />
                   </View>
                   <Text style={[styles.menuItemTitle, { color: '#333' }]}>Contas</Text>
@@ -352,7 +558,7 @@ export default function Cards() {
                     // Navegação para sobre
                   }}
                 >
-                  <View style={[styles.menuIconContainer, { backgroundColor: `rgba(182, 135, 254, 0.15)` }]}>
+                  <View style={[styles.menuIconContainer, { backgroundColor: `${theme.primary}26` }]}>
                     <Info size={28} color={theme.primary} />
                   </View>
                   <Text style={[styles.menuItemTitle, { color: '#333' }]}>Sobre</Text>
@@ -366,7 +572,7 @@ export default function Cards() {
                     router.replace('/(auth)/login');
                   }}
                 >
-                  <View style={[styles.menuIconContainer, { backgroundColor: `rgba(182, 135, 254, 0.15)` }]}>
+                  <View style={[styles.menuIconContainer, { backgroundColor: `${theme.primary}26` }]}>
                     <ExternalLink size={28} color={theme.primary} />
                   </View>
                   <Text style={[styles.menuItemTitle, { color: '#333' }]}>Logout</Text>
@@ -414,7 +620,7 @@ export default function Cards() {
               <TouchableOpacity 
                 style={[
                   styles.cardTypeOption,
-                  selectedType === 'mastercard' && styles.selectedCardType
+                  selectedType === 'mastercard' && [styles.selectedCardType, { backgroundColor: theme.primary }]
                 ]}
                 onPress={() => setSelectedType('mastercard')}
               >
@@ -428,7 +634,7 @@ export default function Cards() {
               <TouchableOpacity 
                 style={[
                   styles.cardTypeOption,
-                  selectedType === 'visa' && styles.selectedCardType
+                  selectedType === 'visa' && [styles.selectedCardType, { backgroundColor: theme.primary }]
                 ]}
                 onPress={() => setSelectedType('visa')}
               >
@@ -482,7 +688,7 @@ export default function Cards() {
             </View>
 
             <TouchableOpacity 
-              style={styles.addButton}
+              style={[styles.addCardModalButton, { backgroundColor: theme.primary }]}
               onPress={handleAddCard}
             >
               <Text style={styles.addButtonText}>Adicionar Cartão</Text>
@@ -756,6 +962,13 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     textAlign: 'center',
+    marginTop: 8,
+  },
+  addCardModalButton: {
+    backgroundColor: '#b687fe',
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
     marginTop: 8,
   },
   bottomNav: {

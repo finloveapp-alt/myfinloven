@@ -4117,8 +4117,7 @@ export default function Registers() {
                             key={index}
                             style={[
                               styles.accountFormOption,
-                              newAccountType === type && styles.accountFormOptionSelected,
-                              index === 3 && { borderBottomWidth: 0 }
+                              newAccountType === type && styles.accountFormOptionSelected
                             ]} 
                             onPress={() => selectAccountType(type)}
                           >

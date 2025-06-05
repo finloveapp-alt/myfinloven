@@ -4112,13 +4112,13 @@ export default function Registers() {
                     
                     {accountTypesVisible && (
                       <View style={styles.accountFormDropdown}>
-                        {['Conta Corrente', 'Poupança', 'Investimento', 'Dinheiro Físico', 'Cartão Pré-pago'].map((type, index) => (
+                        {['Conta Corrente', 'Poupança', 'Investimento', 'Dinheiro Físico'].map((type, index) => (
                           <TouchableOpacity 
                             key={index}
                             style={[
                               styles.accountFormOption,
                               newAccountType === type && styles.accountFormOptionSelected,
-                              index === 4 && { borderBottomWidth: 0 }
+                              index === 3 && { borderBottomWidth: 0 }
                             ]} 
                             onPress={() => selectAccountType(type)}
                           >

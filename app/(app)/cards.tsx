@@ -1202,9 +1202,12 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   colorSelectors: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     marginBottom: 16,
   },
   colorSelectorContainer: {
+    width: '48%',
     marginBottom: 16,
   },
   colorLabel: {
@@ -1217,15 +1220,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    gap: 8,
   },
   colorOption: {
-    width: 36,
-    height: 36,
+    width: 32,
+    height: 32,
     borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   selectedColorOption: {
     borderWidth: 3,
@@ -1237,15 +1239,15 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   colorCheckmark: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
     backgroundColor: 'rgba(255, 255, 255, 0.9)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   colorCheckmarkText: {
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: '600',
     color: '#333',
   },

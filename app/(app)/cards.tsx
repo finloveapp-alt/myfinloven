@@ -58,11 +58,19 @@ export default function Cards() {
   const [expiryDate, setExpiryDate] = useState('');
   const [cvv, setCvv] = useState('');
   const [selectedType, setSelectedType] = useState('');
+  const [primaryColor, setPrimaryColor] = useState('#b687fe');
+  const [secondaryColor, setSecondaryColor] = useState('#8B5CF6');
 
   // useEffect para carregar o tema com base no gênero do usuário
   useEffect(() => {
     fetchUserTheme();
   }, []);
+
+  // useEffect para atualizar as cores padrão quando o tema mudar
+  useEffect(() => {
+    setPrimaryColor(theme.primary);
+    setSecondaryColor(theme.secondary);
+  }, [theme]);
 
   // Função para buscar o tema baseado no perfil do usuário
   const fetchUserTheme = async () => {
@@ -236,7 +244,17 @@ export default function Cards() {
       return;
     }
     
-    // Aqui você adicionaria a lógica para salvar o cartão
+    // Aqui você adicionaria a lógica para salvar o cartão com as cores personalizadas
+    console.log('Novo cartão:', {
+      number: cardNumber,
+      name: cardName,
+      expiry: expiryDate,
+      cvv: cvv,
+      type: selectedType,
+      primaryColor: primaryColor,
+      secondaryColor: secondaryColor
+    });
+    
     Alert.alert('Sucesso', 'Cartão adicionado com sucesso!');
     setIsModalVisible(false);
     resetForm();
@@ -248,6 +266,8 @@ export default function Cards() {
     setExpiryDate('');
     setCvv('');
     setSelectedType('');
+    setPrimaryColor(theme.primary);
+    setSecondaryColor(theme.secondary);
   };
 
   const transactions = [
@@ -687,6 +707,94 @@ export default function Cards() {
               />
             </View>
 
+            {/* Seletor de Cores */}
+            <View style={styles.colorSection}>
+              <Text style={styles.colorSectionTitle}>Cores do Cartão</Text>
+              
+              <View style={styles.colorSelectors}>
+                <View style={styles.colorSelectorContainer}>
+                  <Text style={styles.colorLabel}>Cor Principal</Text>
+                  <View style={styles.colorOptions}>
+                    {[
+                      '#b687fe', '#8B5CF6', '#0073ea', '#3c79e6',
+                      '#FF3B30', '#FF9500', '#34C759', '#00C7BE',
+                      '#5856D6', '#AF52DE', '#FF2D92', '#A2845E'
+                    ].map((color) => (
+                      <TouchableOpacity
+                        key={color}
+                        style={[
+                          styles.colorOption,
+                          { backgroundColor: color },
+                          primaryColor === color && styles.selectedColorOption
+                        ]}
+                        onPress={() => setPrimaryColor(color)}
+                      >
+                        {primaryColor === color && (
+                          <View style={styles.colorCheckmark}>
+                            <Text style={styles.colorCheckmarkText}>✓</Text>
+                          </View>
+                        )}
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+
+                <View style={styles.colorSelectorContainer}>
+                  <Text style={styles.colorLabel}>Cor Secundária</Text>
+                  <View style={styles.colorOptions}>
+                    {[
+                      '#8B5CF6', '#b687fe', '#3c79e6', '#0073ea',
+                      '#FF6B35', '#FFB800', '#30D158', '#40E0D0',
+                      '#7C3AED', '#C77DFF', '#FF69B4', '#D2691E'
+                    ].map((color) => (
+                      <TouchableOpacity
+                        key={color}
+                        style={[
+                          styles.colorOption,
+                          { backgroundColor: color },
+                          secondaryColor === color && styles.selectedColorOption
+                        ]}
+                        onPress={() => setSecondaryColor(color)}
+                      >
+                        {secondaryColor === color && (
+                          <View style={styles.colorCheckmark}>
+                            <Text style={styles.colorCheckmarkText}>✓</Text>
+                          </View>
+                        )}
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              </View>
+
+              {/* Preview do Gradiente */}
+              <View style={styles.gradientPreviewContainer}>
+                <Text style={styles.colorLabel}>Preview do Cartão</Text>
+                <LinearGradient
+                  colors={[primaryColor, secondaryColor]}
+                  style={styles.gradientPreview}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                >
+                  <View style={styles.previewCardContent}>
+                    <View style={styles.previewCardHeader}>
+                      <CreditCard size={20} color="#ffffff" />
+                      <Text style={styles.previewCardType}>
+                        {selectedType || 'CARTÃO'}
+                      </Text>
+                    </View>
+                    <Text style={styles.previewCardBalance}>R$ 0,00</Text>
+                    <Text style={styles.previewCardNumber}>
+                      {cardNumber || '**** **** **** ****'}
+                    </Text>
+                    <Text style={styles.previewCardName}>
+                      {cardName || 'NOME DO TITULAR'}
+                    </Text>
+                  </View>
+                </LinearGradient>
+              </View>
+            </View>
+
             <TouchableOpacity 
               style={[styles.addCardModalButton, { backgroundColor: theme.primary }]}
               onPress={handleAddCard}
@@ -1083,5 +1191,111 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 16,
     fontFamily: fontFallbacks.Poppins_600SemiBold,
+  },
+  colorSection: {
+    marginBottom: 24,
+  },
+  colorSectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#131313',
+    marginBottom: 8,
+  },
+  colorSelectors: {
+    marginBottom: 16,
+  },
+  colorSelectorContainer: {
+    marginBottom: 16,
+  },
+  colorLabel: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#131313',
+    marginBottom: 12,
+  },
+  colorOptions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  colorOption: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  selectedColorOption: {
+    borderWidth: 3,
+    borderColor: '#ffffff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  colorCheckmark: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  colorCheckmarkText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#333',
+  },
+  gradientPreviewContainer: {
+    marginBottom: 24,
+  },
+  gradientPreview: {
+    height: 120,
+    borderRadius: 16,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  previewCardContent: {
+    flex: 1,
+    justifyContent: 'space-between',
+  },
+  previewCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  previewCardType: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  previewCardBalance: {
+    color: '#ffffff',
+    fontSize: 22,
+    fontWeight: '600',
+    marginVertical: 8,
+    letterSpacing: 0.5,
+  },
+  previewCardNumber: {
+    color: '#ffffff',
+    fontSize: 14,
+    opacity: 0.9,
+    letterSpacing: 2,
+  },
+  previewCardName: {
+    color: '#ffffff',
+    fontSize: 14,
+    opacity: 0.9,
+    letterSpacing: 2,
   },
 }); 

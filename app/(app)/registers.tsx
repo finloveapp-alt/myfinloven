@@ -4069,7 +4069,7 @@ export default function Registers() {
                   
                   {/* Nome da conta */}
                   <View style={styles.accountFormRow}>
-                    <Text style={styles.accountFormLabel}>Nome da Conta</Text>
+                    <Text style={styles.accountFormLabel}>Nome do Banco</Text>
                     <TextInput
                       style={styles.accountFormInput}
                       value={newAccountName}

@@ -13,7 +13,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/contexts/ThemeContext';
 import CardBrandIcon from '@/components/ui/CardBrandIcons';
-import creditCardType from 'credit-card-type';
+
+// Importar credit-card-type usando require para compatibilidade
+const creditCardType = require('credit-card-type');
 
 // Componentes SVG para ícones das bandeiras
 const DinersIcon = () => (
@@ -120,33 +122,38 @@ const detectCardBrand = (number: string): string => {
     return 'unknown';
   }
   
-  const cardTypes = creditCardType(cleanNumber);
-  
-  if (cardTypes.length === 0) {
-    return 'unknown';
-  }
-  
-  // Pegar o primeiro tipo detectado
-  const cardType = cardTypes[0];
-  
-  // Mapear os tipos da biblioteca para nossos tipos
-  switch (cardType.type) {
-    case 'visa':
-      return 'visa';
-    case 'mastercard':
-      return 'mastercard';
-    case 'american-express':
-      return 'amex';
-    case 'diners-club':
-      return 'dinersclub';
-    case 'discover':
-      return 'discover';
-    case 'elo':
-      return 'elo';
-    case 'hipercard':
-      return 'hipercard';
-    default:
+  try {
+    const cardTypes = creditCardType(cleanNumber);
+    
+    if (cardTypes.length === 0) {
       return 'unknown';
+    }
+    
+    // Pegar o primeiro tipo detectado
+    const cardType = cardTypes[0];
+    
+    // Mapear os tipos da biblioteca para nossos tipos
+    switch (cardType.type) {
+      case 'visa':
+        return 'visa';
+      case 'mastercard':
+        return 'mastercard';
+      case 'american-express':
+        return 'amex';
+      case 'diners-club':
+        return 'dinersclub';
+      case 'discover':
+        return 'discover';
+      case 'elo':
+        return 'elo';
+      case 'hipercard':
+        return 'hipercard';
+      default:
+        return 'unknown';
+    }
+  } catch (error) {
+    console.error('Erro ao detectar bandeira do cartão:', error);
+    return 'unknown';
   }
 };
 

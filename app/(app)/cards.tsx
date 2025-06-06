@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/contexts/ThemeContext';
 import CardBrandIcon from '@/components/ui/CardBrandIcons';
+import creditCardType from 'credit-card-type';
 
 // Componentes SVG para ícones das bandeiras
 const DinersIcon = () => (
@@ -111,46 +112,42 @@ const getInitialTheme = () => {
   return themes.feminine;
 };
 
-// Função para detectar a bandeira do cartão
+// Função para detectar a bandeira do cartão usando credit-card-type
 const detectCardBrand = (number: string): string => {
   const cleanNumber = number.replace(/\s/g, '');
   
-  // Visa
-  if (/^4[0-9]{0,}/.test(cleanNumber)) {
-    return 'visa';
+  if (!cleanNumber) {
+    return 'unknown';
   }
   
-  // Mastercard
-  if (/^(5[1-5][0-9]{0,}|2[2-7][0-9]{0,})/.test(cleanNumber)) {
-    return 'mastercard';
+  const cardTypes = creditCardType(cleanNumber);
+  
+  if (cardTypes.length === 0) {
+    return 'unknown';
   }
   
-  // American Express
-  if (/^3[47][0-9]{0,}/.test(cleanNumber)) {
-    return 'amex';
-  }
+  // Pegar o primeiro tipo detectado
+  const cardType = cardTypes[0];
   
-  // Diners Club
-  if (/^3(?:0[0-5]|[68][0-9])[0-9]{0,}/.test(cleanNumber)) {
-    return 'dinersclub';
+  // Mapear os tipos da biblioteca para nossos tipos
+  switch (cardType.type) {
+    case 'visa':
+      return 'visa';
+    case 'mastercard':
+      return 'mastercard';
+    case 'american-express':
+      return 'amex';
+    case 'diners-club':
+      return 'dinersclub';
+    case 'discover':
+      return 'discover';
+    case 'elo':
+      return 'elo';
+    case 'hipercard':
+      return 'hipercard';
+    default:
+      return 'unknown';
   }
-  
-  // Discover
-  if (/^6(?:011|5[0-9]{2})[0-9]{0,}/.test(cleanNumber)) {
-    return 'discover';
-  }
-  
-  // Elo
-  if (/^(4011(78|79)|43(1274|8935)|45(1416|7393|763(1|2))|50(4175|6699|67[0-6][0-9]|677[0-8]|9[0-8][0-9]{2}|99[0-8][0-9]|999[0-9])|627780|63(6297|6368|6369)|65(0(0(3([1-3]|[5-9])|4([0-9])|5[0-1])|4(0[5-9]|[1-3][0-9]|8[5-9]|9[0-9])|5([0-2][0-9]|3[0-8]|4[1-9]|[5-8][0-9]|9[0-8])|7(0[0-9]|1[0-8]|2[0-7])|9(0[1-9]|[1-6][0-9]|7[0-8]))|16(5[2-9]|[6-7][0-9])|50(0[0-9]|1[0-9]|2[0-9]|3[0-8]))/.test(cleanNumber)) {
-    return 'elo';
-  }
-  
-  // Hipercard
-  if (/^(38[0-9]{2}|60[0-9]{2})/.test(cleanNumber)) {
-    return 'hipercard';
-  }
-  
-  return 'unknown';
 };
 
 // Função para formatar número do cartão

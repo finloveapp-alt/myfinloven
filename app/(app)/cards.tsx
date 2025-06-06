@@ -69,6 +69,39 @@ export default function Cards() {
   const [cardTransactions, setCardTransactions] = useState<CardTransaction[]>([]);
   const [addingCard, setAddingCard] = useState(false);
 
+  // Função para detectar bandeira do cartão automaticamente
+  const detectCardBrand = (cardNumber: string) => {
+    const cleanNumber = cardNumber.replace(/\s/g, '');
+    
+    // Visa: começa com 4
+    if (cleanNumber.startsWith('4')) {
+      return 'visa';
+    }
+    
+    // Mastercard: começa com 5 ou números entre 2221-2720
+    if (cleanNumber.startsWith('5') || 
+        (cleanNumber.length >= 4 && 
+         parseInt(cleanNumber.substring(0, 4)) >= 2221 && 
+         parseInt(cleanNumber.substring(0, 4)) <= 2720)) {
+      return 'mastercard';
+    }
+    
+    // Elo: começa com 4011, 4312, 4389, 4514, 4573, 5041, 5066, 5067, 627780, 636297, 636368
+    const eloPatterns = ['4011', '4312', '4389', '4514', '4573', '5041', '5066', '5067', '627780', '636297', '636368'];
+    for (const pattern of eloPatterns) {
+      if (cleanNumber.startsWith(pattern)) {
+        return 'elo';
+      }
+    }
+    
+    // American Express: começa com 34 ou 37
+    if (cleanNumber.startsWith('34') || cleanNumber.startsWith('37')) {
+      return 'american_express';
+    }
+    
+    return '';
+  };
+
   // useEffect para carregar o tema com base no gênero do usuário
   useEffect(() => {
     fetchUserTheme();
@@ -309,8 +342,13 @@ export default function Cards() {
 
   // Implementar função de adicionar cartão real
   const handleAddCard = async () => {
-    if (!cardNumber || !cardName || !bankName || !cardLimit || !cardType || !selectedType) {
+    if (!cardNumber || !cardName || !bankName || !cardLimit || !cardType) {
       Alert.alert('Atenção', 'Por favor, preencha todos os campos');
+      return;
+    }
+    
+    if (!selectedType) {
+      Alert.alert('Atenção', 'Número do cartão inválido ou bandeira não reconhecida');
       return;
     }
     
@@ -739,35 +777,14 @@ export default function Cards() {
               showsVerticalScrollIndicator={false}
               bounces={false}
             >
-              <View style={styles.cardTypeSelector}>
-                <TouchableOpacity 
-                  style={[
-                    styles.cardTypeOption,
-                    selectedType === 'mastercard' && [styles.selectedCardType, { backgroundColor: theme.primary }]
-                  ]}
-                  onPress={() => setSelectedType('mastercard')}
-                >
-                  <CreditCard size={24} color={selectedType === 'mastercard' ? '#fff' : '#666'} />
-                  <Text style={[
-                    styles.cardTypeText,
-                    selectedType === 'mastercard' && styles.selectedCardTypeText
-                  ]}>Mastercard</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity 
-                  style={[
-                    styles.cardTypeOption,
-                    selectedType === 'visa' && [styles.selectedCardType, { backgroundColor: theme.primary }]
-                  ]}
-                  onPress={() => setSelectedType('visa')}
-                >
-                  <CreditCard size={24} color={selectedType === 'visa' ? '#fff' : '#666'} />
-                  <Text style={[
-                    styles.cardTypeText,
-                    selectedType === 'visa' && styles.selectedCardTypeText
-                  ]}>Visa</Text>
-                </TouchableOpacity>
-              </View>
+              <TextInput
+                style={styles.input}
+                placeholder="Nome do Banco"
+                value={bankName}
+                onChangeText={setBankName}
+                autoCapitalize="characters"
+                placeholderTextColor="#666"
+              />
 
               <TextInput
                 style={styles.input}
@@ -785,26 +802,30 @@ export default function Cards() {
                     formattedValue += numericValue[i];
                   }
                   setCardNumber(formattedValue);
+                  
+                  // Detectar bandeira automaticamente
+                  const detectedBrand = detectCardBrand(formattedValue);
+                  setSelectedType(detectedBrand);
                 }}
                 keyboardType="numeric"
                 maxLength={19}
                 placeholderTextColor="#666"
               />
 
+              {/* Exibir bandeira detectada */}
+              {selectedType && (
+                <View style={styles.detectedBrandContainer}>
+                  <Text style={styles.detectedBrandText}>
+                    Bandeira detectada: {selectedType.toUpperCase()}
+                  </Text>
+                </View>
+              )}
+
               <TextInput
                 style={styles.input}
                 placeholder="Nome no Cartão"
                 value={cardName}
                 onChangeText={setCardName}
-                autoCapitalize="characters"
-                placeholderTextColor="#666"
-              />
-
-              <TextInput
-                style={styles.input}
-                placeholder="Nome do Banco"
-                value={bankName}
-                onChangeText={setBankName}
                 autoCapitalize="characters"
                 placeholderTextColor="#666"
               />
@@ -1476,5 +1497,16 @@ const styles = StyleSheet.create({
   modalScrollView: {
     flex: 1,
     marginBottom: 24,
+  },
+  detectedBrandContainer: {
+    marginTop: 16,
+    padding: 12,
+    backgroundColor: '#f5f7fa',
+    borderRadius: 8,
+  },
+  detectedBrandText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#666',
   },
 }); 

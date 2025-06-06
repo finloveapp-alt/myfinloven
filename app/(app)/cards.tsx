@@ -8,6 +8,40 @@ import { fontFallbacks } from '@/utils/styles';
 import { supabase } from '@/lib/supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { cardsService, Card, CardTransaction } from '@/lib/services/cardsService';
+import Svg, { Path, Rect, Circle } from 'react-native-svg';
+
+// Componentes SVG para ícones das bandeiras
+const VisaIcon = () => (
+  <Svg width="24" height="16" viewBox="0 0 24 16">
+    <Rect width="24" height="16" rx="2" fill="#1A1F71"/>
+    <Path d="M4 5h2l1 6h1l1-6h2l-1.5 6h1l1.5-6h2l-2 6h1l2-6h2v6H4V5z" fill="white"/>
+  </Svg>
+);
+
+const MastercardIcon = () => (
+  <Svg width="24" height="16" viewBox="0 0 24 16">
+    <Rect width="24" height="16" rx="2" fill="#000"/>
+    <Circle cx="9" cy="8" r="4" fill="#EB001B"/>
+    <Circle cx="15" cy="8" r="4" fill="#F79E1B"/>
+  </Svg>
+);
+
+const EloIcon = () => (
+  <Svg width="24" height="16" viewBox="0 0 24 16">
+    <Rect width="24" height="16" rx="2" fill="#000"/>
+    <Circle cx="8" cy="8" r="3" fill="#FFD700"/>
+    <Circle cx="16" cy="8" r="3" fill="#FFD700"/>
+    <Rect x="10" y="6" width="4" height="4" fill="#FFD700"/>
+  </Svg>
+);
+
+const AmexIcon = () => (
+  <Svg width="24" height="16" viewBox="0 0 24 16">
+    <Rect width="24" height="16" rx="2" fill="#006FCF"/>
+    <Rect x="2" y="6" width="20" height="4" fill="white"/>
+    <Path d="M4 4h4l2 4-2 4H4V4zm12 0h4v8h-4l-2-4 2-4z" fill="white"/>
+  </Svg>
+);
 
 const { width } = Dimensions.get('window');
 const cardWidth = width * 0.6;
@@ -789,12 +823,11 @@ export default function Cards() {
               <View style={styles.cardNumberInputContainer}>
                 {selectedType && (
                   <View style={styles.cardBrandIcon}>
-                    <Text style={styles.cardBrandIconText}>
-                      {selectedType === 'visa' ? '🔵' : 
-                       selectedType === 'mastercard' ? '🔴' : 
-                       selectedType === 'elo' ? '🟡' : 
-                       selectedType === 'american_express' ? '🟢' : '💳'}
-                    </Text>
+                    {selectedType === 'visa' ? <VisaIcon /> : 
+                     selectedType === 'mastercard' ? <MastercardIcon /> : 
+                     selectedType === 'elo' ? <EloIcon /> : 
+                     selectedType === 'american_express' ? <AmexIcon /> : 
+                     <CreditCard size={20} color="#666" />}
                   </View>
                 )}
                 <TextInput
@@ -1523,9 +1556,8 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 16,
     zIndex: 1,
-  },
-  cardBrandIconText: {
-    fontSize: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   cardNumberInput: {
     flex: 1,

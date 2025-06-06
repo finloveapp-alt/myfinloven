@@ -799,11 +799,23 @@ export default function Cards() {
 
               <TextInput
                 style={styles.input}
-                placeholder="Limite do Cartão"
+                placeholder="Limite do Cartão (R$)"
                 value={cardLimit}
-                onChangeText={setCardLimit}
+                onChangeText={(text) => {
+                  // Remove tudo que não é número
+                  const numericValue = text.replace(/[^0-9]/g, '');
+                  // Formata como moeda brasileira
+                  if (numericValue) {
+                    const formattedValue = (parseInt(numericValue) / 100).toLocaleString('pt-BR', {
+                      style: 'currency',
+                      currency: 'BRL'
+                    });
+                    setCardLimit(formattedValue);
+                  } else {
+                    setCardLimit('');
+                  }
+                }}
                 keyboardType="numeric"
-                maxLength={10}
                 placeholderTextColor="#666"
               />
 

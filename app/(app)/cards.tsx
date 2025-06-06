@@ -702,7 +702,7 @@ export default function Cards() {
                 />
 
                 <TextInput
-                  style={[styles.input, { flex: 1, marginLeft: 8 }]}
+                  style={[styles.input, { flex: 1, marginLeft: 8, width: 0 }]}
                   placeholder="CVV"
                   value={cvv}
                   onChangeText={setCvv}

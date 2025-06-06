@@ -11,6 +11,29 @@ import { cardsService, Card, CardTransaction } from '@/lib/services/cardsService
 import Svg, { Path, Rect, Circle } from 'react-native-svg';
 
 // Componentes SVG para ícones das bandeiras
+const DinersIcon = () => (
+  <Svg width="24" height="16" viewBox="0 0 24 16">
+    <Rect width="24" height="16" rx="2" fill="#0079BE"/>
+    <Circle cx="8" cy="8" r="4" fill="white"/>
+    <Circle cx="16" cy="8" r="4" fill="white"/>
+  </Svg>
+);
+
+const DiscoverIcon = () => (
+  <Svg width="24" height="16" viewBox="0 0 24 16">
+    <Rect width="24" height="16" rx="2" fill="#FF6000"/>
+    <Path d="M12 4h8c2 0 4 2 4 4s-2 4-4 4h-8V4z" fill="white"/>
+  </Svg>
+);
+
+const HipercardIcon = () => (
+  <Svg width="24" height="16" viewBox="0 0 24 16">
+    <Rect width="24" height="16" rx="2" fill="#FF0000"/>
+    <Rect x="4" y="4" width="16" height="8" rx="1" fill="white"/>
+    <Path d="M8 6h8v4H8V6z" fill="#FF0000"/>
+  </Svg>
+);
+
 const VisaIcon = () => (
   <Svg width="24" height="16" viewBox="0 0 24 16">
     <Rect width="24" height="16" rx="2" fill="#1A1F71"/>
@@ -107,30 +130,39 @@ export default function Cards() {
   const detectCardBrand = (cardNumber: string) => {
     const cleanNumber = cardNumber.replace(/\s/g, '');
     
-    // Visa: começa com 4
-    if (cleanNumber.startsWith('4')) {
+    // Visa: /^4[0-9]{0,}/
+    if (/^4[0-9]{0,}/.test(cleanNumber)) {
       return 'visa';
     }
     
-    // Mastercard: começa com 5 ou números entre 2221-2720
-    if (cleanNumber.startsWith('5') || 
-        (cleanNumber.length >= 4 && 
-         parseInt(cleanNumber.substring(0, 4)) >= 2221 && 
-         parseInt(cleanNumber.substring(0, 4)) <= 2720)) {
+    // Mastercard: /^(5[1-5][0-9]{0,}|2[2-7][0-9]{0,})/
+    if (/^(5[1-5][0-9]{0,}|2[2-7][0-9]{0,})/.test(cleanNumber)) {
       return 'mastercard';
     }
     
-    // Elo: começa com 4011, 4312, 4389, 4514, 4573, 5041, 5066, 5067, 627780, 636297, 636368
-    const eloPatterns = ['4011', '4312', '4389', '4514', '4573', '5041', '5066', '5067', '627780', '636297', '636368'];
-    for (const pattern of eloPatterns) {
-      if (cleanNumber.startsWith(pattern)) {
-        return 'elo';
-      }
+    // American Express: /^3[47][0-9]{0,}/
+    if (/^3[47][0-9]{0,}/.test(cleanNumber)) {
+      return 'amex';
     }
     
-    // American Express: começa com 34 ou 37
-    if (cleanNumber.startsWith('34') || cleanNumber.startsWith('37')) {
-      return 'american_express';
+    // Diners: /^3(?:0[0-5]|[68][0-9])[0-9]{0,}/
+    if (/^3(?:0[0-5]|[68][0-9])[0-9]{0,}/.test(cleanNumber)) {
+      return 'diners';
+    }
+    
+    // Discover: /^6(?:011|5[0-9]{2})[0-9]{0,}/
+    if (/^6(?:011|5[0-9]{2})[0-9]{0,}/.test(cleanNumber)) {
+      return 'discover';
+    }
+    
+    // Elo: /^(4011(78|79)|431274|438935|451416|457393|457631|457632|504175|506(699|7[0-6][0-9]|77[0-8])|509[0-9]{3}|627780|636297|636368|650[4-5][0-9]{2}|6509[0-9]{2}|6516[0-9]{2}|6550[0-9]{2})/
+    if (/^(4011(78|79)|431274|438935|451416|457393|457631|457632|504175|506(699|7[0-6][0-9]|77[0-8])|509[0-9]{3}|627780|636297|636368|650[4-5][0-9]{2}|6509[0-9]{2}|6516[0-9]{2}|6550[0-9]{2})/.test(cleanNumber)) {
+      return 'elo';
+    }
+    
+    // Hipercard: /^(38[0-9]{2}|60[0-9]{2})/
+    if (/^(38[0-9]{2}|60[0-9]{2})/.test(cleanNumber)) {
+      return 'hipercard';
     }
     
     return '';
@@ -827,6 +859,9 @@ export default function Cards() {
                      selectedType === 'mastercard' ? <MastercardIcon /> : 
                      selectedType === 'elo' ? <EloIcon /> : 
                      selectedType === 'american_express' ? <AmexIcon /> : 
+                     selectedType === 'diners' ? <DinersIcon /> : 
+                     selectedType === 'discover' ? <DiscoverIcon /> : 
+                     selectedType === 'hipercard' ? <HipercardIcon /> : 
                      <CreditCard size={20} color="#666" />}
                   </View>
                 )}

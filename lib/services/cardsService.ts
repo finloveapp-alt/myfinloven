@@ -6,7 +6,7 @@ export interface Card {
   card_number: string;
   card_holder_name: string;
   bank_name: string;
-  card_type: 'mastercard' | 'visa' | 'elo' | 'american_express';
+  card_type: 'visa' | 'mastercard' | 'amex' | 'diners' | 'discover' | 'elo' | 'hipercard';
   card_brand?: string;
   is_credit: boolean;
   credit_limit: number;

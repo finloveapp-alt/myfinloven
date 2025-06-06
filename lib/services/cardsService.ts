@@ -6,11 +6,13 @@ export interface Card {
   card_number: string;
   card_holder_name: string;
   expiry_date: string;
+  cvv?: string;
   card_type: 'mastercard' | 'visa' | 'elo' | 'american_express';
+  card_brand?: string;
   is_credit: boolean;
   credit_limit: number;
   current_balance: number;
-  available_limit: number;
+  available_limit?: number;
   primary_color: string;
   secondary_color: string;
   is_active: boolean;
@@ -45,17 +47,37 @@ class CardsService {
   }
 
   // Criar novo cartão
-  async createCard(cardData: Omit<Card, 'id' | 'created_at' | 'updated_at' | 'available_limit'>): Promise<Card> {
+  async createCard(cardData: {
+    name: string;
+    card_number: string;
+    card_holder_name: string;
+    expiry_date: string;
+    cvv?: string;
+    card_type: string;
+    is_credit?: boolean;
+    credit_limit?: number;
+    primary_color?: string;
+    secondary_color?: string;
+  }): Promise<Card> {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('Usuário não autenticado');
 
     const { data, error } = await supabase
       .from('cards')
       .insert({
-        ...cardData,
+        name: cardData.name,
+        card_number: this.maskCardNumber(cardData.card_number),
+        card_holder_name: cardData.card_holder_name,
+        expiry_date: cardData.expiry_date,
+        cvv: cardData.cvv,
+        card_type: cardData.card_type,
+        is_credit: cardData.is_credit ?? true,
+        credit_limit: cardData.credit_limit ?? 1000,
+        current_balance: 0,
+        primary_color: cardData.primary_color ?? '#b687fe',
+        secondary_color: cardData.secondary_color ?? '#8B5CF6',
         owner_id: user.id,
-        // Mascarar número do cartão para segurança
-        card_number: this.maskCardNumber(cardData.card_number)
+        is_active: true
       })
       .select()
       .single();
@@ -101,23 +123,6 @@ class CardsService {
       .eq('id', cardId);
 
     if (error) throw error;
-  }
-
-  // Buscar resumo dos cartões do usuário
-  async getUserCardsSummary() {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('Usuário não autenticado');
-
-    const { data, error } = await supabase
-      .rpc('get_user_cards_summary', { user_id: user.id });
-
-    if (error) throw error;
-    return data[0] || {
-      total_credit_limit: 0,
-      total_available_limit: 0,
-      total_current_balance: 0,
-      active_cards_count: 0
-    };
   }
 
   // Utilitário para mascarar número do cartão

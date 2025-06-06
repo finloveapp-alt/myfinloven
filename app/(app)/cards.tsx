@@ -56,8 +56,9 @@ export default function Cards() {
   const [menuModalVisible, setMenuModalVisible] = useState(false);
   const [cardNumber, setCardNumber] = useState('');
   const [cardName, setCardName] = useState('');
-  const [expiryDate, setExpiryDate] = useState('');
-  const [cvv, setCvv] = useState('');
+  const [bankName, setBankName] = useState('');
+  const [cardLimit, setCardLimit] = useState('');
+  const [cardType, setCardType] = useState('credit'); // 'credit' ou 'debit'
   const [selectedType, setSelectedType] = useState('');
   const [primaryColor, setPrimaryColor] = useState('#b687fe');
   const [secondaryColor, setSecondaryColor] = useState('#8B5CF6');
@@ -308,7 +309,7 @@ export default function Cards() {
 
   // Implementar função de adicionar cartão real
   const handleAddCard = async () => {
-    if (!cardNumber || !cardName || !expiryDate || !cvv || !selectedType) {
+    if (!cardNumber || !cardName || !bankName || !cardLimit || !cardType || !selectedType) {
       Alert.alert('Atenção', 'Por favor, preencha todos os campos');
       return;
     }
@@ -320,10 +321,10 @@ export default function Cards() {
         name: `Cartão ${selectedType.toUpperCase()}`,
         card_number: cardNumber,
         card_holder_name: cardName,
-        expiry_date: expiryDate,
-        cvv: cvv,
+        bank_name: bankName,
+        card_limit: cardLimit,
         card_type: selectedType,
-        is_credit: true,
+        is_credit: cardType === 'credit',
         credit_limit: 1000,
         primary_color: primaryColor,
         secondary_color: secondaryColor,
@@ -344,8 +345,9 @@ export default function Cards() {
   const resetForm = () => {
     setCardNumber('');
     setCardName('');
-    setExpiryDate('');
-    setCvv('');
+    setBankName('');
+    setCardLimit('');
+    setCardType('credit');
     setSelectedType('');
     setPrimaryColor(theme.primary);
     setSecondaryColor(theme.secondary);
@@ -786,26 +788,45 @@ export default function Cards() {
                 placeholderTextColor="#666"
               />
 
-              <View style={styles.rowInputs}>
-                <TextInput
-                  style={[styles.input, { flex: 1, marginRight: 8 }]}
-                  placeholder="Validade (MM/AA)"
-                  value={expiryDate}
-                  onChangeText={setExpiryDate}
-                  keyboardType="numeric"
-                  maxLength={5}
-                  placeholderTextColor="#666"
-                />
+              <TextInput
+                style={styles.input}
+                placeholder="Nome do Banco"
+                value={bankName}
+                onChangeText={setBankName}
+                autoCapitalize="characters"
+                placeholderTextColor="#666"
+              />
 
-                <TextInput
-                  style={[styles.input, { flex: 1, marginLeft: 8, width: 0 }]}
-                  placeholder="CVV"
-                  value={cvv}
-                  onChangeText={setCvv}
-                  keyboardType="numeric"
-                  maxLength={3}
-                  placeholderTextColor="#666"
-                />
+              <TextInput
+                style={styles.input}
+                placeholder="Limite do Cartão"
+                value={cardLimit}
+                onChangeText={setCardLimit}
+                keyboardType="numeric"
+                maxLength={10}
+                placeholderTextColor="#666"
+              />
+
+              <View style={styles.rowInputs}>
+                <TouchableOpacity
+                  style={[styles.cardTypeOption, { flex: 1, marginRight: 8 }]}
+                  onPress={() => setCardType('credit')}
+                >
+                  <Text style={[
+                    styles.cardTypeText,
+                    cardType === 'credit' && styles.selectedCardTypeText
+                  ]}>Crédito</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.cardTypeOption, { flex: 1, marginLeft: 8, width: 0 }]}
+                  onPress={() => setCardType('debit')}
+                >
+                  <Text style={[
+                    styles.cardTypeText,
+                    cardType === 'debit' && styles.selectedCardTypeText
+                  ]}>Débito</Text>
+                </TouchableOpacity>
               </View>
 
               {/* Seletor de Cores */}
@@ -889,7 +910,7 @@ export default function Cards() {
                         {cardNumber || '**** **** **** ****'}
                       </Text>
                       <Text style={styles.previewCardName}>
-                        {cardName || 'NOME DO TITULAR'}
+                        {bankName || 'NOME DO BANCO'}
                       </Text>
                     </View>
                   </LinearGradient>

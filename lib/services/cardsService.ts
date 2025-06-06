@@ -5,8 +5,7 @@ export interface Card {
   name: string;
   card_number: string;
   card_holder_name: string;
-  expiry_date: string;
-  cvv?: string;
+  bank_name: string;
   card_type: 'mastercard' | 'visa' | 'elo' | 'american_express';
   card_brand?: string;
   is_credit: boolean;
@@ -51,8 +50,7 @@ class CardsService {
     name: string;
     card_number: string;
     card_holder_name: string;
-    expiry_date: string;
-    cvv?: string;
+    bank_name: string;
     card_type: string;
     is_credit?: boolean;
     credit_limit?: number;
@@ -68,8 +66,7 @@ class CardsService {
         name: cardData.name,
         card_number: this.maskCardNumber(cardData.card_number),
         card_holder_name: cardData.card_holder_name,
-        expiry_date: cardData.expiry_date,
-        cvv: cardData.cvv,
+        bank_name: cardData.bank_name,
         card_type: cardData.card_type,
         is_credit: cardData.is_credit ?? true,
         credit_limit: cardData.credit_limit ?? 1000,

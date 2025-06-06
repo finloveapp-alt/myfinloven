@@ -636,164 +636,170 @@ export default function Cards() {
               </TouchableOpacity>
             </View>
 
-            <View style={styles.cardTypeSelector}>
-              <TouchableOpacity 
-                style={[
-                  styles.cardTypeOption,
-                  selectedType === 'mastercard' && [styles.selectedCardType, { backgroundColor: theme.primary }]
-                ]}
-                onPress={() => setSelectedType('mastercard')}
-              >
-                <CreditCard size={24} color={selectedType === 'mastercard' ? '#fff' : '#666'} />
-                <Text style={[
-                  styles.cardTypeText,
-                  selectedType === 'mastercard' && styles.selectedCardTypeText
-                ]}>Mastercard</Text>
-              </TouchableOpacity>
+            <ScrollView 
+              style={styles.modalScrollView}
+              showsVerticalScrollIndicator={false}
+              bounces={false}
+            >
+              <View style={styles.cardTypeSelector}>
+                <TouchableOpacity 
+                  style={[
+                    styles.cardTypeOption,
+                    selectedType === 'mastercard' && [styles.selectedCardType, { backgroundColor: theme.primary }]
+                  ]}
+                  onPress={() => setSelectedType('mastercard')}
+                >
+                  <CreditCard size={24} color={selectedType === 'mastercard' ? '#fff' : '#666'} />
+                  <Text style={[
+                    styles.cardTypeText,
+                    selectedType === 'mastercard' && styles.selectedCardTypeText
+                  ]}>Mastercard</Text>
+                </TouchableOpacity>
 
-              <TouchableOpacity 
-                style={[
-                  styles.cardTypeOption,
-                  selectedType === 'visa' && [styles.selectedCardType, { backgroundColor: theme.primary }]
-                ]}
-                onPress={() => setSelectedType('visa')}
-              >
-                <CreditCard size={24} color={selectedType === 'visa' ? '#fff' : '#666'} />
-                <Text style={[
-                  styles.cardTypeText,
-                  selectedType === 'visa' && styles.selectedCardTypeText
-                ]}>Visa</Text>
-              </TouchableOpacity>
-            </View>
-
-            <TextInput
-              style={styles.input}
-              placeholder="Número do Cartão"
-              value={cardNumber}
-              onChangeText={setCardNumber}
-              keyboardType="numeric"
-              maxLength={19}
-              placeholderTextColor="#666"
-            />
-
-            <TextInput
-              style={styles.input}
-              placeholder="Nome no Cartão"
-              value={cardName}
-              onChangeText={setCardName}
-              autoCapitalize="characters"
-              placeholderTextColor="#666"
-            />
-
-            <View style={styles.rowInputs}>
-              <TextInput
-                style={[styles.input, { flex: 1, marginRight: 8 }]}
-                placeholder="Validade (MM/AA)"
-                value={expiryDate}
-                onChangeText={setExpiryDate}
-                keyboardType="numeric"
-                maxLength={5}
-                placeholderTextColor="#666"
-              />
-
-              <TextInput
-                style={[styles.input, { flex: 1, marginLeft: 8 }]}
-                placeholder="CVV"
-                value={cvv}
-                onChangeText={setCvv}
-                keyboardType="numeric"
-                maxLength={3}
-                placeholderTextColor="#666"
-              />
-            </View>
-
-            {/* Seletor de Cores */}
-            <View style={styles.colorSection}>
-              <Text style={styles.colorSectionTitle}>Cores do Cartão</Text>
-              
-              <View style={styles.colorSelectors}>
-                <View style={styles.colorSelectorContainer}>
-                  <Text style={styles.colorLabel}>Cor Principal</Text>
-                  <View style={styles.colorOptions}>
-                    {[
-                      '#b687fe', '#8B5CF6', '#0073ea', '#3c79e6',
-                      '#FF3B30', '#FF9500', '#34C759', '#00C7BE',
-                      '#5856D6', '#AF52DE', '#FF2D92', '#A2845E'
-                    ].map((color) => (
-                      <TouchableOpacity
-                        key={color}
-                        style={[
-                          styles.colorOption,
-                          { backgroundColor: color },
-                          primaryColor === color && styles.selectedColorOption
-                        ]}
-                        onPress={() => setPrimaryColor(color)}
-                      >
-                        {primaryColor === color && (
-                          <View style={styles.colorCheckmark}>
-                            <Text style={styles.colorCheckmarkText}>✓</Text>
-                          </View>
-                        )}
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </View>
-
-                <View style={styles.colorSelectorContainer}>
-                  <Text style={styles.colorLabel}>Cor Secundária</Text>
-                  <View style={styles.colorOptions}>
-                    {[
-                      '#8B5CF6', '#b687fe', '#3c79e6', '#0073ea',
-                      '#FF6B35', '#FFB800', '#30D158', '#40E0D0',
-                      '#7C3AED', '#C77DFF', '#FF69B4', '#D2691E'
-                    ].map((color) => (
-                      <TouchableOpacity
-                        key={color}
-                        style={[
-                          styles.colorOption,
-                          { backgroundColor: color },
-                          secondaryColor === color && styles.selectedColorOption
-                        ]}
-                        onPress={() => setSecondaryColor(color)}
-                      >
-                        {secondaryColor === color && (
-                          <View style={styles.colorCheckmark}>
-                            <Text style={styles.colorCheckmarkText}>✓</Text>
-                          </View>
-                        )}
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </View>
+                <TouchableOpacity 
+                  style={[
+                    styles.cardTypeOption,
+                    selectedType === 'visa' && [styles.selectedCardType, { backgroundColor: theme.primary }]
+                  ]}
+                  onPress={() => setSelectedType('visa')}
+                >
+                  <CreditCard size={24} color={selectedType === 'visa' ? '#fff' : '#666'} />
+                  <Text style={[
+                    styles.cardTypeText,
+                    selectedType === 'visa' && styles.selectedCardTypeText
+                  ]}>Visa</Text>
+                </TouchableOpacity>
               </View>
 
-              {/* Preview do Gradiente */}
-              <View style={styles.gradientPreviewContainer}>
-                <Text style={styles.colorLabel}>Preview do Cartão</Text>
-                <LinearGradient
-                  colors={[primaryColor, secondaryColor]}
-                  style={styles.gradientPreview}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                >
-                  <View style={styles.previewCardContent}>
-                    <View style={styles.previewCardHeader}>
-                      <CreditCard size={20} color="#ffffff" />
-                      <Text style={styles.previewCardType}>
-                        {selectedType || 'CARTÃO'}
+              <TextInput
+                style={styles.input}
+                placeholder="Número do Cartão"
+                value={cardNumber}
+                onChangeText={setCardNumber}
+                keyboardType="numeric"
+                maxLength={19}
+                placeholderTextColor="#666"
+              />
+
+              <TextInput
+                style={styles.input}
+                placeholder="Nome no Cartão"
+                value={cardName}
+                onChangeText={setCardName}
+                autoCapitalize="characters"
+                placeholderTextColor="#666"
+              />
+
+              <View style={styles.rowInputs}>
+                <TextInput
+                  style={[styles.input, { flex: 1, marginRight: 8 }]}
+                  placeholder="Validade (MM/AA)"
+                  value={expiryDate}
+                  onChangeText={setExpiryDate}
+                  keyboardType="numeric"
+                  maxLength={5}
+                  placeholderTextColor="#666"
+                />
+
+                <TextInput
+                  style={[styles.input, { flex: 1, marginLeft: 8 }]}
+                  placeholder="CVV"
+                  value={cvv}
+                  onChangeText={setCvv}
+                  keyboardType="numeric"
+                  maxLength={3}
+                  placeholderTextColor="#666"
+                />
+              </View>
+
+              {/* Seletor de Cores */}
+              <View style={styles.colorSection}>
+                <Text style={styles.colorSectionTitle}>Cores do Cartão</Text>
+                
+                <View style={styles.colorSelectors}>
+                  <View style={styles.colorSelectorContainer}>
+                    <Text style={styles.colorLabel}>Cor Principal</Text>
+                    <View style={styles.colorOptions}>
+                      {[
+                        '#b687fe', '#8B5CF6', '#0073ea', '#3c79e6',
+                        '#FF3B30', '#FF9500', '#34C759', '#00C7BE',
+                        '#5856D6', '#AF52DE', '#FF2D92', '#A2845E'
+                      ].map((color) => (
+                        <TouchableOpacity
+                          key={color}
+                          style={[
+                            styles.colorOption,
+                            { backgroundColor: color },
+                            primaryColor === color && styles.selectedColorOption
+                          ]}
+                          onPress={() => setPrimaryColor(color)}
+                        >
+                          {primaryColor === color && (
+                            <View style={styles.colorCheckmark}>
+                              <Text style={styles.colorCheckmarkText}>✓</Text>
+                            </View>
+                          )}
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+
+                  <View style={styles.colorSelectorContainer}>
+                    <Text style={styles.colorLabel}>Cor Secundária</Text>
+                    <View style={styles.colorOptions}>
+                      {[
+                        '#8B5CF6', '#b687fe', '#3c79e6', '#0073ea',
+                        '#FF6B35', '#FFB800', '#30D158', '#40E0D0',
+                        '#7C3AED', '#C77DFF', '#FF69B4', '#D2691E'
+                      ].map((color) => (
+                        <TouchableOpacity
+                          key={color}
+                          style={[
+                            styles.colorOption,
+                            { backgroundColor: color },
+                            secondaryColor === color && styles.selectedColorOption
+                          ]}
+                          onPress={() => setSecondaryColor(color)}
+                        >
+                          {secondaryColor === color && (
+                            <View style={styles.colorCheckmark}>
+                              <Text style={styles.colorCheckmarkText}>✓</Text>
+                            </View>
+                          )}
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+                </View>
+
+                {/* Preview do Gradiente */}
+                <View style={styles.gradientPreviewContainer}>
+                  <Text style={styles.colorLabel}>Preview do Cartão</Text>
+                  <LinearGradient
+                    colors={[primaryColor, secondaryColor]}
+                    style={styles.gradientPreview}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                  >
+                    <View style={styles.previewCardContent}>
+                      <View style={styles.previewCardHeader}>
+                        <CreditCard size={20} color="#ffffff" />
+                        <Text style={styles.previewCardType}>
+                          {selectedType || 'CARTÃO'}
+                        </Text>
+                      </View>
+                      <Text style={styles.previewCardBalance}>R$ 0,00</Text>
+                      <Text style={styles.previewCardNumber}>
+                        {cardNumber || '**** **** **** ****'}
+                      </Text>
+                      <Text style={styles.previewCardName}>
+                        {cardName || 'NOME DO TITULAR'}
                       </Text>
                     </View>
-                    <Text style={styles.previewCardBalance}>R$ 0,00</Text>
-                    <Text style={styles.previewCardNumber}>
-                      {cardNumber || '**** **** **** ****'}
-                    </Text>
-                    <Text style={styles.previewCardName}>
-                      {cardName || 'NOME DO TITULAR'}
-                    </Text>
-                  </View>
-                </LinearGradient>
+                  </LinearGradient>
+                </View>
               </View>
-            </View>
+            </ScrollView>
 
             <TouchableOpacity 
               style={[styles.addCardModalButton, { backgroundColor: theme.primary }]}
@@ -960,6 +966,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 24,
     padding: 24,
     paddingBottom: Platform.OS === 'ios' ? 40 : 24,
+    maxHeight: '70%',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -1302,5 +1309,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     opacity: 0.9,
     letterSpacing: 2,
+  },
+  modalScrollView: {
+    flex: 1,
+    marginBottom: 24,
   },
 }); 

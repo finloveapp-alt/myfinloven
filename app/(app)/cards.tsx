@@ -773,7 +773,19 @@ export default function Cards() {
                 style={styles.input}
                 placeholder="Número do Cartão"
                 value={cardNumber}
-                onChangeText={setCardNumber}
+                onChangeText={(text) => {
+                  // Remove tudo que não é número
+                  const numericValue = text.replace(/[^0-9]/g, '');
+                  // Aplica máscara de cartão (XXXX XXXX XXXX XXXX)
+                  let formattedValue = '';
+                  for (let i = 0; i < numericValue.length && i < 16; i++) {
+                    if (i > 0 && i % 4 === 0) {
+                      formattedValue += ' ';
+                    }
+                    formattedValue += numericValue[i];
+                  }
+                  setCardNumber(formattedValue);
+                }}
                 keyboardType="numeric"
                 maxLength={19}
                 placeholderTextColor="#666"

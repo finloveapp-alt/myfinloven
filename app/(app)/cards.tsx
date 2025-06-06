@@ -809,7 +809,11 @@ export default function Cards() {
 
               <View style={styles.rowInputs}>
                 <TouchableOpacity
-                  style={[styles.cardTypeOption, { flex: 1, marginRight: 8 }]}
+                  style={[
+                    styles.cardTypeOption, 
+                    { flex: 1, marginRight: 8 },
+                    cardType === 'credit' && [styles.selectedCardType, { backgroundColor: theme.primary }]
+                  ]}
                   onPress={() => setCardType('credit')}
                 >
                   <Text style={[
@@ -819,7 +823,11 @@ export default function Cards() {
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={[styles.cardTypeOption, { flex: 1, marginLeft: 8, width: 0 }]}
+                  style={[
+                    styles.cardTypeOption, 
+                    { flex: 1, marginLeft: 8, width: 0 },
+                    cardType === 'debit' && [styles.selectedCardType, { backgroundColor: theme.primary }]
+                  ]}
                   onPress={() => setCardType('debit')}
                 >
                   <Text style={[

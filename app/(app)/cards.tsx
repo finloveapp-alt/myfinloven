@@ -11,7 +11,7 @@ import { cardsService, Card, CardTransaction } from '@/lib/services/cardsService
 
 const { width } = Dimensions.get('window');
 const cardWidth = width * 0.6;
-const cardHeight = cardWidth * 0.6;
+const cardHeight = 160.4;
 
 // Definição de temas
 const themes = {

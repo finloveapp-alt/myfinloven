@@ -9,6 +9,10 @@ import { supabase } from '@/lib/supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { cardsService, Card, CardTransaction } from '@/lib/services/cardsService';
 import Svg, { Path, Rect, Circle } from 'react-native-svg';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '@/contexts/ThemeContext';
+import CardBrandIcon from '@/components/ui/CardBrandIcons';
 
 // Componentes SVG para ícones das bandeiras
 const DinersIcon = () => (
@@ -107,8 +111,78 @@ const getInitialTheme = () => {
   return themes.feminine;
 };
 
+// Função para detectar a bandeira do cartão
+const detectCardBrand = (number: string): string => {
+  const cleanNumber = number.replace(/\s/g, '');
+  
+  // Visa
+  if (/^4[0-9]{0,}/.test(cleanNumber)) {
+    return 'visa';
+  }
+  
+  // Mastercard
+  if (/^(5[1-5][0-9]{0,}|2[2-7][0-9]{0,})/.test(cleanNumber)) {
+    return 'mastercard';
+  }
+  
+  // American Express
+  if (/^3[47][0-9]{0,}/.test(cleanNumber)) {
+    return 'amex';
+  }
+  
+  // Diners Club
+  if (/^3(?:0[0-5]|[68][0-9])[0-9]{0,}/.test(cleanNumber)) {
+    return 'dinersclub';
+  }
+  
+  // Discover
+  if (/^6(?:011|5[0-9]{2})[0-9]{0,}/.test(cleanNumber)) {
+    return 'discover';
+  }
+  
+  // Elo
+  if (/^(4011(78|79)|43(1274|8935)|45(1416|7393|763(1|2))|50(4175|6699|67[0-6][0-9]|677[0-8]|9[0-8][0-9]{2}|99[0-8][0-9]|999[0-9])|627780|63(6297|6368|6369)|65(0(0(3([1-3]|[5-9])|4([0-9])|5[0-1])|4(0[5-9]|[1-3][0-9]|8[5-9]|9[0-9])|5([0-2][0-9]|3[0-8]|4[1-9]|[5-8][0-9]|9[0-8])|7(0[0-9]|1[0-8]|2[0-7])|9(0[1-9]|[1-6][0-9]|7[0-8]))|16(5[2-9]|[6-7][0-9])|50(0[0-9]|1[0-9]|2[0-9]|3[0-8]))/.test(cleanNumber)) {
+    return 'elo';
+  }
+  
+  // Hipercard
+  if (/^(38[0-9]{2}|60[0-9]{2})/.test(cleanNumber)) {
+    return 'hipercard';
+  }
+  
+  return 'unknown';
+};
+
+// Função para formatar número do cartão
+const formatCardNumber = (value: string) => {
+  const v = value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');
+  const matches = v.match(/\d{4,16}/g);
+  const match = matches && matches[0] || '';
+  const parts = [];
+  
+  for (let i = 0, len = match.length; i < len; i += 4) {
+    parts.push(match.substring(i, i + 4));
+  }
+  
+  if (parts.length) {
+    return parts.join(' ');
+  } else {
+    return v;
+  }
+};
+
+// Função para formatar valor em moeda
+const formatCurrency = (value: string) => {
+  const numericValue = value.replace(/[^0-9]/g, '');
+  const number = parseFloat(numericValue) / 100;
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL'
+  }).format(number);
+};
+
 export default function Cards() {
-  const [theme, setTheme] = useState(getInitialTheme());
+  const { theme } = useTheme();
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [menuModalVisible, setMenuModalVisible] = useState(false);
   const [cardNumber, setCardNumber] = useState('');
@@ -126,119 +200,57 @@ export default function Cards() {
   const [cardTransactions, setCardTransactions] = useState<CardTransaction[]>([]);
   const [addingCard, setAddingCard] = useState(false);
 
-  // Função para detectar bandeira do cartão automaticamente
-  const detectCardBrand = (cardNumber: string) => {
-    const cleanNumber = cardNumber.replace(/\s/g, '');
-    
-    // Visa: /^4[0-9]{0,}/
-    if (/^4[0-9]{0,}/.test(cleanNumber)) {
-      return 'visa';
-    }
-    
-    // Mastercard: /^(5[1-5][0-9]{0,}|2[2-7][0-9]{0,})/
-    if (/^(5[1-5][0-9]{0,}|2[2-7][0-9]{0,})/.test(cleanNumber)) {
-      return 'mastercard';
-    }
-    
-    // American Express: /^3[47][0-9]{0,}/
-    if (/^3[47][0-9]{0,}/.test(cleanNumber)) {
-      return 'amex';
-    }
-    
-    // Diners: /^3(?:0[0-5]|[68][0-9])[0-9]{0,}/
-    if (/^3(?:0[0-5]|[68][0-9])[0-9]{0,}/.test(cleanNumber)) {
-      return 'diners';
-    }
-    
-    // Discover: /^6(?:011|5[0-9]{2})[0-9]{0,}/
-    if (/^6(?:011|5[0-9]{2})[0-9]{0,}/.test(cleanNumber)) {
-      return 'discover';
-    }
-    
-    // Elo: /^(4011(78|79)|431274|438935|451416|457393|457631|457632|504175|506(699|7[0-6][0-9]|77[0-8])|509[0-9]{3}|627780|636297|636368|650[4-5][0-9]{2}|6509[0-9]{2}|6516[0-9]{2}|6550[0-9]{2})/
-    if (/^(4011(78|79)|431274|438935|451416|457393|457631|457632|504175|506(699|7[0-6][0-9]|77[0-8])|509[0-9]{3}|627780|636297|636368|650[4-5][0-9]{2}|6509[0-9]{2}|6516[0-9]{2}|6550[0-9]{2})/.test(cleanNumber)) {
-      return 'elo';
-    }
-    
-    // Hipercard: /^(38[0-9]{2}|60[0-9]{2})/
-    if (/^(38[0-9]{2}|60[0-9]{2})/.test(cleanNumber)) {
-      return 'hipercard';
-    }
-    
-    return '';
-  };
-
-  // useEffect para carregar o tema com base no gênero do usuário
-  useEffect(() => {
-    fetchUserTheme();
-    loadUserCards();
-  }, []);
-
-  // useEffect para atualizar as cores padrão quando o tema mudar
-  useEffect(() => {
-    setPrimaryColor(theme.primary);
-    setSecondaryColor(theme.secondary);
-  }, [theme]);
-
-  // Carregar cartões do usuário
-  const loadUserCards = async () => {
+  // Função para carregar cartões
+  const loadCards = async () => {
     try {
       setLoading(true);
-      const userCards = await cardsService.getUserCards();
-      setCards(userCards);
-      
-      // Carregar transações do primeiro cartão se existir
-      if (userCards.length > 0) {
-        const transactions = await cardsService.getCardTransactions(userCards[0].id);
-        setCardTransactions(transactions);
-      } else {
-        // Se não há cartões, usar transações mock para demonstração
-        setCardTransactions(mockTransactions);
-      }
+      const data = await cardsService.getCards();
+      setCards(data);
     } catch (error) {
       console.error('Erro ao carregar cartões:', error);
-      // Em caso de erro, usar dados mock para não quebrar a interface
-      setCardTransactions(mockTransactions);
+      // Fallback para dados mock em caso de erro
+      setCards([
+        {
+          id: '1',
+          bank_name: 'Nubank',
+          card_number: '**** **** **** 1234',
+          cardholder_name: 'João Silva',
+          card_limit: 5000,
+          card_type: 'credit',
+          brand: 'mastercard',
+          user_id: 'mock-user',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        },
+        {
+          id: '2',
+          bank_name: 'Itaú',
+          card_number: '**** **** **** 5678',
+          cardholder_name: 'João Silva',
+          card_limit: 3000,
+          card_type: 'debit',
+          brand: 'visa',
+          user_id: 'mock-user',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }
+      ]);
     } finally {
       setLoading(false);
     }
   };
 
-  // Dados mock para transações (mantido para quando não há cartões)
-  const mockTransactions = [
-    {
-      id: '1',
-      description: 'Apartamento',
-      transaction_date: '2021-04-21',
-      amount: 120,
-      transaction_type: 'expense' as const,
-      icon: '🏢'
-    },
-    {
-      id: '2',
-      description: 'Pagamento',
-      transaction_date: '2021-04-18',
-      amount: 150,
-      transaction_type: 'income' as const,
-      icon: '💳'
-    },
-    {
-      id: '3',
-      description: 'Compra Online',
-      transaction_date: '2021-04-19',
-      amount: 75,
-      transaction_type: 'expense' as const,
-      icon: '🛍️'
-    },
-    {
-      id: '4',
-      description: 'Pagamento',
-      transaction_date: '2021-04-18',
-      amount: 150,
-      transaction_type: 'income' as const,
-      icon: '💳'
-    }
-  ];
+  // useEffect para carregar o tema com base no gênero do usuário
+  useEffect(() => {
+    fetchUserTheme();
+    loadCards();
+  }, []);
+
+  // useEffect para atualizar as cores padrão quando o tema mudar
+  useEffect(() => {
+    setPrimaryColor(theme.colors.primary);
+    setSecondaryColor(theme.colors.secondary);
+  }, [theme]);
 
   // Função para buscar o tema baseado no perfil do usuário
   const fetchUserTheme = async () => {
@@ -406,666 +418,360 @@ export default function Cards() {
     loadThemeFromStorage();
   }, []);
 
-  // Implementar função de adicionar cartão real
+  // Função para adicionar cartão
   const handleAddCard = async () => {
-    if (!cardNumber || !cardName || !bankName || !cardLimit || !cardType) {
-      Alert.alert('Atenção', 'Por favor, preencha todos os campos');
+    if (!bankName.trim() || !cardNumber.trim() || !cardName.trim() || !cardLimit.trim()) {
+      Alert.alert('Erro', 'Por favor, preencha todos os campos obrigatórios.');
       return;
     }
-    
-    if (!selectedType) {
-      Alert.alert('Atenção', 'Número do cartão inválido ou bandeira não reconhecida');
-      return;
-    }
-    
+
     try {
       setAddingCard(true);
       
-      const newCard = await cardsService.createCard({
-        name: `Cartão ${selectedType.toUpperCase()}`,
-        card_number: cardNumber,
-        card_holder_name: cardName,
-        bank_name: bankName,
-        card_limit: cardLimit,
-        card_type: selectedType,
-        is_credit: cardType === 'credit',
-        credit_limit: 1000,
-        primary_color: primaryColor,
-        secondary_color: secondaryColor,
-      });
+      const detectedBrand = detectCardBrand(cardNumber);
+      const numericLimit = parseFloat(cardLimit.replace(/[^0-9]/g, '')) / 100;
+      
+      const newCard: Omit<Card, 'id' | 'created_at' | 'updated_at'> = {
+        bank_name: bankName.trim(),
+        card_number: cardNumber.trim(),
+        cardholder_name: cardName.trim(),
+        card_limit: numericLimit,
+        card_type: cardType,
+        brand: detectedBrand,
+        user_id: 'current-user' // Substituir pela ID do usuário logado
+      };
+
+      await cardsService.createCard(newCard);
+      
+      // Limpar formulário
+      setBankName('');
+      setCardNumber('');
+      setCardName('');
+      setCardLimit('');
+      setCardType('credit');
+      
+      setIsModalVisible(false);
+      loadCards(); // Recarregar lista
       
       Alert.alert('Sucesso', 'Cartão adicionado com sucesso!');
-      setIsModalVisible(false);
-      resetForm();
-      loadUserCards(); // Recarregar lista
     } catch (error) {
       console.error('Erro ao adicionar cartão:', error);
-      Alert.alert('Erro', 'Não foi possível adicionar o cartão');
+      Alert.alert('Erro', 'Não foi possível adicionar o cartão. Tente novamente.');
     } finally {
       setAddingCard(false);
     }
   };
 
-  const resetForm = () => {
-    setCardNumber('');
-    setCardName('');
-    setBankName('');
-    setCardLimit('');
-    setCardType('credit');
-    setSelectedType('');
-    setPrimaryColor(theme.primary);
-    setSecondaryColor(theme.secondary);
-  };
-
-  // Função para formatar data de transação
-  const formatTransactionDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('pt-BR', {
-      day: '2-digit',
-      month: 'long',
-      year: 'numeric'
-    });
-  };
+  const renderCard = (card: Card) => (
+    <View 
+      key={card.id} 
+      style={{
+        backgroundColor: theme.colors.surface,
+        borderRadius: 16,
+        padding: 20,
+        marginBottom: 16,
+        height: 160.4,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 3,
+      }}
+    >
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <View>
+          <Text style={{ color: theme.colors.text, fontSize: 16, fontWeight: '600' }}>
+            {card.bank_name}
+          </Text>
+          <Text style={{ color: theme.colors.textSecondary, fontSize: 14, marginTop: 4 }}>
+            {card.card_number}
+          </Text>
+        </View>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <View style={{
+            backgroundColor: card.card_type === 'credit' ? theme.colors.primary : theme.colors.success,
+            paddingHorizontal: 8,
+            paddingVertical: 4,
+            borderRadius: 12,
+          }}>
+            <Text style={{ color: '#fff', fontSize: 12, fontWeight: '500' }}>
+              {card.card_type === 'credit' ? 'Crédito' : 'Débito'}
+            </Text>
+          </View>
+          <CardBrandIcon brand={card.brand} size={32} />
+        </View>
+      </View>
+      
+      <View style={{ marginTop: 'auto' }}>
+        <Text style={{ color: theme.colors.textSecondary, fontSize: 12 }}>
+          Titular
+        </Text>
+        <Text style={{ color: theme.colors.text, fontSize: 14, fontWeight: '500' }}>
+          {card.cardholder_name}
+        </Text>
+        
+        <Text style={{ color: theme.colors.textSecondary, fontSize: 12, marginTop: 8 }}>
+          Limite
+        </Text>
+        <Text style={{ color: theme.colors.text, fontSize: 16, fontWeight: '600' }}>
+          {new Intl.NumberFormat('pt-BR', {
+            style: 'currency',
+            currency: 'BRL'
+          }).format(card.card_limit)}
+        </Text>
+      </View>
+    </View>
+  );
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <StatusBar style="dark" />
-      <ScrollView style={styles.scrollView}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Meus Cartões</Text>
-        </View>
-
-        <ScrollView 
-          horizontal 
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.cardsContainer}
-          decelerationRate="fast"
-          snapToInterval={cardWidth + 16}
-          style={styles.cardsScroll}
-        >
-          <TouchableOpacity 
-            style={styles.addCardButton}
+    <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }}>
+      <View style={{ flex: 1, paddingHorizontal: 20 }}>
+        {/* Header */}
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+          <Text style={{ fontSize: 28, fontWeight: 'bold', color: theme.colors.text }}>
+            Cartões
+          </Text>
+          <TouchableOpacity
             onPress={() => setIsModalVisible(true)}
+            style={{
+              backgroundColor: theme.colors.primary,
+              width: 44,
+              height: 44,
+              borderRadius: 22,
+              justifyContent: 'center',
+              alignItems: 'center',
+            }}
           >
-            <View style={styles.addCardContent}>
-              <Plus size={20} color={theme.primary} />
-              <Text style={[styles.addCardText, { color: theme.primary }]}>Adicionar novo cartão</Text>
-            </View>
+            <Ionicons name="add" size={24} color="#fff" />
           </TouchableOpacity>
+        </View>
 
-          {loading ? (
-            <View style={[styles.card, { backgroundColor: '#f5f7fa', justifyContent: 'center', alignItems: 'center' }]}>
-              <ActivityIndicator size="large" color={theme.primary} />
-              <Text style={{ marginTop: 8, color: '#666' }}>Carregando...</Text>
-            </View>
-          ) : (
-            cards.map((card, index) => (
-              <LinearGradient
-                key={card.id}
-                colors={[card.primary_color, card.secondary_color]}
-                style={styles.card}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-              >
-                <TouchableOpacity 
-                  style={styles.cardContent}
-                  onPress={() => router.push('/(app)/card-detail')}
-                >
-                  <View style={styles.cardHeader}>
-                    <CreditCard size={24} color="#ffffff" />
-                    <Text style={styles.cardType}>{card.card_type.toUpperCase()}</Text>
-                  </View>
-                  <Text style={styles.cardBalance}>
-                    R$ {card.current_balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+        {/* Lista de cartões */}
+        {loading ? (
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+            <ActivityIndicator size="large" color={theme.colors.primary} />
+            <Text style={{ color: theme.colors.textSecondary, marginTop: 16 }}>
+              Carregando cartões...
+            </Text>
+          </View>
+        ) : (
+          <ScrollView 
+            showsVerticalScrollIndicator={false}
+            style={{ flex: 1 }}
+            contentContainerStyle={{ paddingBottom: 12 }}
+          >
+            {cards.map(renderCard)}
+          </ScrollView>
+        )}
+
+        {/* Modal para adicionar cartão */}
+        <Modal
+          animationType="slide"
+          transparent={true}
+          visible={isModalVisible}
+          onRequestClose={() => setIsModalVisible(false)}
+        >
+          <View style={{
+            flex: 1,
+            justifyContent: 'flex-end',
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          }}>
+            <View style={{
+              backgroundColor: theme.colors.surface,
+              borderTopLeftRadius: 20,
+              borderTopRightRadius: 20,
+              padding: 20,
+              height: '70%',
+            }}>
+              <ScrollView showsVerticalScrollIndicator={false}>
+                {/* Header do modal */}
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+                  <Text style={{ fontSize: 20, fontWeight: 'bold', color: theme.colors.text }}>
+                    Adicionar Cartão
                   </Text>
-                  <Text style={styles.cardNumber}>{cardsService.formatCardNumber(card.card_number)}</Text>
-                  <View style={styles.viewDetailsContainer}>
-                    <Text style={styles.viewDetailsText}>Toque para ver detalhes</Text>
-                    <View style={styles.viewDetailsIcon}>
-                      <Text style={styles.viewDetailsIconText}>👆</Text>
-                    </View>
-                  </View>
-                </TouchableOpacity>
-              </LinearGradient>
-            ))
-          )}
-
-          {/* Cartões mock para demonstração quando não há cartões reais */}
-          {!loading && cards.length === 0 && (
-            <>
-              <LinearGradient
-                colors={[theme.primary, theme.secondary]}
-                style={styles.card}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-              >
-                <TouchableOpacity 
-                  style={styles.cardContent}
-                  onPress={() => router.push('/(app)/card-detail')}
-                >
-                  <View style={styles.cardHeader}>
-                    <CreditCard size={24} color="#ffffff" />
-                    <Text style={styles.cardType}>mastercard</Text>
-                  </View>
-                  <Text style={styles.cardBalance}>R$ 875,46</Text>
-                  <Text style={styles.cardNumber}>124 987 324 ***</Text>
-                  <View style={styles.viewDetailsContainer}>
-                    <Text style={styles.viewDetailsText}>Toque para ver detalhes</Text>
-                    <View style={styles.viewDetailsIcon}>
-                      <Text style={styles.viewDetailsIconText}>👆</Text>
-                    </View>
-                  </View>
-                </TouchableOpacity>
-              </LinearGradient>
-
-              <LinearGradient
-                colors={theme === themes.masculine ? [theme.shared, '#0056b3'] : ['#0073ea', '#0056b3']}
-                style={styles.card}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-              >
-                <TouchableOpacity 
-                  style={styles.cardContent}
-                  onPress={() => router.push('/(app)/card-detail')}
-                >
-                  <View style={styles.cardHeader}>
-                    <CreditCard size={24} color="#ffffff" />
-                    <Text style={styles.cardType}>VISA</Text>
-                  </View>
-                  <Text style={styles.cardBalance}>R$ 560,00</Text>
-                  <Text style={styles.cardNumber}>753 926 768 ***</Text>
-                  <View style={styles.viewDetailsContainer}>
-                    <Text style={styles.viewDetailsText}>Toque para ver detalhes</Text>
-                    <View style={styles.viewDetailsIcon}>
-                      <Text style={styles.viewDetailsIconText}>👆</Text>
-                    </View>
-                  </View>
-                </TouchableOpacity>
-              </LinearGradient>
-            </>
-          )}
-        </ScrollView>
-
-        <View style={styles.transactionSection}>
-          <View style={styles.transactionHeader}>
-            <Text style={styles.transactionTitle}>Histórico de Transações</Text>
-            <TouchableOpacity style={styles.filterButton}>
-              <View style={styles.filterDots}>
-                <View style={styles.filterDot} />
-                <View style={styles.filterDot} />
-              </View>
-            </TouchableOpacity>
-          </View>
-
-          {cardTransactions.map((transaction) => (
-            <TouchableOpacity key={transaction.id} style={styles.transactionItem}>
-              <View style={[styles.transactionIcon, { backgroundColor: transaction.transaction_type === 'expense' ? '#FFE2E6' : '#E3F5FF' }]}>
-                <Text style={styles.transactionIconText}>{transaction.icon || (transaction.transaction_type === 'expense' ? '💸' : '💰')}</Text>
-              </View>
-              <View style={styles.transactionInfo}>
-                <Text style={styles.transactionName}>{transaction.description}</Text>
-                <Text style={styles.transactionDate}>
-                  {formatTransactionDate(transaction.transaction_date)}
-                </Text>
-              </View>
-              <Text style={[
-                styles.transactionAmount,
-                { color: transaction.transaction_type === 'expense' ? theme.expense : theme.income }
-              ]}>
-                {transaction.transaction_type === 'expense' ? '-' : '+'}R$ {Math.abs(transaction.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      </ScrollView>
-
-      {/* Bottom Navigation */}
-      <View style={styles.bottomNav}>
-        <TouchableOpacity 
-          style={styles.navItem}
-          onPress={() => router.push('/(app)/dashboard')}
-        >
-          <BarChart size={24} color="#999" />
-          <Text style={styles.navText}>Dashboard</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={styles.navItem}
-          onPress={() => setMenuModalVisible(true)}
-        >
-          <Menu size={24} color="#999" />
-          <Text style={styles.navText}>Menu</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={styles.addButton}
-          onPress={() => router.push('/(app)/registers')}
-        >
-          <View style={[styles.addButtonInner, { backgroundColor: theme.primary }]}>
-            <PlusCircle size={32} color="#fff" />
-          </View>
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={styles.navItem} 
-          onPress={() => router.push('/(app)/notifications')}
-        >
-          <Receipt size={24} color="#999" />
-          <Text style={styles.navText}>Notificações</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={styles.navItem}
-        >
-          <CreditCard size={24} color={theme.primary} />
-          <Text style={[styles.navText, { color: theme.primary }]}>Cartões</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Menu Modal */}
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={menuModalVisible}
-        onRequestClose={() => setMenuModalVisible(false)}
-      >
-        <View style={styles.menuModalContainer}>
-          <View style={[styles.menuModalContent, { backgroundColor: theme.card }]}>
-            <View style={styles.menuHeader}>
-              <TouchableOpacity 
-                style={styles.closeButton}
-                onPress={() => setMenuModalVisible(false)}
-              >
-                <Text style={[styles.closeButtonText, { color: theme.primary }]}>Fechar</Text>
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.menuGrid}>
-              {/* Primeira linha */}
-              <View style={styles.menuRow}>
-                <TouchableOpacity 
-                  style={styles.menuItem}
-                  onPress={() => {
-                    setMenuModalVisible(false);
-                    router.push('/(app)/dashboard');
-                  }}
-                >
-                  <View style={[styles.menuIconContainer, { backgroundColor: `${theme.primary}26` }]}>
-                    <Home size={28} color={theme.primary} />
-                  </View>
-                  <Text style={[styles.menuItemTitle, { color: '#333' }]}>Dashboard</Text>
-                  <Text style={[styles.menuItemSubtitle, { color: '#666' }]}>Visão geral</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity 
-                  style={styles.menuItem}
-                  onPress={() => {
-                    setMenuModalVisible(false);
-                    router.push('/(app)/registers');
-                  }}
-                >
-                  <View style={[styles.menuIconContainer, { backgroundColor: `${theme.primary}26` }]}>
-                    <PlusCircle size={28} color={theme.primary} />
-                  </View>
-                  <Text style={[styles.menuItemTitle, { color: '#333' }]}>Novo Registro</Text>
-                  <Text style={[styles.menuItemSubtitle, { color: '#666' }]}>Adicionar transação</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity 
-                  style={styles.menuItem}
-                  onPress={() => {
-                    setMenuModalVisible(false);
-                    router.push('/(app)/notifications');
-                  }}
-                >
-                  <View style={[styles.menuIconContainer, { backgroundColor: `${theme.primary}26` }]}>
-                    <Bell size={28} color={theme.primary} />
-                  </View>
-                  <Text style={[styles.menuItemTitle, { color: '#333' }]}>Notificações</Text>
-                  <Text style={[styles.menuItemSubtitle, { color: '#666' }]}>Alertas e avisos</Text>
-                </TouchableOpacity>
-              </View>
-
-              {/* Segunda linha */}
-              <View style={styles.menuRow}>
-                <TouchableOpacity 
-                  style={styles.menuItem}
-                  onPress={() => {
-                    setMenuModalVisible(false);
-                    router.push('/(app)/planning' as any);
-                  }}
-                >
-                  <View style={[styles.menuIconContainer, { backgroundColor: `${theme.primary}26` }]}>
-                    <BarChart size={28} color={theme.primary} />
-                  </View>
-                  <Text style={[styles.menuItemTitle, { color: '#333' }]}>Planejamento</Text>
-                  <Text style={[styles.menuItemSubtitle, { color: '#666' }]}>Orçamentos e metas</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity 
-                  style={styles.menuItem}
-                  onPress={() => {
-                    setMenuModalVisible(false);
-                    router.push('/(app)/cards');
-                  }}
-                >
-                  <View style={[styles.menuIconContainer, { backgroundColor: `${theme.primary}26` }]}>
-                    <CreditCard size={28} color={theme.primary} />
-                  </View>
-                  <Text style={[styles.menuItemTitle, { color: '#333' }]}>Cartões</Text>
-                  <Text style={[styles.menuItemSubtitle, { color: '#666' }]}>Cartões de crédito</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity 
-                  style={styles.menuItem}
-                  onPress={() => {
-                    setMenuModalVisible(false);
-                    router.push('/(app)/accounts');
-                  }}
-                >
-                  <View style={[styles.menuIconContainer, { backgroundColor: `${theme.primary}26` }]}>
-                    <Wallet size={28} color={theme.primary} />
-                  </View>
-                  <Text style={[styles.menuItemTitle, { color: '#333' }]}>Contas</Text>
-                  <Text style={[styles.menuItemSubtitle, { color: '#666' }]}>Gerenciar contas</Text>
-                </TouchableOpacity>
-              </View>
-
-              {/* Terceira linha */}
-              <View style={styles.menuRow}>
-                <TouchableOpacity 
-                  style={styles.menuItem}
-                  onPress={() => {
-                    setMenuModalVisible(false);
-                    // Navegação para sobre
-                  }}
-                >
-                  <View style={[styles.menuIconContainer, { backgroundColor: `${theme.primary}26` }]}>
-                    <Info size={28} color={theme.primary} />
-                  </View>
-                  <Text style={[styles.menuItemTitle, { color: '#333' }]}>Sobre</Text>
-                  <Text style={[styles.menuItemSubtitle, { color: '#666' }]}>Informações</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity 
-                  style={styles.menuItem}
-                  onPress={() => {
-                    setMenuModalVisible(false);
-                    router.replace('/(auth)/login');
-                  }}
-                >
-                  <View style={[styles.menuIconContainer, { backgroundColor: `${theme.primary}26` }]}>
-                    <ExternalLink size={28} color={theme.primary} />
-                  </View>
-                  <Text style={[styles.menuItemTitle, { color: '#333' }]}>Logout</Text>
-                  <Text style={[styles.menuItemSubtitle, { color: '#666' }]}>Sair do aplicativo</Text>
-                </TouchableOpacity>
-
-                <View style={styles.menuItem}>
-                  {/* Item vazio para manter o alinhamento */}
-                </View>
-              </View>
-            </View>
-
-            <TouchableOpacity 
-              style={[styles.closeFullButton, { backgroundColor: theme.primary }]}
-              onPress={() => setMenuModalVisible(false)}
-            >
-              <Text style={styles.closeFullButtonText}>Fechar</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
-      <Modal
-        visible={isModalVisible}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setIsModalVisible(false)}
-      >
-        <KeyboardAvoidingView 
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          style={styles.modalContainer}
-        >
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Adicionar Novo Cartão</Text>
-              <TouchableOpacity 
-                onPress={() => setIsModalVisible(false)}
-                style={styles.closeButton}
-              >
-                <X size={24} color="#666" />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView 
-              style={styles.modalScrollView}
-              showsVerticalScrollIndicator={false}
-              bounces={false}
-            >
-              <TextInput
-                style={styles.input}
-                placeholder="Nome do Banco"
-                value={bankName}
-                onChangeText={setBankName}
-                autoCapitalize="characters"
-                placeholderTextColor="#666"
-              />
-
-              <View style={styles.cardNumberInputContainer}>
-                {selectedType && (
-                  <View style={styles.cardBrandIcon}>
-                    {selectedType === 'visa' ? <VisaIcon /> : 
-                     selectedType === 'mastercard' ? <MastercardIcon /> : 
-                     selectedType === 'elo' ? <EloIcon /> : 
-                     selectedType === 'american_express' ? <AmexIcon /> : 
-                     selectedType === 'diners' ? <DinersIcon /> : 
-                     selectedType === 'discover' ? <DiscoverIcon /> : 
-                     selectedType === 'hipercard' ? <HipercardIcon /> : 
-                     <CreditCard size={20} color="#666" />}
-                  </View>
-                )}
-                <TextInput
-                  style={[styles.input, styles.cardNumberInput, selectedType && styles.cardNumberInputWithIcon]}
-                  placeholder="Número do Cartão"
-                  value={cardNumber}
-                  onChangeText={(text) => {
-                    // Remove tudo que não é número
-                    const numericValue = text.replace(/[^0-9]/g, '');
-                    // Aplica máscara de cartão (XXXX XXXX XXXX XXXX)
-                    let formattedValue = '';
-                    for (let i = 0; i < numericValue.length && i < 16; i++) {
-                      if (i > 0 && i % 4 === 0) {
-                        formattedValue += ' ';
-                      }
-                      formattedValue += numericValue[i];
-                    }
-                    setCardNumber(formattedValue);
-                    
-                    // Detectar bandeira automaticamente
-                    const detectedBrand = detectCardBrand(formattedValue);
-                    setSelectedType(detectedBrand);
-                  }}
-                  keyboardType="numeric"
-                  maxLength={19}
-                  placeholderTextColor="#666"
-                />
-              </View>
-
-              <TextInput
-                style={styles.input}
-                placeholder="Nome no Cartão"
-                value={cardName}
-                onChangeText={setCardName}
-                autoCapitalize="characters"
-                placeholderTextColor="#666"
-              />
-
-              <TextInput
-                style={styles.input}
-                placeholder="Limite do Cartão (R$)"
-                value={cardLimit}
-                onChangeText={(text) => {
-                  // Remove tudo que não é número
-                  const numericValue = text.replace(/[^0-9]/g, '');
-                  // Formata como moeda brasileira
-                  if (numericValue) {
-                    const formattedValue = (parseInt(numericValue) / 100).toLocaleString('pt-BR', {
-                      style: 'currency',
-                      currency: 'BRL'
-                    });
-                    setCardLimit(formattedValue);
-                  } else {
-                    setCardLimit('');
-                  }
-                }}
-                keyboardType="numeric"
-                placeholderTextColor="#666"
-              />
-
-              <View style={styles.rowInputs}>
-                <TouchableOpacity
-                  style={[
-                    styles.cardTypeOption, 
-                    { flex: 1, marginRight: 8 },
-                    cardType === 'credit' && [styles.selectedCardType, { backgroundColor: theme.primary }]
-                  ]}
-                  onPress={() => setCardType('credit')}
-                >
-                  <Text style={[
-                    styles.cardTypeText,
-                    cardType === 'credit' && styles.selectedCardTypeText
-                  ]}>Crédito</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[
-                    styles.cardTypeOption, 
-                    { flex: 1, marginLeft: 8, width: 0 },
-                    cardType === 'debit' && [styles.selectedCardType, { backgroundColor: theme.primary }]
-                  ]}
-                  onPress={() => setCardType('debit')}
-                >
-                  <Text style={[
-                    styles.cardTypeText,
-                    cardType === 'debit' && styles.selectedCardTypeText
-                  ]}>Débito</Text>
-                </TouchableOpacity>
-              </View>
-
-              {/* Seletor de Cores */}
-              <View style={styles.colorSection}>
-                <Text style={styles.colorSectionTitle}>Cores do Cartão</Text>
-                
-                <View style={styles.colorSelectors}>
-                  <View style={styles.colorSelectorContainer}>
-                    <Text style={styles.colorLabel}>Cor Principal</Text>
-                    <View style={styles.colorOptions}>
-                      {[
-                        '#b687fe', '#8B5CF6', '#0073ea', '#3c79e6',
-                        '#FF3B30', '#FF9500', '#34C759', '#00C7BE',
-                        '#5856D6', '#AF52DE', '#FF2D92', '#A2845E'
-                      ].map((color) => (
-                        <TouchableOpacity
-                          key={color}
-                          style={[
-                            styles.colorOption,
-                            { backgroundColor: color },
-                            primaryColor === color && styles.selectedColorOption
-                          ]}
-                          onPress={() => setPrimaryColor(color)}
-                        >
-                          {primaryColor === color && (
-                            <View style={styles.colorCheckmark}>
-                              <Text style={styles.colorCheckmarkText}>✓</Text>
-                            </View>
-                          )}
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                  </View>
-
-                  <View style={styles.colorSelectorContainer}>
-                    <Text style={styles.colorLabel}>Cor Secundária</Text>
-                    <View style={styles.colorOptions}>
-                      {[
-                        '#8B5CF6', '#b687fe', '#3c79e6', '#0073ea',
-                        '#FF6B35', '#FFB800', '#30D158', '#40E0D0',
-                        '#7C3AED', '#C77DFF', '#FF69B4', '#D2691E'
-                      ].map((color) => (
-                        <TouchableOpacity
-                          key={color}
-                          style={[
-                            styles.colorOption,
-                            { backgroundColor: color },
-                            secondaryColor === color && styles.selectedColorOption
-                          ]}
-                          onPress={() => setSecondaryColor(color)}
-                        >
-                          {secondaryColor === color && (
-                            <View style={styles.colorCheckmark}>
-                              <Text style={styles.colorCheckmarkText}>✓</Text>
-                            </View>
-                          )}
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                  </View>
+                  <TouchableOpacity onPress={() => setIsModalVisible(false)}>
+                    <Ionicons name="close" size={24} color={theme.colors.text} />
+                  </TouchableOpacity>
                 </View>
 
-                {/* Preview do Gradiente */}
-                <View style={styles.gradientPreviewContainer}>
-                  <Text style={styles.colorLabel}>Preview do Cartão</Text>
-                  <LinearGradient
-                    colors={[primaryColor, secondaryColor]}
-                    style={styles.gradientPreview}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                  >
-                    <View style={styles.previewCardContent}>
-                      <View style={styles.previewCardHeader}>
-                        <CreditCard size={20} color="#ffffff" />
-                        <Text style={styles.previewCardType}>
-                          {selectedType || 'CARTÃO'}
+                {/* Formulário */}
+                <View style={{ gap: 16 }}>
+                  {/* Nome do Banco */}
+                  <View>
+                    <Text style={{ color: theme.colors.text, fontSize: 16, fontWeight: '500', marginBottom: 8 }}>
+                      Nome do Banco
+                    </Text>
+                    <TextInput
+                      style={{
+                        backgroundColor: theme.colors.background,
+                        borderRadius: 12,
+                        padding: 16,
+                        fontSize: 16,
+                        color: theme.colors.text,
+                        borderWidth: 1,
+                        borderColor: theme.colors.border,
+                      }}
+                      placeholder="Ex: Nubank, Itaú, Bradesco..."
+                      placeholderTextColor={theme.colors.textSecondary}
+                      value={bankName}
+                      onChangeText={setBankName}
+                    />
+                  </View>
+
+                  {/* Número do cartão */}
+                  <View>
+                    <Text style={{ color: theme.colors.text, fontSize: 16, fontWeight: '500', marginBottom: 8 }}>
+                      Número do Cartão
+                    </Text>
+                    <View style={{ position: 'relative' }}>
+                      <TextInput
+                        style={{
+                          backgroundColor: theme.colors.background,
+                          borderRadius: 12,
+                          padding: 16,
+                          paddingRight: 50,
+                          fontSize: 16,
+                          color: theme.colors.text,
+                          borderWidth: 1,
+                          borderColor: theme.colors.border,
+                        }}
+                        placeholder="0000 0000 0000 0000"
+                        placeholderTextColor={theme.colors.textSecondary}
+                        value={cardNumber}
+                        onChangeText={(text) => setCardNumber(formatCardNumber(text))}
+                        keyboardType="numeric"
+                        maxLength={19}
+                      />
+                      {cardNumber && (
+                        <View style={{ position: 'absolute', right: 16, top: 16 }}>
+                          <CardBrandIcon brand={detectCardBrand(cardNumber)} size={24} />
+                        </View>
+                      )}
+                    </View>
+                  </View>
+
+                  {/* Nome do titular */}
+                  <View>
+                    <Text style={{ color: theme.colors.text, fontSize: 16, fontWeight: '500', marginBottom: 8 }}>
+                      Nome do Titular
+                    </Text>
+                    <TextInput
+                      style={{
+                        backgroundColor: theme.colors.background,
+                        borderRadius: 12,
+                        padding: 16,
+                        fontSize: 16,
+                        color: theme.colors.text,
+                        borderWidth: 1,
+                        borderColor: theme.colors.border,
+                      }}
+                      placeholder="Nome como está no cartão"
+                      placeholderTextColor={theme.colors.textSecondary}
+                      value={cardName}
+                      onChangeText={setCardName}
+                    />
+                  </View>
+
+                  {/* Limite do cartão */}
+                  <View>
+                    <Text style={{ color: theme.colors.text, fontSize: 16, fontWeight: '500', marginBottom: 8 }}>
+                      Limite do Cartão
+                    </Text>
+                    <TextInput
+                      style={{
+                        backgroundColor: theme.colors.background,
+                        borderRadius: 12,
+                        padding: 16,
+                        fontSize: 16,
+                        color: theme.colors.text,
+                        borderWidth: 1,
+                        borderColor: theme.colors.border,
+                      }}
+                      placeholder="R$ 0,00"
+                      placeholderTextColor={theme.colors.textSecondary}
+                      value={cardLimit}
+                      onChangeText={(text) => setCardLimit(formatCurrency(text))}
+                      keyboardType="numeric"
+                    />
+                  </View>
+
+                  {/* Tipo do cartão */}
+                  <View>
+                    <Text style={{ color: theme.colors.text, fontSize: 16, fontWeight: '500', marginBottom: 8 }}>
+                      Tipo do Cartão
+                    </Text>
+                    <View style={{ flexDirection: 'row', gap: 12 }}>
+                      <TouchableOpacity
+                        onPress={() => setCardType('credit')}
+                        style={{
+                          flex: 1,
+                          backgroundColor: cardType === 'credit' ? theme.colors.primary : theme.colors.background,
+                          borderRadius: 12,
+                          padding: 16,
+                          alignItems: 'center',
+                          borderWidth: 1,
+                          borderColor: cardType === 'credit' ? theme.colors.primary : theme.colors.border,
+                        }}
+                      >
+                        <Text style={{
+                          color: cardType === 'credit' ? '#fff' : theme.colors.text,
+                          fontSize: 16,
+                          fontWeight: '500',
+                        }}>
+                          Crédito
                         </Text>
-                      </View>
-                      <Text style={styles.previewCardBalance}>R$ 0,00</Text>
-                      <Text style={styles.previewCardNumber}>
-                        {cardNumber || '**** **** **** ****'}
-                      </Text>
-                      <Text style={styles.previewCardName}>
-                        {bankName || 'NOME DO BANCO'}
-                      </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={() => setCardType('debit')}
+                        style={{
+                          flex: 1,
+                          backgroundColor: cardType === 'debit' ? theme.colors.success : theme.colors.background,
+                          borderRadius: 12,
+                          padding: 16,
+                          alignItems: 'center',
+                          borderWidth: 1,
+                          borderColor: cardType === 'debit' ? theme.colors.success : theme.colors.border,
+                        }}
+                      >
+                        <Text style={{
+                          color: cardType === 'debit' ? '#fff' : theme.colors.text,
+                          fontSize: 16,
+                          fontWeight: '500',
+                        }}>
+                          Débito
+                        </Text>
+                      </TouchableOpacity>
                     </View>
-                  </LinearGradient>
+                  </View>
                 </View>
-              </View>
-            </ScrollView>
 
-            <TouchableOpacity 
-              style={[
-                styles.addCardModalButton, 
-                { 
-                  backgroundColor: addingCard ? '#ccc' : theme.primary,
-                  opacity: addingCard ? 0.7 : 1
-                }
-              ]}
-              onPress={handleAddCard}
-              disabled={addingCard}
-            >
-              {addingCard ? (
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <ActivityIndicator size="small" color="#fff" style={{ marginRight: 8 }} />
-                  <Text style={styles.addButtonText}>Adicionando...</Text>
-                </View>
-              ) : (
-                <Text style={styles.addButtonText}>Adicionar Cartão</Text>
-              )}
-            </TouchableOpacity>
+                {/* Botão de adicionar */}
+                <TouchableOpacity
+                  onPress={handleAddCard}
+                  disabled={addingCard}
+                  style={{
+                    backgroundColor: theme.colors.primary,
+                    borderRadius: 12,
+                    padding: 16,
+                    alignItems: 'center',
+                    marginTop: 24,
+                    opacity: addingCard ? 0.7 : 1,
+                  }}
+                >
+                  {addingCard ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>
+                      Adicionar Cartão
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              </ScrollView>
+            </View>
           </View>
-        </KeyboardAvoidingView>
-      </Modal>
-    </View>
+        </Modal>
+      </View>
+    </SafeAreaView>
   );
 }
 

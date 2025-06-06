@@ -1257,7 +1257,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   gradientPreview: {
-    height: 120,
+    height: 190,
     borderRadius: 16,
     padding: 16,
     paddingBottom: 12,

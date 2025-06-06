@@ -786,40 +786,43 @@ export default function Cards() {
                 placeholderTextColor="#666"
               />
 
-              <TextInput
-                style={styles.input}
-                placeholder="Número do Cartão"
-                value={cardNumber}
-                onChangeText={(text) => {
-                  // Remove tudo que não é número
-                  const numericValue = text.replace(/[^0-9]/g, '');
-                  // Aplica máscara de cartão (XXXX XXXX XXXX XXXX)
-                  let formattedValue = '';
-                  for (let i = 0; i < numericValue.length && i < 16; i++) {
-                    if (i > 0 && i % 4 === 0) {
-                      formattedValue += ' ';
+              <View style={styles.cardNumberInputContainer}>
+                {selectedType && (
+                  <View style={styles.cardBrandIcon}>
+                    <Text style={styles.cardBrandIconText}>
+                      {selectedType === 'visa' ? '🔵' : 
+                       selectedType === 'mastercard' ? '🔴' : 
+                       selectedType === 'elo' ? '🟡' : 
+                       selectedType === 'american_express' ? '🟢' : '💳'}
+                    </Text>
+                  </View>
+                )}
+                <TextInput
+                  style={[styles.input, styles.cardNumberInput, selectedType && styles.cardNumberInputWithIcon]}
+                  placeholder="Número do Cartão"
+                  value={cardNumber}
+                  onChangeText={(text) => {
+                    // Remove tudo que não é número
+                    const numericValue = text.replace(/[^0-9]/g, '');
+                    // Aplica máscara de cartão (XXXX XXXX XXXX XXXX)
+                    let formattedValue = '';
+                    for (let i = 0; i < numericValue.length && i < 16; i++) {
+                      if (i > 0 && i % 4 === 0) {
+                        formattedValue += ' ';
+                      }
+                      formattedValue += numericValue[i];
                     }
-                    formattedValue += numericValue[i];
-                  }
-                  setCardNumber(formattedValue);
-                  
-                  // Detectar bandeira automaticamente
-                  const detectedBrand = detectCardBrand(formattedValue);
-                  setSelectedType(detectedBrand);
-                }}
-                keyboardType="numeric"
-                maxLength={19}
-                placeholderTextColor="#666"
-              />
-
-              {/* Exibir bandeira detectada */}
-              {selectedType && (
-                <View style={styles.detectedBrandContainer}>
-                  <Text style={styles.detectedBrandText}>
-                    Bandeira detectada: {selectedType.toUpperCase()}
-                  </Text>
-                </View>
-              )}
+                    setCardNumber(formattedValue);
+                    
+                    // Detectar bandeira automaticamente
+                    const detectedBrand = detectCardBrand(formattedValue);
+                    setSelectedType(detectedBrand);
+                  }}
+                  keyboardType="numeric"
+                  maxLength={19}
+                  placeholderTextColor="#666"
+                />
+              </View>
 
               <TextInput
                 style={styles.input}
@@ -1508,5 +1511,28 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     color: '#666',
+  },
+  cardNumberInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f5f7fa',
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  cardBrandIcon: {
+    position: 'absolute',
+    left: 16,
+    zIndex: 1,
+  },
+  cardBrandIconText: {
+    fontSize: 20,
+  },
+  cardNumberInput: {
+    flex: 1,
+    backgroundColor: 'transparent',
+    marginBottom: 0,
+  },
+  cardNumberInputWithIcon: {
+    paddingLeft: 48,
   },
 }); 

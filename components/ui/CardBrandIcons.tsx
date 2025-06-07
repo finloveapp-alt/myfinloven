@@ -1,4 +1,5 @@
 import React from 'react';
+import Svg, { Path, Rect, Circle, Defs, RadialGradient, Stop, LinearGradient } from 'react-native-svg';
 
 // Extraindo os SVGs da biblioteca react-credit-cards-2
 const CARD_BRAND_SVGS = {
@@ -14,30 +15,107 @@ const CARD_BRAND_SVGS = {
 interface CardBrandIconProps {
   brand: string;
   size?: number;
-  className?: string;
 }
 
-export const CardBrandIcon: React.FC<CardBrandIconProps> = ({ 
-  brand, 
-  size = 24, 
-  className = '' 
-}) => {
-  const svgData = CARD_BRAND_SVGS[brand.toLowerCase() as keyof typeof CARD_BRAND_SVGS];
-  
-  if (!svgData) {
-    return null;
-  }
-
-  return (
-    <img
-      src={svgData}
-      alt={`${brand} logo`}
-      width={size}
-      height={size}
-      className={className}
-      style={{ objectFit: 'contain' }}
+const VisaIcon = ({ size = 24 }: { size?: number }) => (
+  <Svg width={size} height={size * 0.6} viewBox="0 0 512 166">
+    <Path
+      d="M264.794187,112.479491 C264.502072,89.4485616 285.31908,76.5955198 301.001021,68.9544172 C317.113447,61.1134466 322.525254,56.0860008 322.463756,49.0752507 C322.340760,38.3438833 309.610714,33.608552 297.695514,33.4240586 C276.909255,33.1011951 264.824935,39.0357336 255.215903,43.5250736 L247.728545,8.48669750 C257.368326,4.04348087 275.218065,0.169118972 293.728905,-1.42108547e-14 C337.177106,-1.42108547e-14 365.604468,21.4473605 365.758213,54.7023002 C365.927332,96.9051709 307.381419,99.2420876 307.781154,118.106540 C307.919524,123.825836 313.377455,129.929494 325.338778,131.482313 C331.257942,132.266410 347.600985,132.866014 366.1272,124.333193 L373.399315,158.233860 C363.43667,161.862230 350.629752,165.336857 334.686445,165.336857 C293.790403,165.336857 265.024803,143.597382 264.794187,112.479491 M443.2762,162.415711 C435.342982,162.415711 428.655096,157.788001 425.672452,150.685004 L363.605789,2.49066122 L407.023242,2.49066122 L415.663684,26.3671852 L468.720918,26.3671852 L473.732989,2.49066122 L512,2.49066122 L478.60669,162.415711 L443.2762,162.415711 M449.349108,119.213501 L461.879287,59.1608912 L427.56351,59.1608912 L449.349108,119.213501 M212.152063,162.415711 L177.928533,2.49066122 L219.301183,2.49066122 L253.509339,162.415711 L212.152063,162.415711 M150.94637,162.415711 L107.88253,53.5645907 L90.4632755,146.118792 C88.4184734,156.450423 80.3468861,162.415711 71.3835806,162.415711 L0.983964927,162.415711 L0,157.772626 C14.4519849,154.636238 30.8718996,149.578043 40.819170,144.166236 C46.907453,140.860729 48.6447661,137.970332 50.6434448,130.113987 L83.6370188,2.49066122 L127.36196,2.49066122 L194.394571,162.415711 L150.94637,162.415711"
+      fill="#FFFFFF"
+      transform="translate(256.000000, 82.668428) scale(1, -1) translate(-256.000000, -82.668428)"
     />
-  );
+  </Svg>
+);
+
+const MastercardIcon = ({ size = 24 }: { size?: number }) => (
+  <Svg width={size} height={size * 0.6} viewBox="0 0 512 397">
+    <Path fill="#FF5F00" d="M186.596 33.807h138.301v248.502h-138.301z" />
+    <Path
+      d="M195.377 158.058c0-50.491 23.709-95.274 60.15-124.251-26.782-21.074-60.589-33.807-97.469-33.807-87.371 0-158.058 70.687-158.058 158.058s70.687 158.058 158.058 158.058c36.88 0 70.687-12.732 97.469-33.807-364.41-28.538-60.15-73.76-60.15-124.251z"
+      fill="#EB001B"
+    />
+    <Path
+      d="M511.493 158.058c0 87.371-70.687 158.058-158.058 158.058-36.88 0-70.687-12.732-97.469-33.807 36.88-28.977 60.15-73.76 60.15-124.251s-23.709-95.274-60.15-124.251c26.782-21.074 60.589-33.807 97.469-33.807 87.371 0 158.058 71.126 158.058 158.058z"
+      fill="#F79E1B"
+    />
+  </Svg>
+);
+
+const AmexIcon = ({ size = 24 }: { size?: number }) => (
+  <Svg width={size} height={size} viewBox="0 0 512 512">
+    <Defs>
+      <RadialGradient cx="17.541%" cy="17.466%" fx="17.541%" fy="17.466%" r="91.237%" id="amex-gradient">
+        <Stop stopColor="#65BCF1" offset="0%" />
+        <Stop stopColor="#23ADE3" offset="45.46%" />
+        <Stop stopColor="#0DA6E0" offset="50%" />
+        <Stop stopColor="#0551C3" offset="100%" />
+      </RadialGradient>
+    </Defs>
+    <Path fill="url(#amex-gradient)" d="M0 0h512v512h-512z" />
+  </Svg>
+);
+
+const DinersIcon = ({ size = 24 }: { size?: number }) => (
+  <Svg width={size} height={size * 0.4} viewBox="0 0 512 134">
+    <Path
+      d="M99.285 133.86c36.446.177 69.715-29.659 69.715-65.955 0-39.689-33.269-67.122-69.715-67.111h-31.365c-36.882-.011-67.241 27.429-67.241 67.111 0 36.305 30.358 66.133 67.241 65.955h31.365"
+      fill="#006095"
+    />
+  </Svg>
+);
+
+const DiscoverIcon = ({ size = 24 }: { size?: number }) => (
+  <Svg width={size} height={size * 0.3} viewBox="0 0 512 86">
+    <Defs>
+      <LinearGradient x1="20.442%" y1="10.599%" x2="89.245%" y2="83.53%" id="discover-gradient">
+        <Stop stopColor="#E25429" offset="0%" />
+        <Stop stopColor="#F99D3E" offset="100%" />
+      </LinearGradient>
+    </Defs>
+    <Rect width="512" height="86" fill="url(#discover-gradient)" rx="8" />
+  </Svg>
+);
+
+const EloIcon = ({ size = 24 }: { size?: number }) => (
+  <Svg width={size} height={size} viewBox="0 0 512 512">
+    <Path
+      d="M256 0c141.385 0 256 114.615 256 256 0 141.386-114.615 256-256 256s-256-114.614-256-256c0-141.385 114.615-256 256-256"
+      fill="#0E0E11"
+    />
+  </Svg>
+);
+
+const HipercardIcon = ({ size = 24 }: { size?: number }) => (
+  <Svg width={size} height={size * 0.4} viewBox="0 0 512 123">
+    <Rect width="512" height="123" fill="#FF0000" rx="8" />
+    <Path
+      fill="#fff"
+      d="M374.118 80.842c-6.943 6.797-26.434 8.728-24.44-7.52 1.656-13.495 16.348-16.363 32.273-14.414-1.184 7.381-2.542 16.755-7.833 21.934z"
+    />
+  </Svg>
+);
+
+export const CardBrandIcon: React.FC<CardBrandIconProps> = ({ brand, size = 24 }) => {
+  switch (brand.toLowerCase()) {
+    case 'visa':
+      return <VisaIcon size={size} />;
+    case 'mastercard':
+      return <MastercardIcon size={size} />;
+    case 'amex':
+    case 'american-express':
+      return <AmexIcon size={size} />;
+    case 'dinersclub':
+    case 'diners-club':
+      return <DinersIcon size={size} />;
+    case 'discover':
+      return <DiscoverIcon size={size} />;
+    case 'elo':
+      return <EloIcon size={size} />;
+    case 'hipercard':
+      return <HipercardIcon size={size} />;
+    default:
+      return null;
+  }
 };
 
 export default CardBrandIcon; 

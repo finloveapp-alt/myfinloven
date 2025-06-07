@@ -36,6 +36,7 @@
     "formik": "^2.4.6",
     "lucide-react-native": "^0.303.0",
     "react": "18.3.1",
+    "react-credit-cards-2": "^1.0.3",
     "react-dom": "18.3.1",
     "react-native": "^0.76.9",
     "react-native-paper": "^5.13.5",

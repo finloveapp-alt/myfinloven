@@ -11,7 +11,6 @@ import { cardsService, Card, CardTransaction } from '@/lib/services/cardsService
 import Svg, { Path, Rect, Circle } from 'react-native-svg';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useTheme } from '@/contexts/ThemeContext';
 import CardBrandIcon from '@/components/ui/CardBrandIcons';
 
 // Importar credit-card-type usando require para compatibilidade
@@ -186,7 +185,7 @@ const formatCurrency = (value: string) => {
 };
 
 export default function Cards() {
-  const { theme } = useTheme();
+  const [theme, setTheme] = useState(getInitialTheme());
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [menuModalVisible, setMenuModalVisible] = useState(false);
   const [cardNumber, setCardNumber] = useState('');
@@ -252,8 +251,8 @@ export default function Cards() {
 
   // useEffect para atualizar as cores padrão quando o tema mudar
   useEffect(() => {
-    setPrimaryColor(theme.colors.primary);
-    setSecondaryColor(theme.colors.secondary);
+    setPrimaryColor(theme.primary);
+    setSecondaryColor(theme.secondary);
   }, [theme]);
 
   // Função para buscar o tema baseado no perfil do usuário
@@ -470,7 +469,7 @@ export default function Cards() {
     <View 
       key={card.id} 
       style={{
-        backgroundColor: theme.colors.surface,
+        backgroundColor: theme.card,
         borderRadius: 16,
         padding: 20,
         marginBottom: 16,
@@ -484,16 +483,16 @@ export default function Cards() {
     >
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <View>
-          <Text style={{ color: theme.colors.text, fontSize: 16, fontWeight: '600' }}>
+          <Text style={{ color: theme.text, fontSize: 16, fontWeight: '600' }}>
             {card.bank_name}
           </Text>
-          <Text style={{ color: theme.colors.textSecondary, fontSize: 14, marginTop: 4 }}>
+          <Text style={{ color: '#666', fontSize: 14, marginTop: 4 }}>
             {card.card_number}
           </Text>
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <View style={{
-            backgroundColor: card.card_type === 'credit' ? theme.colors.primary : theme.colors.success,
+            backgroundColor: card.card_type === 'credit' ? theme.primary : theme.income,
             paddingHorizontal: 8,
             paddingVertical: 4,
             borderRadius: 12,
@@ -507,17 +506,17 @@ export default function Cards() {
       </View>
       
       <View style={{ marginTop: 'auto' }}>
-        <Text style={{ color: theme.colors.textSecondary, fontSize: 12 }}>
+        <Text style={{ color: '#666', fontSize: 12 }}>
           Titular
         </Text>
-        <Text style={{ color: theme.colors.text, fontSize: 14, fontWeight: '500' }}>
+        <Text style={{ color: theme.text, fontSize: 14, fontWeight: '500' }}>
           {card.cardholder_name}
         </Text>
         
-        <Text style={{ color: theme.colors.textSecondary, fontSize: 12, marginTop: 8 }}>
+        <Text style={{ color: '#666', fontSize: 12, marginTop: 8 }}>
           Limite
         </Text>
-        <Text style={{ color: theme.colors.text, fontSize: 16, fontWeight: '600' }}>
+        <Text style={{ color: theme.text, fontSize: 16, fontWeight: '600' }}>
           {new Intl.NumberFormat('pt-BR', {
             style: 'currency',
             currency: 'BRL'
@@ -528,17 +527,17 @@ export default function Cards() {
   );
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>
       <View style={{ flex: 1, paddingHorizontal: 20 }}>
         {/* Header */}
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-          <Text style={{ fontSize: 28, fontWeight: 'bold', color: theme.colors.text }}>
+          <Text style={{ fontSize: 28, fontWeight: 'bold', color: theme.text }}>
             Cartões
           </Text>
           <TouchableOpacity
             onPress={() => setIsModalVisible(true)}
             style={{
-              backgroundColor: theme.colors.primary,
+              backgroundColor: theme.primary,
               width: 44,
               height: 44,
               borderRadius: 22,
@@ -553,8 +552,8 @@ export default function Cards() {
         {/* Lista de cartões */}
         {loading ? (
           <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-            <ActivityIndicator size="large" color={theme.colors.primary} />
-            <Text style={{ color: theme.colors.textSecondary, marginTop: 16 }}>
+            <ActivityIndicator size="large" color={theme.primary} />
+            <Text style={{ color: '#666', marginTop: 16 }}>
               Carregando cartões...
             </Text>
           </View>
@@ -581,7 +580,7 @@ export default function Cards() {
             backgroundColor: 'rgba(0, 0, 0, 0.5)',
           }}>
             <View style={{
-              backgroundColor: theme.colors.surface,
+              backgroundColor: theme.card,
               borderTopLeftRadius: 20,
               borderTopRightRadius: 20,
               padding: 20,
@@ -590,11 +589,11 @@ export default function Cards() {
               <ScrollView showsVerticalScrollIndicator={false}>
                 {/* Header do modal */}
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-                  <Text style={{ fontSize: 20, fontWeight: 'bold', color: theme.colors.text }}>
+                  <Text style={{ fontSize: 20, fontWeight: 'bold', color: theme.text }}>
                     Adicionar Cartão
                   </Text>
                   <TouchableOpacity onPress={() => setIsModalVisible(false)}>
-                    <Ionicons name="close" size={24} color={theme.colors.text} />
+                    <Ionicons name="close" size={24} color={theme.text} />
                   </TouchableOpacity>
                 </View>
 
@@ -602,21 +601,21 @@ export default function Cards() {
                 <View style={{ gap: 16 }}>
                   {/* Nome do Banco */}
                   <View>
-                    <Text style={{ color: theme.colors.text, fontSize: 16, fontWeight: '500', marginBottom: 8 }}>
+                    <Text style={{ color: theme.text, fontSize: 16, fontWeight: '500', marginBottom: 8 }}>
                       Nome do Banco
                     </Text>
                     <TextInput
                       style={{
-                        backgroundColor: theme.colors.background,
+                        backgroundColor: theme.background,
                         borderRadius: 12,
                         padding: 16,
                         fontSize: 16,
-                        color: theme.colors.text,
+                        color: theme.text,
                         borderWidth: 1,
-                        borderColor: theme.colors.border,
+                        borderColor: '#e1e4e8',
                       }}
                       placeholder="Ex: Nubank, Itaú, Bradesco..."
-                      placeholderTextColor={theme.colors.textSecondary}
+                      placeholderTextColor="#666"
                       value={bankName}
                       onChangeText={setBankName}
                     />
@@ -624,23 +623,23 @@ export default function Cards() {
 
                   {/* Número do cartão */}
                   <View>
-                    <Text style={{ color: theme.colors.text, fontSize: 16, fontWeight: '500', marginBottom: 8 }}>
+                    <Text style={{ color: theme.text, fontSize: 16, fontWeight: '500', marginBottom: 8 }}>
                       Número do Cartão
                     </Text>
                     <View style={{ position: 'relative' }}>
                       <TextInput
                         style={{
-                          backgroundColor: theme.colors.background,
+                          backgroundColor: theme.background,
                           borderRadius: 12,
                           padding: 16,
                           paddingRight: 50,
                           fontSize: 16,
-                          color: theme.colors.text,
+                          color: theme.text,
                           borderWidth: 1,
-                          borderColor: theme.colors.border,
+                          borderColor: '#e1e4e8',
                         }}
                         placeholder="0000 0000 0000 0000"
-                        placeholderTextColor={theme.colors.textSecondary}
+                        placeholderTextColor="#666"
                         value={cardNumber}
                         onChangeText={(text) => setCardNumber(formatCardNumber(text))}
                         keyboardType="numeric"
@@ -656,21 +655,21 @@ export default function Cards() {
 
                   {/* Nome do titular */}
                   <View>
-                    <Text style={{ color: theme.colors.text, fontSize: 16, fontWeight: '500', marginBottom: 8 }}>
+                    <Text style={{ color: theme.text, fontSize: 16, fontWeight: '500', marginBottom: 8 }}>
                       Nome do Titular
                     </Text>
                     <TextInput
                       style={{
-                        backgroundColor: theme.colors.background,
+                        backgroundColor: theme.background,
                         borderRadius: 12,
                         padding: 16,
                         fontSize: 16,
-                        color: theme.colors.text,
+                        color: theme.text,
                         borderWidth: 1,
-                        borderColor: theme.colors.border,
+                        borderColor: '#e1e4e8',
                       }}
                       placeholder="Nome como está no cartão"
-                      placeholderTextColor={theme.colors.textSecondary}
+                      placeholderTextColor="#666"
                       value={cardName}
                       onChangeText={setCardName}
                     />
@@ -678,21 +677,21 @@ export default function Cards() {
 
                   {/* Limite do cartão */}
                   <View>
-                    <Text style={{ color: theme.colors.text, fontSize: 16, fontWeight: '500', marginBottom: 8 }}>
+                    <Text style={{ color: theme.text, fontSize: 16, fontWeight: '500', marginBottom: 8 }}>
                       Limite do Cartão
                     </Text>
                     <TextInput
                       style={{
-                        backgroundColor: theme.colors.background,
+                        backgroundColor: theme.background,
                         borderRadius: 12,
                         padding: 16,
                         fontSize: 16,
-                        color: theme.colors.text,
+                        color: theme.text,
                         borderWidth: 1,
-                        borderColor: theme.colors.border,
+                        borderColor: '#e1e4e8',
                       }}
                       placeholder="R$ 0,00"
-                      placeholderTextColor={theme.colors.textSecondary}
+                      placeholderTextColor="#666"
                       value={cardLimit}
                       onChangeText={(text) => setCardLimit(formatCurrency(text))}
                       keyboardType="numeric"
@@ -701,7 +700,7 @@ export default function Cards() {
 
                   {/* Tipo do cartão */}
                   <View>
-                    <Text style={{ color: theme.colors.text, fontSize: 16, fontWeight: '500', marginBottom: 8 }}>
+                    <Text style={{ color: theme.text, fontSize: 16, fontWeight: '500', marginBottom: 8 }}>
                       Tipo do Cartão
                     </Text>
                     <View style={{ flexDirection: 'row', gap: 12 }}>
@@ -709,16 +708,16 @@ export default function Cards() {
                         onPress={() => setCardType('credit')}
                         style={{
                           flex: 1,
-                          backgroundColor: cardType === 'credit' ? theme.colors.primary : theme.colors.background,
+                          backgroundColor: cardType === 'credit' ? theme.primary : theme.background,
                           borderRadius: 12,
                           padding: 16,
                           alignItems: 'center',
                           borderWidth: 1,
-                          borderColor: cardType === 'credit' ? theme.colors.primary : theme.colors.border,
+                          borderColor: cardType === 'credit' ? theme.primary : '#e1e4e8',
                         }}
                       >
                         <Text style={{
-                          color: cardType === 'credit' ? '#fff' : theme.colors.text,
+                          color: cardType === 'credit' ? '#fff' : theme.text,
                           fontSize: 16,
                           fontWeight: '500',
                         }}>
@@ -729,16 +728,16 @@ export default function Cards() {
                         onPress={() => setCardType('debit')}
                         style={{
                           flex: 1,
-                          backgroundColor: cardType === 'debit' ? theme.colors.success : theme.colors.background,
+                          backgroundColor: cardType === 'debit' ? theme.income : theme.background,
                           borderRadius: 12,
                           padding: 16,
                           alignItems: 'center',
                           borderWidth: 1,
-                          borderColor: cardType === 'debit' ? theme.colors.success : theme.colors.border,
+                          borderColor: cardType === 'debit' ? theme.income : '#e1e4e8',
                         }}
                       >
                         <Text style={{
-                          color: cardType === 'debit' ? '#fff' : theme.colors.text,
+                          color: cardType === 'debit' ? '#fff' : theme.text,
                           fontSize: 16,
                           fontWeight: '500',
                         }}>
@@ -754,7 +753,7 @@ export default function Cards() {
                   onPress={handleAddCard}
                   disabled={addingCard}
                   style={{
-                    backgroundColor: theme.colors.primary,
+                    backgroundColor: theme.primary,
                     borderRadius: 12,
                     padding: 16,
                     alignItems: 'center',

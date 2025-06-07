@@ -1,4 +1,5 @@
 import React from 'react';
+import { Image, View } from 'react-native';
 
 // Extraindo os SVGs da biblioteca react-credit-cards-2
 const CARD_BRAND_SVGS = {
@@ -14,28 +15,31 @@ const CARD_BRAND_SVGS = {
 interface CardBrandIconProps {
   brand: string;
   size?: number;
-  className?: string;
+  style?: any;
 }
 
 export const CardBrandIcon: React.FC<CardBrandIconProps> = ({ 
   brand, 
   size = 24, 
-  className = '' 
+  style 
 }) => {
   const svgData = CARD_BRAND_SVGS[brand.toLowerCase() as keyof typeof CARD_BRAND_SVGS];
   
   if (!svgData) {
-    return null;
+    return <View style={{ width: size, height: size }} />;
   }
 
   return (
-    <img
-      src={svgData}
-      alt={`${brand} logo`}
-      width={size}
-      height={size}
-      className={className}
-      style={{ objectFit: 'contain' }}
+    <Image
+      source={{ uri: svgData }}
+      style={[
+        {
+          width: size,
+          height: size,
+          resizeMode: 'contain',
+        },
+        style
+      ]}
     />
   );
 };

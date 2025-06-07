@@ -390,11 +390,9 @@ export default function Cards() {
   // Função para atualizar o tema e garantir que seja persistido
   const updateTheme = (newTheme: 'feminine' | 'masculine') => {
     if (newTheme === 'masculine') {
-      setTheme(themes.masculine);
       global.dashboardTheme = 'masculine';
       saveThemeToStorage('masculine');
     } else {
-      setTheme(themes.feminine);
       global.dashboardTheme = 'feminine';
       saveThemeToStorage('feminine');
     }

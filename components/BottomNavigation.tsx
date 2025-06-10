@@ -31,7 +31,7 @@ export default function BottomNavigation({ theme }: BottomNavigationProps) {
       </TouchableOpacity>
       
       <TouchableOpacity style={styles.addButton}>
-        <View style={styles.addButtonInner}>
+        <View style={[styles.addButtonInner, { backgroundColor: theme.primary }]}>
           <PlusCircle size={32} color="#fff" />
         </View>
       </TouchableOpacity>
@@ -103,7 +103,6 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: '#b687fe',
     justifyContent: 'center',
     alignItems: 'center',
   },

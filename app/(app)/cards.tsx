@@ -117,6 +117,7 @@ export default function Cards() {
   const [cardLimit, setCardLimit] = useState('');
   const [cardType, setCardType] = useState('credit'); // 'credit' ou 'debit'
   const [selectedType, setSelectedType] = useState('');
+  const [cardBrand, setCardBrand] = useState(''); // Nova state para bandeira selecionada manualmente
   const [primaryColor, setPrimaryColor] = useState('#b687fe');
   const [secondaryColor, setSecondaryColor] = useState('#8B5CF6');
   
@@ -126,47 +127,7 @@ export default function Cards() {
   const [cardTransactions, setCardTransactions] = useState<CardTransaction[]>([]);
   const [addingCard, setAddingCard] = useState(false);
 
-  // Função para detectar bandeira do cartão automaticamente
-  const detectCardBrand = (cardNumber: string) => {
-    const cleanNumber = cardNumber.replace(/\s/g, '');
-    
-    // Visa: /^4[0-9]{0,}/
-    if (/^4[0-9]{0,}/.test(cleanNumber)) {
-      return 'visa';
-    }
-    
-    // Mastercard: /^(5[1-5][0-9]{0,}|2[2-7][0-9]{0,})/
-    if (/^(5[1-5][0-9]{0,}|2[2-7][0-9]{0,})/.test(cleanNumber)) {
-      return 'mastercard';
-    }
-    
-    // American Express: /^3[47][0-9]{0,}/
-    if (/^3[47][0-9]{0,}/.test(cleanNumber)) {
-      return 'amex';
-    }
-    
-    // Diners: /^3(?:0[0-5]|[68][0-9])[0-9]{0,}/
-    if (/^3(?:0[0-5]|[68][0-9])[0-9]{0,}/.test(cleanNumber)) {
-      return 'diners';
-    }
-    
-    // Discover: /^6(?:011|5[0-9]{2})[0-9]{0,}/
-    if (/^6(?:011|5[0-9]{2})[0-9]{0,}/.test(cleanNumber)) {
-      return 'discover';
-    }
-    
-    // Elo: /^(4011(78|79)|431274|438935|451416|457393|457631|457632|504175|506(699|7[0-6][0-9]|77[0-8])|509[0-9]{3}|627780|636297|636368|650[4-5][0-9]{2}|6509[0-9]{2}|6516[0-9]{2}|6550[0-9]{2})/
-    if (/^(4011(78|79)|431274|438935|451416|457393|457631|457632|504175|506(699|7[0-6][0-9]|77[0-8])|509[0-9]{3}|627780|636297|636368|650[4-5][0-9]{2}|6509[0-9]{2}|6516[0-9]{2}|6550[0-9]{2})/.test(cleanNumber)) {
-      return 'elo';
-    }
-    
-    // Hipercard: /^(38[0-9]{2}|60[0-9]{2})/
-    if (/^(38[0-9]{2}|60[0-9]{2})/.test(cleanNumber)) {
-      return 'hipercard';
-    }
-    
-    return '';
-  };
+
 
   // useEffect para carregar o tema com base no gênero do usuário
   useEffect(() => {
@@ -413,8 +374,8 @@ export default function Cards() {
       return;
     }
     
-    if (!selectedType) {
-      Alert.alert('Atenção', 'Número do cartão inválido ou bandeira não reconhecida');
+    if (!cardBrand) {
+      Alert.alert('Atenção', 'Por favor, selecione a bandeira do cartão');
       return;
     }
     
@@ -422,12 +383,12 @@ export default function Cards() {
       setAddingCard(true);
       
       const newCard = await cardsService.createCard({
-        name: `Cartão ${selectedType.toUpperCase()}`,
+        name: `Cartão ${cardBrand.toUpperCase()}`,
         card_number: cardNumber,
         card_holder_name: cardName,
         bank_name: bankName,
         card_limit: cardLimit,
-        card_type: selectedType,
+        card_type: cardBrand,
         is_credit: cardType === 'credit',
         credit_limit: 1000,
         primary_color: primaryColor,
@@ -453,6 +414,7 @@ export default function Cards() {
     setCardLimit('');
     setCardType('credit');
     setSelectedType('');
+    setCardBrand('');
     setPrimaryColor(theme.primary);
     setSecondaryColor(theme.secondary);
   };
@@ -509,14 +471,14 @@ export default function Cards() {
               >
                 <TouchableOpacity 
                   style={styles.cardContent}
-                  onPress={() => router.push('/(app)/card-detail')}
+                  onPress={() => router.push(`/(app)/card-detail?cardId=${card.id}`)}
                 >
                   <View style={styles.cardHeader}>
                     <CreditCard size={24} color="#ffffff" />
                     <Text style={styles.cardType}>{card.card_type.toUpperCase()}</Text>
                   </View>
                   <Text style={styles.cardBalance}>
-                    R$ {card.current_balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    R$ {card.available_limit?.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) || '0,00'}
                   </Text>
                   <Text style={styles.cardNumber}>{cardsService.formatCardNumber(card.card_number)}</Text>
                   <View style={styles.viewDetailsContainer}>
@@ -852,44 +814,88 @@ export default function Cards() {
                 placeholderTextColor="#666"
               />
 
-              <View style={styles.cardNumberInputContainer}>
-                {selectedType && (
-                  <View style={styles.cardBrandIcon}>
-                    {selectedType === 'visa' ? <VisaIcon /> : 
-                     selectedType === 'mastercard' ? <MastercardIcon /> : 
-                     selectedType === 'elo' ? <EloIcon /> : 
-                     selectedType === 'american_express' ? <AmexIcon /> : 
-                     selectedType === 'diners' ? <DinersIcon /> : 
-                     selectedType === 'discover' ? <DiscoverIcon /> : 
-                     selectedType === 'hipercard' ? <HipercardIcon /> : 
-                     <CreditCard size={20} color="#666" />}
-                  </View>
-                )}
-                <TextInput
-                  style={[styles.input, styles.cardNumberInput, selectedType && styles.cardNumberInputWithIcon]}
-                  placeholder="Número do Cartão"
-                  value={cardNumber}
-                  onChangeText={(text) => {
-                    // Remove tudo que não é número
-                    const numericValue = text.replace(/[^0-9]/g, '');
-                    // Aplica máscara de cartão (XXXX XXXX XXXX XXXX)
-                    let formattedValue = '';
-                    for (let i = 0; i < numericValue.length && i < 16; i++) {
-                      if (i > 0 && i % 4 === 0) {
-                        formattedValue += ' ';
-                      }
-                      formattedValue += numericValue[i];
+              <TextInput
+                style={styles.input}
+                placeholder="Número do Cartão"
+                value={cardNumber}
+                onChangeText={(text) => {
+                  // Remove tudo que não é número
+                  const numericValue = text.replace(/[^0-9]/g, '');
+                  // Aplica máscara de cartão (XXXX XXXX XXXX XXXX)
+                  let formattedValue = '';
+                  for (let i = 0; i < numericValue.length && i < 16; i++) {
+                    if (i > 0 && i % 4 === 0) {
+                      formattedValue += ' ';
                     }
-                    setCardNumber(formattedValue);
-                    
-                    // Detectar bandeira automaticamente
-                    const detectedBrand = detectCardBrand(formattedValue);
-                    setSelectedType(detectedBrand);
-                  }}
-                  keyboardType="numeric"
-                  maxLength={19}
-                  placeholderTextColor="#666"
-                />
+                    formattedValue += numericValue[i];
+                  }
+                  setCardNumber(formattedValue);
+                }}
+                keyboardType="numeric"
+                maxLength={19}
+                placeholderTextColor="#666"
+              />
+
+              {/* Seletor de Bandeira do Cartão */}
+              <View style={styles.cardBrandSection}>
+                <Text style={styles.cardBrandLabel}>Bandeira do Cartão</Text>
+                <View style={styles.cardBrandOptions}>
+                  <TouchableOpacity
+                    style={[
+                      styles.cardBrandOption,
+                      cardBrand === 'visa' && [styles.selectedCardBrand, { backgroundColor: theme.primary }]
+                    ]}
+                    onPress={() => setCardBrand('visa')}
+                  >
+                    <VisaIcon />
+                    <Text style={[
+                      styles.cardBrandText,
+                      cardBrand === 'visa' && styles.selectedCardBrandText
+                    ]}>Visa</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.cardBrandOption,
+                      cardBrand === 'mastercard' && [styles.selectedCardBrand, { backgroundColor: theme.primary }]
+                    ]}
+                    onPress={() => setCardBrand('mastercard')}
+                  >
+                    <MastercardIcon />
+                    <Text style={[
+                      styles.cardBrandText,
+                      cardBrand === 'mastercard' && styles.selectedCardBrandText
+                    ]}>Mastercard</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.cardBrandOption,
+                      cardBrand === 'elo' && [styles.selectedCardBrand, { backgroundColor: theme.primary }]
+                    ]}
+                    onPress={() => setCardBrand('elo')}
+                  >
+                    <EloIcon />
+                    <Text style={[
+                      styles.cardBrandText,
+                      cardBrand === 'elo' && styles.selectedCardBrandText
+                    ]}>Elo</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.cardBrandOption,
+                      cardBrand === 'american_express' && [styles.selectedCardBrand, { backgroundColor: theme.primary }]
+                    ]}
+                    onPress={() => setCardBrand('american_express')}
+                  >
+                    <AmexIcon />
+                    <Text style={[
+                      styles.cardBrandText,
+                      cardBrand === 'american_express' && styles.selectedCardBrandText
+                    ]}>American Express</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
 
               <TextInput
@@ -1026,10 +1032,12 @@ export default function Cards() {
                       <View style={styles.previewCardHeader}>
                         <CreditCard size={20} color="#ffffff" />
                         <Text style={styles.previewCardType}>
-                          {selectedType || 'CARTÃO'}
+                          {cardBrand ? cardBrand.toUpperCase().replace('_', ' ') : 'CARTÃO'}
                         </Text>
                       </View>
-                      <Text style={styles.previewCardBalance}>R$ 0,00</Text>
+                      <Text style={styles.previewCardBalance}>
+                        {cardLimit || 'R$ 0,00'}
+                      </Text>
                       <Text style={styles.previewCardNumber}>
                         {cardNumber || '**** **** **** ****'}
                       </Text>
@@ -1601,5 +1609,42 @@ const styles = StyleSheet.create({
   },
   cardNumberInputWithIcon: {
     paddingLeft: 48,
+  },
+  cardBrandSection: {
+    marginBottom: 24,
+  },
+  cardBrandLabel: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#131313',
+    marginBottom: 12,
+  },
+  cardBrandOptions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  cardBrandOption: {
+    width: '48%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 12,
+    borderRadius: 12,
+    backgroundColor: '#f5f7fa',
+    marginBottom: 8,
+  },
+  selectedCardBrand: {
+    backgroundColor: '#b687fe',
+  },
+  cardBrandText: {
+    marginLeft: 8,
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '500',
+  },
+  selectedCardBrandText: {
+    color: '#ffffff',
   },
 }); 

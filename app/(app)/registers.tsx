@@ -7,6 +7,7 @@ import { useRouter } from 'expo-router';
 import { fontFallbacks } from '@/utils/styles';
 import { supabase } from '@/lib/supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { cardsService, Card } from '@/lib/services/cardsService';
 
 const { width } = Dimensions.get('window');
 
@@ -1567,6 +1568,9 @@ export default function Registers() {
     `${String(currentDate.getDate()).padStart(2, '0')}/${String(currentDate.getMonth() + 1).padStart(2, '0')}/${currentDate.getFullYear()}`
   );
   const [selectedCard, setSelectedCard] = useState('');
+  const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
+  const [userCards, setUserCards] = useState<Card[]>([]);
+  const [cardsVisible, setCardsVisible] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('');
   const [recurrenceType, setRecurrenceType] = useState('Não recorrente');
   const [selectedAccount, setSelectedAccount] = useState('');
@@ -1649,6 +1653,8 @@ export default function Registers() {
     fetchTransactions();
     // Buscar parceiros do usuário
     fetchUserPartners();
+    // Buscar cartões do usuário
+    fetchUserCards();
   }, []);
 
   // useEffect para atualizar as transações quando o usuário seleciona outro dia
@@ -2019,6 +2025,40 @@ export default function Registers() {
     }
   };
 
+  // Função para buscar os cartões do usuário
+  const fetchUserCards = async () => {
+    try {
+      // Obter a sessão atual
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError) {
+        console.error('Erro ao obter sessão:', sessionError);
+        return;
+      }
+      
+      if (!session?.user) {
+        console.log('Nenhuma sessão de usuário encontrada');
+        return;
+      }
+      
+      const userId = session.user.id;
+      
+      // Buscar os cartões do usuário
+      const cards = await cardsService.getUserCards(userId);
+      
+      if (cards && cards.length > 0) {
+        setUserCards(cards);
+        console.log('Cartões encontrados:', cards);
+      } else {
+        console.log('Nenhum cartão encontrado para o usuário');
+        setUserCards([]);
+      }
+    } catch (error) {
+      console.error('Erro ao buscar cartões:', error);
+      setUserCards([]);
+    }
+  };
+
   // Função para alternar a visibilidade da lista de parceiros
   const togglePartners = () => {
     setPartnersVisible(!partnersVisible);
@@ -2054,6 +2094,7 @@ export default function Registers() {
       `${String(currentDate.getDate()).padStart(2, '0')}/${String(currentDate.getMonth() + 1).padStart(2, '0')}/${currentDate.getFullYear()}`
     );
     setSelectedCard('');
+    setSelectedCardId(null);
     setSelectedCategory('');
     setRecurrenceType('Não recorrente');
     setIsRecurrent(false);
@@ -2383,6 +2424,7 @@ export default function Registers() {
         recurrence_end_date: parsedRecurrenceEndDate ? parsedRecurrenceEndDate.toISOString() : null,
         owner_id: userId,
         partner_id: isSharedTransaction ? selectedPartnerId : null, // Incluir parceiro apenas se for transação compartilhada
+        card_id: selectedCardId || null, // Incluir o ID do cartão se selecionado
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
         icon: selectedIcon || null // Incluir o ícone selecionado nos dados da transação
@@ -2402,6 +2444,8 @@ export default function Registers() {
       }
       
       console.log('Transação salva com sucesso:', data);
+      
+      // O saldo do cartão é atualizado automaticamente pelo trigger do banco de dados
       
       // Se for recorrente, criar as transações futuras
       if (isRecurrent && recurrenceEndDate && parsedRecurrenceEndDate) {
@@ -2902,6 +2946,35 @@ export default function Registers() {
     setSelectedAccount(account.name);
     setSelectedAccountId(account.id); // Armazenar o ID da conta
     setAccountsVisible(false);
+  };
+
+  // Funções para o seletor de cartões
+  const toggleCards = () => {
+    setCardsVisible(!cardsVisible);
+    
+    // Fecha outros dropdowns se estiverem abertos
+    if (paymentMethodsVisible) {
+      setPaymentMethodsVisible(false);
+    }
+    if (accountsVisible) {
+      setAccountsVisible(false);
+    }
+    if (calendarVisible) {
+      setCalendarVisible(false);
+    }
+    if (partnersVisible) {
+      setPartnersVisible(false);
+    }
+    if (recurrenceVisible) {
+      setRecurrenceVisible(false);
+    }
+  };
+
+  const selectCard = (card: Card) => {
+    const lastFourDigits = card.card_number?.slice(-4) || '0000';
+    setSelectedCard(`${card.bank_name} •••• ${lastFourDigits}`);
+    setSelectedCardId(card.id);
+    setCardsVisible(false);
   };
 
   // Converter data no formato DD/MM/YYYY para objeto Date
@@ -3696,7 +3769,7 @@ export default function Registers() {
               </View>
             </View>
 
-            <View style={[styles.inputGroup, { zIndex: 10 }]}>
+            <View style={[styles.inputGroup, { zIndex: 25 }]}>
               <Text style={styles.inputLabel}>Forma de Pagamento</Text>
               <TouchableOpacity 
                 style={[
@@ -3720,7 +3793,7 @@ export default function Registers() {
               </TouchableOpacity>
               
               {paymentMethodsVisible && (
-                <View style={styles.paymentMethodsDropdown}>
+                <View style={[styles.paymentMethodsDropdown, { zIndex: 30 }]}>
                   <TouchableOpacity 
                     style={[
                       styles.paymentMethodOption,
@@ -3782,14 +3855,55 @@ export default function Registers() {
             </View>
 
             {/* Seleção de Cartão */}
-            <View style={styles.inputGroup}>
+            <View style={[styles.inputGroup, { zIndex: 15 }]}>
               <Text style={styles.inputLabel}>Selecione o Cartão</Text>
-              <TouchableOpacity style={styles.selectInput}>
+              <TouchableOpacity style={styles.selectInput} onPress={toggleCards}>
                 <Text style={styles.selectPlaceholder}>
                   {selectedCard || 'Selecione um cartão'}
                 </Text>
                 <ChevronRight size={20} color="#666" style={{ transform: [{ rotate: '90deg' }] as any }} />
               </TouchableOpacity>
+              
+              {cardsVisible && (
+                <View style={[styles.paymentMethodsDropdown, { zIndex: 20 }]}>
+                  {userCards.length > 0 ? (
+                    userCards.map((card) => (
+                      <TouchableOpacity 
+                        key={card.id}
+                        style={[
+                          styles.paymentMethodOption,
+                          selectedCardId === card.id && styles.paymentMethodOptionSelected
+                        ]} 
+                        onPress={() => selectCard(card)}
+                      >
+                        <CreditCard size={20} color={selectedCardId === card.id ? theme.primary : theme.text} />
+                                                 <View style={{ flex: 1, marginLeft: 10 }}>
+                           <Text style={[
+                             styles.paymentMethodOptionText,
+                             selectedCardId === card.id && styles.paymentMethodOptionTextSelected
+                           ]}>
+                             {card.bank_name}
+                           </Text>
+                           <Text style={[
+                             styles.paymentMethodOptionText,
+                             { fontSize: 12, opacity: 0.7 },
+                             selectedCardId === card.id && styles.paymentMethodOptionTextSelected
+                           ]}>
+                             •••• {card.card_number?.slice(-4) || '0000'}
+                           </Text>
+                         </View>
+                      </TouchableOpacity>
+                    ))
+                  ) : (
+                    <View style={styles.paymentMethodOption}>
+                      <CreditCard size={20} color="#999" />
+                      <Text style={[styles.paymentMethodOptionText, { color: '#999' }]}>
+                        Nenhum cartão cadastrado
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              )}
             </View>
 
             {/* Configuração de Repetição */}

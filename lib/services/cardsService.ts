@@ -34,15 +34,37 @@ export interface CardTransaction {
 
 class CardsService {
   // Buscar todos os cartões do usuário
-  async getUserCards(): Promise<Card[]> {
-    const { data, error } = await supabase
+  async getUserCards(userId?: string): Promise<Card[]> {
+    let query = supabase
       .from('cards')
       .select('*')
-      .eq('is_active', true)
-      .order('created_at', { ascending: false });
+      .eq('is_active', true);
+
+    // Se userId for fornecido, filtrar por owner_id
+    if (userId) {
+      query = query.eq('owner_id', userId);
+    }
+
+    const { data, error } = await query.order('created_at', { ascending: false });
 
     if (error) throw error;
     return data || [];
+  }
+
+  // Buscar um cartão específico por ID
+  async getCardById(cardId: string): Promise<Card | null> {
+    const { data, error } = await supabase
+      .from('cards')
+      .select('*')
+      .eq('id', cardId)
+      .eq('is_active', true)
+      .single();
+
+    if (error) {
+      console.error('Erro ao buscar cartão por ID:', error);
+      return null;
+    }
+    return data;
   }
 
   // Criar novo cartão
@@ -120,6 +142,73 @@ class CardsService {
       .eq('id', cardId);
 
     if (error) throw error;
+  }
+
+  // Atualizar saldo do cartão (deduzir do limite disponível)
+  async updateCardBalance(cardId: string, expenseAmount: number, userId?: string): Promise<void> {
+    console.log(`[updateCardBalance] Iniciando atualização - CardID: ${cardId}, Valor: ${expenseAmount}, UserID: ${userId}`);
+    
+    // Primeiro, buscar o cartão atual para validações (forçar busca sem cache)
+    const { data: card, error: fetchError } = await supabase
+      .from('cards')
+      .select('current_balance, credit_limit, is_active, owner_id, partner_id')
+      .eq('id', cardId)
+      .maybeSingle();
+
+    if (fetchError) {
+      console.error('[updateCardBalance] Erro ao buscar cartão:', fetchError);
+      throw fetchError;
+    }
+    if (!card) {
+      console.error('[updateCardBalance] Cartão não encontrado');
+      throw new Error('Cartão não encontrado');
+    }
+
+    console.log('[updateCardBalance] Cartão encontrado:', card);
+
+    // Validar se o cartão está ativo
+    if (!card.is_active) {
+      console.error('[updateCardBalance] Cartão inativo');
+      throw new Error('Cartão está inativo');
+    }
+
+    // Validar se o cartão pertence ao usuário (se userId fornecido)
+    if (userId && card.owner_id !== userId && card.partner_id !== userId) {
+      console.error('[updateCardBalance] Usuário sem permissão');
+      throw new Error('Usuário não tem permissão para usar este cartão');
+    }
+
+    // Calcular o novo saldo (aumentar current_balance para diminuir available_limit)
+    const currentBalance = parseFloat(card.current_balance.toString());
+    const newBalance = currentBalance + expenseAmount; // Soma para aumentar o valor usado
+    
+    console.log(`[updateCardBalance] Saldo atual: ${currentBalance}, Valor da despesa: ${expenseAmount}, Novo saldo: ${newBalance}`);
+
+    // Atualizar o saldo do cartão (current_balance aumenta, available_limit diminui automaticamente)
+    const { data: updateData, error: updateError } = await supabase
+      .from('cards')
+      .update({
+        current_balance: newBalance,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', cardId)
+      .select();
+
+    if (updateError) {
+      console.error('[updateCardBalance] Erro ao atualizar:', updateError);
+      throw updateError;
+    }
+
+    console.log('[updateCardBalance] Cartão atualizado com sucesso:', updateData);
+    
+    // Verificar se a atualização foi realmente aplicada
+    const { data: verifyCard } = await supabase
+      .from('cards')
+      .select('current_balance, available_limit')
+      .eq('id', cardId)
+      .single();
+    
+    console.log('[updateCardBalance] Verificação pós-atualização:', verifyCard);
   }
 
   // Utilitário para mascarar número do cartão

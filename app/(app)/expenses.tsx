@@ -9,6 +9,7 @@ import themes from '@/constants/themes';
 import { fontFallbacks } from '@/utils/styles';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import Svg, { Line, Circle, Path, Rect } from 'react-native-svg';
+import { supabase } from '@/lib/supabase';
 
 // Interface para as despesas
 interface Expense {
@@ -45,18 +46,30 @@ export default function Expenses() {
   const [addExpenseModalVisible, setAddExpenseModalVisible] = useState(false);
   const [newExpense, setNewExpense] = useState<{
     title: string;
-    amount: string;
+    amount: number;
     category: string;
     account: string;
     dueDate: Date;
   }>({
     title: '',
-    amount: '',
+    amount: 0,
     category: 'Outros',
     account: 'Nubank',
     dueDate: new Date(),
   });
   const [showDatePicker, setShowDatePicker] = useState(false);
+  
+  // Estados para o calendário
+  const [calendarVisible, setCalendarVisible] = useState(false);
+  const [pickerMonth, setPickerMonth] = useState(new Date().getMonth());
+  const [pickerYear, setPickerYear] = useState(new Date().getFullYear());
+  const [pickerDay, setPickerDay] = useState(new Date().getDate());
+  const [selectedDate, setSelectedDate] = useState(
+    `${String(new Date().getDate()).padStart(2, '0')}/${String(new Date().getMonth() + 1).padStart(2, '0')}/${new Date().getFullYear()}`
+  );
+
+  // Constantes para o calendário
+  const weekDays = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
   
   // Estado para o menu de opções de cada despesa
   const [optionsMenuVisible, setOptionsMenuVisible] = useState(false);
@@ -90,6 +103,14 @@ export default function Expenses() {
   
   // Estado separado para o seletor de data no modal de edição
   const [editDatePickerVisible, setEditDatePickerVisible] = useState(false);
+  
+  // Estados para categorias do usuário
+  const [userCategories, setUserCategories] = useState<any[]>([]);
+  const [categoriesVisible, setCategoriesVisible] = useState(false);
+  
+  // Estados para contas do usuário
+  const [userAccounts, setUserAccounts] = useState<any[]>([]);
+  const [accountsVisible, setAccountsVisible] = useState(false);
   
   // Opções disponíveis
   const categoryOptions = ['Alimentação', 'Moradia', 'Transporte', 'Saúde', 'Educação', 'Lazer', 'Vestuário', 'Outros'];
@@ -168,6 +189,133 @@ export default function Expenses() {
     };
   }, [theme]);
   
+  // Função para buscar categorias do usuário
+  const fetchUserCategories = async () => {
+    try {
+      // Obter a sessão atual
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError) {
+        console.error('Erro ao obter sessão:', sessionError);
+        return;
+      }
+      
+      if (!session?.user) {
+        console.log('Nenhuma sessão de usuário encontrada');
+        return;
+      }
+      
+      const userId = session.user.id;
+      
+      // Buscar categorias do tipo 'expense' do usuário
+      const { data: categories, error: categoriesError } = await supabase
+        .from('categories')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('type', 'expense')
+        .order('name');
+      
+      if (categoriesError) {
+        console.error('Erro ao buscar categorias:', categoriesError);
+        return;
+      }
+      
+      setUserCategories(categories || []);
+      console.log('Categorias do usuário carregadas:', categories);
+      
+    } catch (error) {
+      console.error('Erro ao buscar categorias do usuário:', error);
+    }
+  };
+
+  // Função para buscar contas do usuário
+  const fetchUserAccounts = async () => {
+    try {
+      // Obter a sessão atual
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError) {
+        console.error('Erro ao obter sessão:', sessionError);
+        return;
+      }
+      
+      if (!session?.user) {
+        console.log('Nenhuma sessão de usuário encontrada');
+        return;
+      }
+      
+      const userId = session.user.id;
+      
+      // Buscar contas do usuário (próprias ou compartilhadas)
+      const { data: accounts, error: accountsError } = await supabase
+        .from('accounts')
+        .select('*')
+        .or(`owner_id.eq.${userId},partner_id.eq.${userId}`)
+        .order('name');
+      
+      if (accountsError) {
+        console.error('Erro ao buscar contas:', accountsError);
+        return;
+      }
+      
+      setUserAccounts(accounts || []);
+      console.log('Contas do usuário carregadas:', accounts);
+      
+    } catch (error) {
+      console.error('Erro ao buscar contas do usuário:', error);
+    }
+  };
+
+  // Função para buscar despesas do Supabase
+  const fetchExpenses = async () => {
+    try {
+      // Obter a sessão atual
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError) {
+        console.error('Erro ao obter sessão:', sessionError);
+        return;
+      }
+      
+      if (!session?.user) {
+        console.log('Nenhuma sessão de usuário encontrada');
+        return;
+      }
+      
+      const userId = session.user.id;
+      
+      // Buscar despesas do usuário (próprias ou compartilhadas)
+      const { data: expensesData, error: expensesError } = await supabase
+        .from('expenses')
+        .select('*')
+        .or(`owner_id.eq.${userId},partner_id.eq.${userId}`)
+        .order('due_date', { ascending: true });
+      
+      if (expensesError) {
+        console.error('Erro ao buscar despesas:', expensesError);
+        return;
+      }
+      
+      if (expensesData) {
+        // Converter os dados do Supabase para o formato da interface
+        const formattedExpenses: Expense[] = expensesData.map((expense: any) => ({
+          id: expense.id,
+          title: expense.title,
+          amount: parseFloat(expense.amount),
+          dueDate: new Date(expense.due_date),
+          category: expense.category || 'Outros',
+          account: expense.account || 'Conta Padrão',
+          isPaid: expense.is_paid,
+          createdAt: new Date(expense.created_at)
+        }));
+        
+        setExpenses(formattedExpenses);
+      }
+    } catch (error) {
+      console.error('Erro ao buscar despesas:', error);
+    }
+  };
+
   // Carregar tema e despesas
   useEffect(() => {
     const loadData = async () => {
@@ -187,6 +335,15 @@ export default function Expenses() {
           }
         }
         
+        // Buscar categorias do usuário
+        await fetchUserCategories();
+        
+        // Buscar contas do usuário
+        await fetchUserAccounts();
+        
+        // Buscar despesas do Supabase
+        await fetchExpenses();
+        
         // Carregar saldo do usuário
         const storedBalance = await AsyncStorage.getItem('@MyFinlove:balance');
         if (storedBalance) {
@@ -194,64 +351,6 @@ export default function Expenses() {
         } else {
           // Saldo inicial se não existir
           await AsyncStorage.setItem('@MyFinlove:balance', userBalance.toString());
-        }
-        
-        // Carregar despesas
-        const storedExpenses = await AsyncStorage.getItem('@MyFinlove:expenses');
-        if (storedExpenses) {
-          const parsedExpenses = JSON.parse(storedExpenses).map((expense: any) => ({
-            ...expense,
-            dueDate: new Date(expense.dueDate),
-            createdAt: new Date(expense.createdAt)
-          }));
-          setExpenses(parsedExpenses);
-        } else {
-          // Criar exemplos para demonstração
-          const exampleExpenses: Expense[] = [
-            {
-              id: '1',
-              title: 'Academia',
-              amount: 70,
-              dueDate: new Date(2023, 3, 25), // 25 de Abril (mês é 0-indexed)
-              category: 'Lazer',
-              account: 'Nubank',
-              isPaid: false,
-              createdAt: new Date()
-            },
-            {
-              id: '2',
-              title: 'Aluguel',
-              amount: 1200,
-              dueDate: new Date(2023, 4, 7), // 7 de Maio
-              category: 'Moradia',
-              account: 'Itaú',
-              isPaid: false,
-              createdAt: new Date()
-            },
-            {
-              id: '3',
-              title: 'Internet',
-              amount: 120,
-              dueDate: new Date(2023, 3, 15), // 15 de Abril
-              category: 'Serviços',
-              account: 'Nubank',
-              isPaid: false,
-              createdAt: new Date()
-            },
-            {
-              id: '4',
-              title: 'Streaming',
-              amount: 39.90,
-              dueDate: new Date(2023, 3, 10), // 10 de Abril
-              category: 'Entretenimento',
-              account: 'Bradesco',
-              isPaid: true,
-              createdAt: new Date()
-            }
-          ];
-          
-          await AsyncStorage.setItem('@MyFinlove:expenses', JSON.stringify(exampleExpenses));
-          setExpenses(exampleExpenses);
         }
       } catch (error) {
         console.error('Erro ao carregar dados:', error);
@@ -263,14 +362,7 @@ export default function Expenses() {
     loadData();
   }, []);
 
-  // Salvar despesas
-  const saveExpenses = async (updatedExpenses: Expense[]) => {
-    try {
-      await AsyncStorage.setItem('@MyFinlove:expenses', JSON.stringify(updatedExpenses));
-    } catch (error) {
-      console.error('Erro ao salvar despesas:', error);
-    }
-  };
+
 
   // Salvar saldo
   const saveBalance = async (amount: number) => {
@@ -292,30 +384,46 @@ export default function Expenses() {
   const effectivePayment = async () => {
     if (!selectedExpense) return;
     
-    // Converter vírgula para ponto e transformar em número
-    const feesValue = parseFloat(fees.replace(',', '.')) || 0;
-    const totalAmount = selectedExpense.amount + feesValue;
-    
-    // 1. Atualizar status da despesa
-    const updatedExpenses = expenses.map(expense => 
-      expense.id === selectedExpense.id ? { ...expense, isPaid: true } : expense
-    );
-    setExpenses(updatedExpenses);
-    await saveExpenses(updatedExpenses);
-    
-    // 2. Atualizar saldo
-    const newBalance = userBalance - totalAmount;
-    setUserBalance(newBalance);
-    await saveBalance(newBalance);
-    
-    // 3. Fechar modal e mostrar mensagem
-    setConfirmModalVisible(false);
-    setSelectedExpense(null);
-    
-    Alert.alert(
-      "Pagamento Efetivado",
-      `O pagamento de ${selectedExpense.title} no valor de R$ ${totalAmount.toFixed(2)} foi confirmado e seu saldo foi atualizado para R$ ${newBalance.toFixed(2)}.`
-    );
+    try {
+      // Converter vírgula para ponto e transformar em número
+      const feesValue = parseFloat(fees.replace(',', '.')) || 0;
+      const totalAmount = selectedExpense.amount + feesValue;
+      
+      // 1. Atualizar status da despesa no Supabase
+      const { error } = await supabase
+        .from('expenses')
+        .update({ is_paid: true })
+        .eq('id', selectedExpense.id);
+      
+      if (error) {
+        console.error('Erro ao atualizar despesa:', error);
+        Alert.alert('Erro', 'Erro ao atualizar status da despesa');
+        return;
+      }
+      
+      // 2. Atualizar estado local
+      const updatedExpenses = expenses.map(expense => 
+        expense.id === selectedExpense.id ? { ...expense, isPaid: true } : expense
+      );
+      setExpenses(updatedExpenses);
+      
+      // 3. Atualizar saldo
+      const newBalance = userBalance - totalAmount;
+      setUserBalance(newBalance);
+      await saveBalance(newBalance);
+      
+      // 4. Fechar modal e mostrar mensagem
+      setConfirmModalVisible(false);
+      setSelectedExpense(null);
+      
+      Alert.alert(
+        "Pagamento Efetivado",
+        `O pagamento de ${selectedExpense.title} no valor de R$ ${totalAmount.toFixed(2)} foi confirmado e seu saldo foi atualizado para R$ ${newBalance.toFixed(2)}.`
+      );
+    } catch (error) {
+      console.error('Erro ao efetivar pagamento:', error);
+      Alert.alert('Erro', 'Erro inesperado ao efetivar pagamento');
+    }
   };
 
   // Verificar se a data está atrasada
@@ -358,45 +466,248 @@ export default function Expenses() {
   const openAddExpenseModal = () => {
     setNewExpense({
       title: '',
-      amount: '',
+      amount: 0,
       category: 'Outros',
       account: 'Nubank',
       dueDate: new Date(),
     });
+    setCategoriesVisible(false); // Fechar dropdown ao abrir modal
+    setAccountsVisible(false); // Fechar dropdown de contas ao abrir modal
     setAddExpenseModalVisible(true);
   };
   
   // Adicionar nova despesa
-  const addNewExpense = () => {
-    if (!newExpense.title || !newExpense.amount) {
+  const addNewExpense = async () => {
+    if (!newExpense.title || newExpense.amount <= 0) {
       Alert.alert('Erro', 'Preencha o título e o valor da despesa');
       return;
     }
     
-    const amount = parseFloat(newExpense.amount.replace(',', '.'));
-    if (isNaN(amount) || amount <= 0) {
-      Alert.alert('Erro', 'Valor inválido');
-      return;
+    try {
+      // Obter a sessão atual
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError) {
+        console.error('Erro ao obter sessão:', sessionError);
+        Alert.alert('Erro', 'Erro ao obter sessão do usuário');
+        return;
+      }
+      
+      if (!session?.user) {
+        Alert.alert('Erro', 'Usuário não autenticado');
+        return;
+      }
+      
+      const userId = session.user.id;
+      
+      // Inserir despesa no Supabase
+      const { data, error } = await supabase
+        .from('expenses')
+        .insert([
+          {
+            title: newExpense.title,
+            amount: newExpense.amount,
+            due_date: newExpense.dueDate.toISOString(),
+            category: newExpense.category,
+            account: newExpense.account,
+            is_paid: false,
+            owner_id: userId
+          }
+        ])
+        .select()
+        .single();
+      
+      if (error) {
+        console.error('Erro ao salvar despesa:', error);
+        Alert.alert('Erro', 'Erro ao salvar despesa no banco de dados');
+        return;
+      }
+      
+      if (data) {
+        // Adicionar a nova despesa ao estado local
+        const newExpenseFormatted: Expense = {
+          id: data.id,
+          title: data.title,
+          amount: parseFloat(data.amount),
+          dueDate: new Date(data.due_date),
+          category: data.category || 'Outros',
+          account: data.account || 'Conta Padrão',
+          isPaid: data.is_paid,
+          createdAt: new Date(data.created_at)
+        };
+        
+        setExpenses(prevExpenses => [...prevExpenses, newExpenseFormatted]);
+        
+        // Resetar formulário
+        setNewExpense({
+          title: '',
+          amount: 0,
+          category: 'Outros',
+          account: 'Nubank',
+          dueDate: new Date(),
+        });
+        
+        // Resetar estados do calendário
+        const today = new Date();
+        setPickerMonth(today.getMonth());
+        setPickerYear(today.getFullYear());
+        setPickerDay(today.getDate());
+        setSelectedDate(`${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`);
+        setCalendarVisible(false);
+        setCategoriesVisible(false); // Fechar dropdown
+        setAccountsVisible(false); // Fechar dropdown de contas
+        
+        setAddExpenseModalVisible(false);
+        Alert.alert('Sucesso', 'Despesa adicionada com sucesso!');
+      }
+    } catch (error) {
+      console.error('Erro ao adicionar despesa:', error);
+      Alert.alert('Erro', 'Erro inesperado ao adicionar despesa');
+    }
+  };
+
+  // Funções para o calendário do modal de despesa
+  const toggleCalendar = () => {
+    setCalendarVisible(!calendarVisible);
+  };
+
+  const goToPreviousPickerMonth = () => {
+    if (pickerMonth === 0) {
+      setPickerMonth(11);
+      setPickerYear(pickerYear - 1);
+    } else {
+      setPickerMonth(pickerMonth - 1);
+    }
+  };
+
+  const goToNextPickerMonth = () => {
+    if (pickerMonth === 11) {
+      setPickerMonth(0);
+      setPickerYear(pickerYear + 1);
+    } else {
+      setPickerMonth(pickerMonth + 1);
+    }
+  };
+
+  const selectDateFromPicker = (day: number) => {
+    setPickerDay(day);
+    const newDate = `${String(day).padStart(2, '0')}/${String(pickerMonth + 1).padStart(2, '0')}/${pickerYear}`;
+    setSelectedDate(newDate);
+    
+    // Atualizar a data da despesa
+    const dueDate = new Date(pickerYear, pickerMonth, day);
+    setNewExpense(prev => ({ ...prev, dueDate }));
+    
+    setCalendarVisible(false);
+  };
+
+  // Função para gerar os dias do mês para o calendário do modal
+  const generatePickerCalendarDays = () => {
+    const daysInMonth = new Date(pickerYear, pickerMonth + 1, 0).getDate();
+    const firstDayOfMonth = new Date(pickerYear, pickerMonth, 1).getDay();
+    const adjustedFirstDay = firstDayOfMonth === 0 ? 6 : firstDayOfMonth - 1;
+    
+    // Dias do mês anterior para completar a primeira semana
+    const daysFromPreviousMonth = adjustedFirstDay;
+    const previousMonthDays = [];
+    if (daysFromPreviousMonth > 0) {
+      const daysInPreviousMonth = new Date(pickerYear, pickerMonth, 0).getDate();
+      for (let i = daysInPreviousMonth - daysFromPreviousMonth + 1; i <= daysInPreviousMonth; i++) {
+        previousMonthDays.push({
+          day: i,
+          currentMonth: false,
+          date: new Date(pickerYear, pickerMonth - 1, i)
+        });
+      }
     }
     
-    const newId = Date.now().toString();
-    const expenseToAdd: Expense = {
-      id: newId,
-      title: newExpense.title,
-      amount: amount,
-      dueDate: newExpense.dueDate,
-      category: newExpense.category,
-      account: newExpense.account,
-      isPaid: false,
-      createdAt: new Date(),
-    };
+    // Dias do mês atual
+    const currentMonthDays = [];
+    for (let i = 1; i <= daysInMonth; i++) {
+      currentMonthDays.push({
+        day: i,
+        currentMonth: true,
+        date: new Date(pickerYear, pickerMonth, i)
+      });
+    }
     
-    const updatedExpenses = [...expenses, expenseToAdd];
-    setExpenses(updatedExpenses);
-    saveExpenses(updatedExpenses);
+    // Dias do próximo mês para completar a última semana
+    const remainingDays = (7 - ((adjustedFirstDay + daysInMonth) % 7)) % 7;
+    const nextMonthDays = [];
+    for (let i = 1; i <= remainingDays; i++) {
+      nextMonthDays.push({
+        day: i,
+        currentMonth: false,
+        date: new Date(pickerYear, pickerMonth + 1, i)
+      });
+    }
     
-    setAddExpenseModalVisible(false);
-    Alert.alert('Sucesso', 'Despesa adicionada com sucesso!');
+    return [...previousMonthDays, ...currentMonthDays, ...nextMonthDays];
+  };
+
+  // Renderizar os dias do calendário em formato de grade para o modal
+  const renderPickerCalendarGrid = () => {
+    const days = generatePickerCalendarDays();
+    const rows: JSX.Element[] = [];
+    let cells: JSX.Element[] = [];
+
+    // Adicionar cabeçalho dos dias da semana
+    const headerCells = weekDays.map((day, index) => (
+      <View key={`picker-header-${index}`} style={styles.pickerCalendarHeaderCell}>
+        <Text style={styles.pickerCalendarHeaderText}>{day}</Text>
+      </View>
+    ));
+    rows.push(
+      <View key="picker-header" style={styles.pickerCalendarRow}>
+        {headerCells}
+      </View>
+    );
+
+    // Agrupar os dias em semanas
+    days.forEach((day, index) => {
+      const isSelected = pickerDay === day.day && day.currentMonth;
+      
+      cells.push(
+        <TouchableOpacity
+          key={`picker-day-${index}`}
+          style={[
+            styles.pickerCalendarCell,
+            day.currentMonth ? styles.pickerCurrentMonthCell : styles.pickerOtherMonthCell,
+            isSelected ? styles.pickerSelectedCell : null
+          ]}
+          onPress={() => day.currentMonth && selectDateFromPicker(day.day)}
+        >
+          <View
+            style={[
+              styles.pickerDayCircle,
+              isSelected ? styles.pickerSelectedDayCircle : null
+            ]}
+          >
+            <Text
+              style={[
+                styles.pickerCalendarDay,
+                day.currentMonth ? styles.pickerCurrentMonthDay : styles.pickerOtherMonthDay,
+                isSelected ? [styles.pickerSelectedDayText, { color: theme.primary }] : null
+              ]}
+            >
+              {day.day}
+            </Text>
+          </View>
+        </TouchableOpacity>
+      );
+
+      // Completar uma semana
+      if ((index + 1) % 7 === 0 || index === days.length - 1) {
+        rows.push(
+          <View key={`picker-row-${Math.floor(index / 7)}`} style={styles.pickerCalendarRow}>
+            {cells}
+          </View>
+        );
+        cells = [];
+      }
+    });
+
+    return rows;
   };
   
   // Alterar data da nova despesa
@@ -440,32 +751,54 @@ export default function Expenses() {
   };
   
   // Salvar edições
-  const saveEdit = () => {
+  const saveEdit = async () => {
     if (!activeExpense) return;
     if (!editingExpense.title) {
       Alert.alert('Erro', 'O título não pode estar vazio.');
       return;
     }
     
-    const updatedExpenses = expenses.map(expense => {
-      if (expense.id === activeExpense.id) {
-        return {
-          ...expense,
+    try {
+      // Atualizar despesa no Supabase
+      const { error } = await supabase
+        .from('expenses')
+        .update({
           title: editingExpense.title,
           category: editingExpense.category,
           account: editingExpense.account,
-          dueDate: editingExpense.dueDate,
-        };
+          due_date: editingExpense.dueDate.toISOString(),
+        })
+        .eq('id', activeExpense.id);
+      
+      if (error) {
+        console.error('Erro ao atualizar despesa:', error);
+        Alert.alert('Erro', 'Erro ao atualizar despesa no banco de dados');
+        return;
       }
-      return expense;
-    });
-    
-    setExpenses(updatedExpenses);
-    saveExpenses(updatedExpenses);
-    setEditModalVisible(false);
-    setActiveExpense(null);
-    
-    Alert.alert('Sucesso', 'Despesa atualizada com sucesso!');
+      
+      // Atualizar estado local
+      const updatedExpenses = expenses.map(expense => {
+        if (expense.id === activeExpense.id) {
+          return {
+            ...expense,
+            title: editingExpense.title,
+            category: editingExpense.category,
+            account: editingExpense.account,
+            dueDate: editingExpense.dueDate,
+          };
+        }
+        return expense;
+      });
+      
+      setExpenses(updatedExpenses);
+      setEditModalVisible(false);
+      setActiveExpense(null);
+      
+      Alert.alert('Sucesso', 'Despesa atualizada com sucesso!');
+    } catch (error) {
+      console.error('Erro ao salvar edição:', error);
+      Alert.alert('Erro', 'Erro inesperado ao atualizar despesa');
+    }
   };
   
   // Abrir modal de alteração de valor
@@ -478,7 +811,7 @@ export default function Expenses() {
   };
   
   // Salvar novo valor
-  const saveNewValue = () => {
+  const saveNewValue = async () => {
     if (!activeExpense) return;
     
     const amount = parseFloat(newAmount.replace(',', '.'));
@@ -487,22 +820,39 @@ export default function Expenses() {
       return;
     }
     
-    const updatedExpenses = expenses.map(expense => {
-      if (expense.id === activeExpense.id) {
-        return {
-          ...expense,
-          amount: amount,
-        };
+    try {
+      // Atualizar valor no Supabase
+      const { error } = await supabase
+        .from('expenses')
+        .update({ amount: amount })
+        .eq('id', activeExpense.id);
+      
+      if (error) {
+        console.error('Erro ao atualizar valor:', error);
+        Alert.alert('Erro', 'Erro ao atualizar valor no banco de dados');
+        return;
       }
-      return expense;
-    });
-    
-    setExpenses(updatedExpenses);
-    saveExpenses(updatedExpenses);
-    setChangeValueModalVisible(false);
-    setActiveExpense(null);
-    
-    Alert.alert('Sucesso', 'Valor da despesa atualizado com sucesso!');
+      
+      // Atualizar estado local
+      const updatedExpenses = expenses.map(expense => {
+        if (expense.id === activeExpense.id) {
+          return {
+            ...expense,
+            amount: amount,
+          };
+        }
+        return expense;
+      });
+      
+      setExpenses(updatedExpenses);
+      setChangeValueModalVisible(false);
+      setActiveExpense(null);
+      
+      Alert.alert('Sucesso', 'Valor da despesa atualizado com sucesso!');
+    } catch (error) {
+      console.error('Erro ao salvar novo valor:', error);
+      Alert.alert('Erro', 'Erro inesperado ao atualizar valor');
+    }
   };
   
   // Abrir modal de despesa de cartão
@@ -673,39 +1023,90 @@ export default function Expenses() {
   };
   
   // Excluir apenas este mês
-  const deleteThisMonth = () => {
+  const deleteThisMonth = async () => {
     if (!activeExpense) return;
     
-    const updatedExpenses = expenses.filter(expense => expense.id !== activeExpense.id);
-    setExpenses(updatedExpenses);
-    saveExpenses(updatedExpenses);
-    
-    closeDeleteOptions();
-    Alert.alert('Sucesso', 'Despesa excluída apenas para este mês.');
+    try {
+      // Excluir despesa do Supabase
+      const { error } = await supabase
+        .from('expenses')
+        .delete()
+        .eq('id', activeExpense.id);
+      
+      if (error) {
+        console.error('Erro ao excluir despesa:', error);
+        Alert.alert('Erro', 'Erro ao excluir despesa do banco de dados');
+        return;
+      }
+      
+      // Atualizar estado local
+      const updatedExpenses = expenses.filter(expense => expense.id !== activeExpense.id);
+      setExpenses(updatedExpenses);
+      
+      closeDeleteOptions();
+      Alert.alert('Sucesso', 'Despesa excluída apenas para este mês.');
+    } catch (error) {
+      console.error('Erro ao excluir despesa:', error);
+      Alert.alert('Erro', 'Erro inesperado ao excluir despesa');
+    }
   };
   
   // Excluir a partir deste mês
-  const deleteFromThisMonth = () => {
+  const deleteFromThisMonth = async () => {
     if (!activeExpense) return;
     
-    const updatedExpenses = expenses.filter(expense => expense.id !== activeExpense.id);
-    setExpenses(updatedExpenses);
-    saveExpenses(updatedExpenses);
-    
-    closeDeleteOptions();
-    Alert.alert('Sucesso', 'Despesa excluída a partir deste mês.');
+    try {
+      // Excluir despesa do Supabase
+      const { error } = await supabase
+        .from('expenses')
+        .delete()
+        .eq('id', activeExpense.id);
+      
+      if (error) {
+        console.error('Erro ao excluir despesa:', error);
+        Alert.alert('Erro', 'Erro ao excluir despesa do banco de dados');
+        return;
+      }
+      
+      // Atualizar estado local
+      const updatedExpenses = expenses.filter(expense => expense.id !== activeExpense.id);
+      setExpenses(updatedExpenses);
+      
+      closeDeleteOptions();
+      Alert.alert('Sucesso', 'Despesa excluída a partir deste mês.');
+    } catch (error) {
+      console.error('Erro ao excluir despesa:', error);
+      Alert.alert('Erro', 'Erro inesperado ao excluir despesa');
+    }
   };
   
   // Excluir definitivamente
-  const deleteDefinitively = () => {
+  const deleteDefinitively = async () => {
     if (!activeExpense) return;
     
-    const updatedExpenses = expenses.filter(expense => expense.id !== activeExpense.id);
-    setExpenses(updatedExpenses);
-    saveExpenses(updatedExpenses);
-    
-    closeDeleteOptions();
-    Alert.alert('Sucesso', 'Despesa excluída definitivamente!');
+    try {
+      // Excluir despesa do Supabase
+      const { error } = await supabase
+        .from('expenses')
+        .delete()
+        .eq('id', activeExpense.id);
+      
+      if (error) {
+        console.error('Erro ao excluir despesa:', error);
+        Alert.alert('Erro', 'Erro ao excluir despesa do banco de dados');
+        return;
+      }
+      
+      // Atualizar estado local
+      const updatedExpenses = expenses.filter(expense => expense.id !== activeExpense.id);
+      setExpenses(updatedExpenses);
+      
+      closeDeleteOptions();
+      Alert.alert('Sucesso', 'Despesa excluída definitivamente!');
+    } catch (error) {
+      console.error('Erro ao excluir despesa:', error);
+      Alert.alert('Erro', 'Erro inesperado ao excluir despesa');
+    }
   };
   
   // Excluir despesa - agora abre o menu secundário
@@ -715,55 +1116,132 @@ export default function Expenses() {
   };
   
   // Duplicar despesa
-  const duplicateExpense = () => {
+  const duplicateExpense = async () => {
     if (!activeExpense) return;
     
-    const newId = Date.now().toString();
-    const duplicatedExpense: Expense = {
-      ...activeExpense,
-      id: newId,
-      title: `${activeExpense.title} (cópia)`,
-      createdAt: new Date(),
-      isPaid: false,
-    };
-    
-    const updatedExpenses = [...expenses, duplicatedExpense];
-    setExpenses(updatedExpenses);
-    saveExpenses(updatedExpenses);
-    
-    closeOptionsMenu();
-    Alert.alert('Sucesso', 'Despesa duplicada com sucesso!');
+    try {
+      // Obter a sessão atual
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session?.user) {
+        Alert.alert('Erro', 'Usuário não autenticado');
+        return;
+      }
+      
+      const userId = session.user.id;
+      
+      // Inserir despesa duplicada no Supabase
+      const { data, error } = await supabase
+        .from('expenses')
+        .insert([
+          {
+            title: `${activeExpense.title} (cópia)`,
+            amount: activeExpense.amount,
+            due_date: activeExpense.dueDate.toISOString(),
+            category: activeExpense.category,
+            account: activeExpense.account,
+            is_paid: false,
+            owner_id: userId
+          }
+        ])
+        .select()
+        .single();
+      
+      if (error) {
+        console.error('Erro ao duplicar despesa:', error);
+        Alert.alert('Erro', 'Erro ao duplicar despesa no banco de dados');
+        return;
+      }
+      
+      if (data) {
+        // Adicionar a despesa duplicada ao estado local
+        const duplicatedExpense: Expense = {
+          id: data.id,
+          title: data.title,
+          amount: parseFloat(data.amount),
+          dueDate: new Date(data.due_date),
+          category: data.category || 'Outros',
+          account: data.account || 'Conta Padrão',
+          isPaid: data.is_paid,
+          createdAt: new Date(data.created_at)
+        };
+        
+        setExpenses(prevExpenses => [...prevExpenses, duplicatedExpense]);
+        
+        closeOptionsMenu();
+        Alert.alert('Sucesso', 'Despesa duplicada com sucesso!');
+      }
+    } catch (error) {
+      console.error('Erro ao duplicar despesa:', error);
+      Alert.alert('Erro', 'Erro inesperado ao duplicar despesa');
+    }
   };
   
   // Efetivar pagamento (direto do menu)
-  const markAsPaid = () => {
+  const markAsPaid = async () => {
     if (!activeExpense || activeExpense.isPaid) {
       closeOptionsMenu();
       return;
     }
     
-    // Atualizar status da despesa
-    const updatedExpenses = expenses.map(expense => 
-      expense.id === activeExpense.id ? { ...expense, isPaid: true } : expense
-    );
-    setExpenses(updatedExpenses);
-    saveExpenses(updatedExpenses);
-    
-    // Atualizar saldo
-    const newBalance = userBalance - activeExpense.amount;
-    setUserBalance(newBalance);
-    saveBalance(newBalance);
-    
-    closeOptionsMenu();
-    Alert.alert(
-      "Pagamento Efetivado",
-      `O pagamento de ${activeExpense.title} no valor de R$ ${activeExpense.amount.toFixed(2)} foi confirmado.`
-    );
+    try {
+      // Atualizar status da despesa no Supabase
+      const { error } = await supabase
+        .from('expenses')
+        .update({ is_paid: true })
+        .eq('id', activeExpense.id);
+      
+      if (error) {
+        console.error('Erro ao marcar como pago:', error);
+        Alert.alert('Erro', 'Erro ao atualizar status da despesa');
+        return;
+      }
+      
+      // Atualizar estado local
+      const updatedExpenses = expenses.map(expense => 
+        expense.id === activeExpense.id ? { ...expense, isPaid: true } : expense
+      );
+      setExpenses(updatedExpenses);
+      
+      // Atualizar saldo
+      const newBalance = userBalance - activeExpense.amount;
+      setUserBalance(newBalance);
+      await saveBalance(newBalance);
+      
+      closeOptionsMenu();
+      Alert.alert(
+        "Pagamento Efetivado",
+        `O pagamento de ${activeExpense.title} no valor de R$ ${activeExpense.amount.toFixed(2)} foi confirmado.`
+      );
+    } catch (error) {
+      console.error('Erro ao marcar como pago:', error);
+      Alert.alert('Erro', 'Erro inesperado ao marcar despesa como paga');
+    }
   };
 
   // Função para navegar de volta
   const goBack = () => {
     router.push('/dashboard');
+  };
+
+  // Funções para controlar o dropdown de categorias
+  const toggleCategories = () => {
+    setCategoriesVisible(!categoriesVisible);
+  };
+
+  const selectCategory = (category: any) => {
+    setNewExpense({...newExpense, category: category.name});
+    setCategoriesVisible(false);
+  };
+
+  // Funções para controlar o dropdown de contas
+  const toggleAccounts = () => {
+    setAccountsVisible(!accountsVisible);
+  };
+
+  const selectAccount = (account: any) => {
+    setNewExpense({...newExpense, account: account.name});
+    setAccountsVisible(false);
   };
 
   return (
@@ -856,6 +1334,12 @@ export default function Expenses() {
             {sortedExpenses.length === 0 ? (
               <View style={styles.emptyContainer}>
                 <Text style={styles.emptyText}>Nenhuma despesa encontrada</Text>
+                <TouchableOpacity 
+                  style={styles.emptyButton}
+                  onPress={openAddExpenseModal}
+                >
+                  <Text style={styles.emptyButtonText}>Adicionar Despesa</Text>
+                </TouchableOpacity>
               </View>
             ) : (
               <>
@@ -1090,22 +1574,22 @@ export default function Expenses() {
         animationType="slide"
         onRequestClose={() => setAddExpenseModalVisible(false)}
       >
-        <KeyboardAvoidingView 
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          style={styles.modalContainer}
-        >
-          <View style={[styles.addModalContent, { backgroundColor: theme.card }]}>
-            <View style={styles.addModalHeader}>
-              <Text style={styles.addModalTitle}>Nova Despesa</Text>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Nova Despesa</Text>
               <TouchableOpacity 
                 style={styles.closeButton}
                 onPress={() => setAddExpenseModalVisible(false)}
               >
-                <X size={20} color="#666" />
+                <X size={20} color="#333" />
               </TouchableOpacity>
             </View>
             
-            <ScrollView showsVerticalScrollIndicator={false}>
+            <ScrollView
+              showsVerticalScrollIndicator={true}
+              contentContainerStyle={{ paddingBottom: 20 }}
+            >
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>Título</Text>
                 <TextInput 
@@ -1118,64 +1602,170 @@ export default function Expenses() {
               </View>
               
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Valor (R$)</Text>
-                <TextInput 
-                  style={styles.textInput}
-                  value={newExpense.amount}
-                  onChangeText={(text) => setNewExpense({...newExpense, amount: text})}
-                  placeholder="0,00"
-                  placeholderTextColor="#999"
-                  keyboardType="numeric"
-                />
+                <Text style={styles.inputLabel}>Valor</Text>
+                <View style={styles.amountInputContainer}>
+                  <Text style={styles.currencySymbol}>R$</Text>
+                  <TextInput 
+                    style={styles.amountInput}
+                    value={newExpense.amount > 0 ? newExpense.amount.toLocaleString('pt-BR', {
+                      style: 'currency',
+                      currency: 'BRL'
+                    }).replace('R$', '').trim() : ''}
+                    onChangeText={(text) => {
+                      // Remove tudo que não é número
+                      const numericValue = text.replace(/[^0-9]/g, '');
+                      // Formata como moeda brasileira
+                      if (numericValue) {
+                        const formattedValue = (parseInt(numericValue) / 100);
+                        setNewExpense({...newExpense, amount: formattedValue});
+                      } else {
+                        setNewExpense({...newExpense, amount: 0});
+                      }
+                    }}
+                    placeholder="0,00"
+                    placeholderTextColor="#999"
+                    keyboardType="numeric"
+                  />
+                </View>
               </View>
               
-              <View style={styles.inputGroup}>
+              <View style={[styles.inputGroup, { position: 'relative', zIndex: 30 }]}>
                 <Text style={styles.inputLabel}>Categoria</Text>
-                <View style={styles.pickerButton}>
-                  <Text style={styles.pickerButtonText}>{newExpense.category}</Text>
-                  <ChevronDown size={16} color="#666" />
-                </View>
+                <TouchableOpacity style={styles.selectInput} onPress={toggleCategories}>
+                  <Text style={styles.selectPlaceholder}>{newExpense.category}</Text>
+                  <ChevronRight size={18} color="#666" style={{ transform: [{ rotate: '90deg' }] as any }} />
+                </TouchableOpacity>
+                
+                {categoriesVisible && (
+                  <View style={styles.dropdownContainer}>
+                    <ScrollView style={styles.dropdown} nestedScrollEnabled={true}>
+                      {userCategories.length > 0 ? (
+                        userCategories.map((category) => (
+                          <TouchableOpacity
+                            key={category.id}
+                            style={[
+                              styles.dropdownItem,
+                              newExpense.category === category.name && styles.dropdownItemSelected
+                            ]}
+                            onPress={() => selectCategory(category)}
+                          >
+                            <Text style={styles.categoryIcon}>{category.icon}</Text>
+                            <Text style={[
+                              styles.dropdownItemText,
+                              newExpense.category === category.name && styles.dropdownItemTextSelected
+                            ]}>
+                              {category.name}
+                            </Text>
+                            {newExpense.category === category.name && (
+                              <Check size={16} color={theme.primary} />
+                            )}
+                          </TouchableOpacity>
+                        ))
+                      ) : (
+                        <View style={styles.emptyDropdown}>
+                          <Text style={styles.emptyDropdownText}>
+                            Nenhuma categoria encontrada.{'\n'}
+                            Crie categorias na tela de Registros.
+                          </Text>
+                        </View>
+                      )}
+                    </ScrollView>
+                  </View>
+                )}
               </View>
               
-              <View style={styles.inputGroup}>
+              <View style={[styles.inputGroup, { position: 'relative', zIndex: 20 }]}>
                 <Text style={styles.inputLabel}>Conta</Text>
-                <View style={styles.pickerButton}>
-                  <Text style={styles.pickerButtonText}>{newExpense.account}</Text>
-                  <ChevronDown size={16} color="#666" />
-                </View>
+                <TouchableOpacity style={styles.selectInput} onPress={toggleAccounts}>
+                  <Text style={styles.selectPlaceholder}>{newExpense.account}</Text>
+                  <ChevronRight size={18} color="#666" style={{ transform: [{ rotate: accountsVisible ? '270deg' : '90deg' }] as any }} />
+                </TouchableOpacity>
+                
+                {accountsVisible && (
+                  <View style={styles.dropdownContainer}>
+                    <ScrollView style={styles.dropdown} nestedScrollEnabled={true}>
+                      {userAccounts.length > 0 ? (
+                        userAccounts.map((account) => (
+                          <TouchableOpacity
+                            key={account.id}
+                            style={[
+                              styles.dropdownItem,
+                              newExpense.account === account.name && styles.dropdownItemSelected
+                            ]}
+                            onPress={() => selectAccount(account)}
+                          >
+                            <Text style={[
+                              styles.dropdownItemText,
+                              newExpense.account === account.name && styles.dropdownItemTextSelected
+                            ]}>
+                              {account.name}
+                            </Text>
+                            {account.type && (
+                              <Text style={styles.accountType}>
+                                {account.type}
+                              </Text>
+                            )}
+                          </TouchableOpacity>
+                        ))
+                      ) : (
+                        <View style={styles.emptyDropdown}>
+                          <Text style={styles.emptyDropdownText}>
+                            Nenhuma conta encontrada.{'\n'}
+                            Crie uma conta primeiro no menu Contas.
+                          </Text>
+                        </View>
+                      )}
+                    </ScrollView>
+                  </View>
+                )}
               </View>
               
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>Data de vencimento</Text>
-                <TouchableOpacity 
-                  style={styles.datePickerButton}
-                  onPress={() => setShowDatePicker(true)}
-                >
-                  <Calendar size={16} color="#666" style={styles.dateIcon} />
-                  <Text style={styles.dateText}>
-                    {newExpense.dueDate.toLocaleDateString('pt-BR')}
-                  </Text>
+                <TouchableOpacity style={styles.dateInput} onPress={toggleCalendar}>
+                  <Calendar size={20} color="#666" style={styles.inputIcon} />
+                  <Text style={styles.dateText}>{selectedDate}</Text>
+                  <TouchableOpacity style={styles.calendarButton} onPress={toggleCalendar}>
+                    <Calendar size={20} color="#666" />
+                  </TouchableOpacity>
                 </TouchableOpacity>
+                
+                {calendarVisible && (
+                  <View style={styles.calendarPickerContainer}>
+                    <View
+                      style={[styles.calendarPickerHeader, { backgroundColor: theme.primary }]}
+                    >
+                      <View style={styles.calendarPickerMonthSelector}>
+                        <TouchableOpacity onPress={goToPreviousPickerMonth} style={styles.calendarPickerArrow}>
+                          <ChevronLeft size={24} color="#FFF" />
+                        </TouchableOpacity>
+                        
+                        <Text style={styles.calendarPickerMonthText}>
+                          {months[pickerMonth]} {pickerYear}
+                        </Text>
+                        
+                        <TouchableOpacity onPress={goToNextPickerMonth} style={styles.calendarPickerArrow}>
+                          <ChevronRight size={24} color="#FFF" />
+                        </TouchableOpacity>
+                      </View>
+
+                      <View style={styles.pickerCalendarContainer}>
+                        {renderPickerCalendarGrid()}
+                      </View>
+                    </View>
+                  </View>
+                )}
               </View>
               
-              {showDatePicker && (
-                <DateTimePicker
-                  value={newExpense.dueDate}
-                  mode="date"
-                  display="default"
-                  onChange={onDateChange}
-                />
-              )}
-              
               <TouchableOpacity 
-                style={[styles.addButton, {backgroundColor: theme.primary}]}
+                style={[styles.saveButton, { backgroundColor: theme.primary }]}
                 onPress={addNewExpense}
               >
-                <Text style={styles.addButtonText}>Adicionar Despesa</Text>
+                <Text style={styles.saveButtonText}>Adicionar Despesa</Text>
               </TouchableOpacity>
             </ScrollView>
           </View>
-        </KeyboardAvoidingView>
+        </View>
       </Modal>
       
       {/* Modal para Menu de Opções */}
@@ -1213,10 +1803,6 @@ export default function Expenses() {
             
             <TouchableOpacity style={styles.optionItem} onPress={markAsCardExpense}>
               <Text style={styles.optionText}>Despesa cartão</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity style={styles.optionItem} onPress={partialPayment}>
-              <Text style={styles.optionText}>Pagamento parcial</Text>
             </TouchableOpacity>
             
             {!activeExpense?.isPaid && (
@@ -2800,5 +3386,258 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 16,
     fontFamily: fontFallbacks.Poppins_600SemiBold,
+  },
+  // Estilos do modal padronizado (seguindo padrão de receitas)
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    padding: 20,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    width: '100%',
+    maxHeight: '90%',
+    zIndex: 1,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#333333',
+  },
+  textInput: {
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    color: '#333333',
+  },
+  amountInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    borderRadius: 8,
+    padding: 12,
+  },
+  currencySymbol: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333333',
+    marginRight: 5,
+  },
+  amountInput: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#333333',
+  },
+  selectInput: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    borderRadius: 8,
+    padding: 12,
+  },
+  selectPlaceholder: {
+    flex: 1,
+    fontSize: 16,
+    color: '#666',
+  },
+  saveButton: {
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 24,
+  },
+  saveButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  // Estilos do calendário (idêntico ao modal de receitas)
+  calendarPickerContainer: {
+    marginTop: 10,
+    marginBottom: 16,
+    borderRadius: 12,
+    overflow: 'hidden',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+  },
+  calendarPickerHeader: {
+    padding: 16,
+    width: '100%',
+  },
+  calendarPickerMonthSelector: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  calendarPickerArrow: {
+    padding: 5,
+  },
+  calendarPickerMonthText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#FFF',
+  },
+  pickerCalendarContainer: {
+    marginHorizontal: 4,
+  },
+  pickerCalendarHeaderCell: {
+    width: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pickerCalendarHeaderText: {
+    color: '#FFF',
+    fontSize: 12,
+    opacity: 0.9,
+  },
+  pickerCalendarRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: 8,
+  },
+  pickerCalendarCell: {
+    width: 40,
+    height: 38,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pickerDayCircle: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pickerSelectedDayCircle: {
+    backgroundColor: '#FFF',
+  },
+  pickerCalendarDay: {
+    fontSize: 16,
+  },
+  pickerCurrentMonthCell: {},
+  pickerOtherMonthCell: {
+    opacity: 0.6,
+  },
+  pickerSelectedCell: {},
+  pickerCurrentMonthDay: {
+    color: '#FFF',
+  },
+  pickerOtherMonthDay: {
+    color: 'rgba(255, 255, 255, 0.4)',
+  },
+  pickerSelectedDayText: {
+    fontWeight: '600',
+  },
+  dateInput: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    backgroundColor: '#fff',
+  },
+  inputIcon: {
+    marginRight: 10,
+  },
+  dateText: {
+    flex: 1,
+    fontSize: 16,
+    color: '#333',
+  },
+  calendarButton: {
+    padding: 4,
+  },
+  // Estilos do dropdown de categorias
+  dropdownContainer: {
+    position: 'absolute',
+    top: '100%',
+    left: 0,
+    right: 0,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    borderRadius: 8,
+    marginTop: 4,
+    maxHeight: 200,
+    zIndex: 1000,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  dropdown: {
+    maxHeight: 200,
+  },
+  dropdownItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  dropdownItemSelected: {
+    backgroundColor: '#f8f9ff',
+  },
+  categoryIcon: {
+    fontSize: 16,
+    marginRight: 8,
+  },
+  dropdownItemText: {
+    flex: 1,
+    fontSize: 16,
+    color: '#333',
+  },
+  dropdownItemTextSelected: {
+    color: '#8B5CF6',
+    fontWeight: '500',
+  },
+  emptyDropdown: {
+    padding: 20,
+    alignItems: 'center',
+  },
+  emptyDropdownText: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  emptyButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+    backgroundColor: '#2196F3',
+  },
+  emptyButtonText: {
+    color: 'white',
+    fontWeight: '500',
+  },
+  accountType: {
+    fontSize: 12,
+    color: '#666',
+    fontStyle: 'italic',
   },
 }); 

@@ -65,6 +65,42 @@ export default function Dashboard() {
   const [inviteSuccessModalVisible, setInviteSuccessModalVisible] = useState(false); // Modal de sucesso do convite
   const [invitedEmail, setInvitedEmail] = useState(''); // Email do usuário convidado para exibir no modal
   
+  // Estados para dados financeiros reais
+  const [financialData, setFinancialData] = useState({
+    receitas: { total: 0, change: 0 },
+    despesas: { total: 0, change: 0 },
+    debitos: { total: 0, change: 0 },
+    creditos: { total: 0, change: 0 }
+  });
+  const [loadingFinancialData, setLoadingFinancialData] = useState(true);
+  const [summaryData, setSummaryData] = useState({
+    saldoTotal: 0,
+    receitasMes: 0,
+    despesasMes: 0
+  });
+  const [loadingSummaryData, setLoadingSummaryData] = useState(true);
+  const [expensesByPerson, setExpensesByPerson] = useState({
+    currentUser: { name: '', amount: 0, percentage: 0 },
+    partner: { name: '', amount: 0, percentage: 0 },
+    shared: { amount: 0, percentage: 0 }
+  });
+  const [loadingExpensesByPerson, setLoadingExpensesByPerson] = useState(true);
+  const [billsAndCards, setBillsAndCards] = useState<any[]>([]);
+  const [loadingBillsAndCards, setLoadingBillsAndCards] = useState(true);
+  const [accountsReceivable, setAccountsReceivable] = useState<any[]>([]);
+  const [loadingAccountsReceivable, setLoadingAccountsReceivable] = useState(false);
+  const [financialGoals, setFinancialGoals] = useState<any[]>([]);
+  const [loadingFinancialGoals, setLoadingFinancialGoals] = useState(false);
+  const [initialBalance, setInitialBalance] = useState(0);
+  const [currentBalance, setCurrentBalance] = useState(0);
+  const [predictedBalance, setPredictedBalance] = useState(0);
+  const [chartData, setChartData] = useState<any[]>([]);
+  const [recentTransactions, setRecentTransactions] = useState<any[]>([]);
+  const [loadingTransactions, setLoadingTransactions] = useState(true);
+  const [calendarEvents, setCalendarEvents] = useState<{[key: string]: {income: boolean, expense: boolean, transfer: boolean}}>({});
+  const [loadingCalendar, setLoadingCalendar] = useState(true);
+  const [calendarCurrentDate, setCalendarCurrentDate] = useState(new Date());
+  
   // Salvar o tema no AsyncStorage quando ele for alterado
   const saveThemeToStorage = async (themeValue: string) => {
     try {
@@ -120,6 +156,30 @@ export default function Dashboard() {
   useEffect(() => {
     // Buscar informações do usuário atual e seus parceiros
     fetchUserAndPartner();
+    // Buscar dados financeiros reais
+    fetchFinancialData();
+    // Buscar dados do resumo
+    fetchSummaryData();
+    // Buscar últimas transações
+    fetchRecentTransactions();
+    // Buscar gastos por pessoa
+    fetchExpensesByPerson();
+    // Buscar contas a pagar e cartões
+    fetchBillsAndCards();
+    // Buscar contas a receber
+    fetchAccountsReceivable();
+    // Buscar metas financeiras
+    fetchFinancialGoals();
+    // Buscar saldo inicial
+    fetchInitialBalance();
+    // Buscar saldo atual
+    fetchCurrentBalance();
+    // Buscar saldo previsto
+    fetchPredictedBalance();
+    // Buscar dados do gráfico
+    fetchChartData();
+    // Buscar eventos do calendário
+    fetchCalendarEvents();
   }, []);
   
   // Função para buscar o usuário atual e seus parceiros
@@ -374,6 +434,1180 @@ export default function Dashboard() {
     }
   };
 
+  // Função para buscar dados financeiros reais do banco de dados
+  const fetchFinancialData = async () => {
+    try {
+      setLoadingFinancialData(true);
+      
+      // Obter a sessão atual
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session?.user) {
+        console.error('Erro ao obter sessão:', sessionError);
+        return;
+      }
+      
+      const userId = session.user.id;
+      const currentDate = new Date();
+      const currentMonth = currentDate.getMonth() + 1;
+      const currentYear = currentDate.getFullYear();
+      const previousMonth = currentMonth === 1 ? 12 : currentMonth - 1;
+      const previousYear = currentMonth === 1 ? currentYear - 1 : currentYear;
+      
+      // Buscar receitas do mês atual
+      const { data: currentIncomes, error: incomesError } = await supabase
+        .from('incomes')
+        .select('amount')
+        .eq('owner_id', userId)
+        .gte('receipt_date', `${currentYear}-${currentMonth.toString().padStart(2, '0')}-01`)
+        .lt('receipt_date', `${currentYear}-${(currentMonth + 1).toString().padStart(2, '0')}-01`);
+      
+      // Buscar receitas do mês anterior
+      const { data: previousIncomes, error: prevIncomesError } = await supabase
+        .from('incomes')
+        .select('amount')
+        .eq('owner_id', userId)
+        .gte('receipt_date', `${previousYear}-${previousMonth.toString().padStart(2, '0')}-01`)
+        .lt('receipt_date', `${previousYear}-${currentMonth.toString().padStart(2, '0')}-01`);
+      
+      // Buscar despesas do mês atual
+      const { data: currentExpenses, error: expensesError } = await supabase
+        .from('expenses')
+        .select('amount')
+        .eq('owner_id', userId)
+        .gte('due_date', `${currentYear}-${currentMonth.toString().padStart(2, '0')}-01`)
+        .lt('due_date', `${currentYear}-${(currentMonth + 1).toString().padStart(2, '0')}-01`);
+      
+      // Buscar despesas do mês anterior
+      const { data: previousExpenses, error: prevExpensesError } = await supabase
+        .from('expenses')
+        .select('amount')
+        .eq('owner_id', userId)
+        .gte('due_date', `${previousYear}-${previousMonth.toString().padStart(2, '0')}-01`)
+        .lt('due_date', `${previousYear}-${currentMonth.toString().padStart(2, '0')}-01`);
+      
+      // Buscar transações de débito do mês atual
+      const { data: currentDebits, error: debitsError } = await supabase
+        .from('transactions')
+        .select('amount')
+        .eq('owner_id', userId)
+        .eq('payment_method', 'Débito')
+        .gte('transaction_date', `${currentYear}-${currentMonth.toString().padStart(2, '0')}-01`)
+        .lt('transaction_date', `${currentYear}-${(currentMonth + 1).toString().padStart(2, '0')}-01`);
+      
+      // Buscar transações de débito do mês anterior
+      const { data: previousDebits, error: prevDebitsError } = await supabase
+        .from('transactions')
+        .select('amount')
+        .eq('owner_id', userId)
+        .eq('payment_method', 'Débito')
+        .gte('transaction_date', `${previousYear}-${previousMonth.toString().padStart(2, '0')}-01`)
+        .lt('transaction_date', `${previousYear}-${currentMonth.toString().padStart(2, '0')}-01`);
+      
+      // Buscar transações de crédito do mês atual
+      const { data: currentCredits, error: creditsError } = await supabase
+        .from('transactions')
+        .select('amount')
+        .eq('owner_id', userId)
+        .eq('payment_method', 'Crédito')
+        .gte('transaction_date', `${currentYear}-${currentMonth.toString().padStart(2, '0')}-01`)
+        .lt('transaction_date', `${currentYear}-${(currentMonth + 1).toString().padStart(2, '0')}-01`);
+      
+      // Buscar transações de crédito do mês anterior
+      const { data: previousCredits, error: prevCreditsError } = await supabase
+        .from('transactions')
+        .select('amount')
+        .eq('owner_id', userId)
+        .eq('payment_method', 'Crédito')
+        .gte('transaction_date', `${previousYear}-${previousMonth.toString().padStart(2, '0')}-01`)
+        .lt('transaction_date', `${previousYear}-${currentMonth.toString().padStart(2, '0')}-01`);
+      
+      // Calcular totais
+      const receitasTotal = currentIncomes?.reduce((sum, income) => sum + Number(income.amount), 0) || 0;
+      const receitasPrevious = previousIncomes?.reduce((sum, income) => sum + Number(income.amount), 0) || 0;
+      const receitasChange = receitasPrevious > 0 ? ((receitasTotal - receitasPrevious) / receitasPrevious) * 100 : 0;
+      
+      const despesasTotal = currentExpenses?.reduce((sum, expense) => sum + Number(expense.amount), 0) || 0;
+      const despesasPrevious = previousExpenses?.reduce((sum, expense) => sum + Number(expense.amount), 0) || 0;
+      const despesasChange = despesasPrevious > 0 ? ((despesasTotal - despesasPrevious) / despesasPrevious) * 100 : 0;
+      
+      const debitosTotal = Math.abs(currentDebits?.reduce((sum, debit) => sum + Number(debit.amount), 0) || 0);
+      const debitosPrevious = Math.abs(previousDebits?.reduce((sum, debit) => sum + Number(debit.amount), 0) || 0);
+      const debitosChange = debitosPrevious > 0 ? ((debitosTotal - debitosPrevious) / debitosPrevious) * 100 : 0;
+      
+      const creditosTotal = Math.abs(currentCredits?.reduce((sum, credit) => sum + Number(credit.amount), 0) || 0);
+      const creditosPrevious = Math.abs(previousCredits?.reduce((sum, credit) => sum + Number(credit.amount), 0) || 0);
+      const creditosChange = creditosPrevious > 0 ? ((creditosTotal - creditosPrevious) / creditosPrevious) * 100 : 0;
+      
+      // Atualizar estado com dados reais
+      setFinancialData({
+        receitas: { total: receitasTotal, change: receitasChange },
+        despesas: { total: despesasTotal, change: despesasChange },
+        debitos: { total: debitosTotal, change: debitosChange },
+        creditos: { total: creditosTotal, change: creditosChange }
+      });
+      
+    } catch (error) {
+      console.error('Erro ao buscar dados financeiros:', error);
+    } finally {
+      setLoadingFinancialData(false);
+    }
+  };
+
+  // Função para buscar dados do resumo do mês
+  const fetchSummaryData = async () => {
+    try {
+      setLoadingSummaryData(true);
+      
+      // Obter a sessão atual
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session?.user) {
+        console.error('Erro ao obter sessão:', sessionError);
+        return;
+      }
+      
+      const userId = session.user.id;
+      const currentDate = new Date();
+      const currentMonth = currentDate.getMonth() + 1;
+      const currentYear = currentDate.getFullYear();
+      
+      // Buscar saldo total das contas
+      const { data: accounts, error: accountsError } = await supabase
+        .from('accounts')
+        .select('balance')
+        .eq('owner_id', userId);
+      
+      // Buscar receitas do mês atual
+      const { data: monthlyIncomes, error: monthlyIncomesError } = await supabase
+        .from('incomes')
+        .select('amount')
+        .eq('owner_id', userId)
+        .gte('receipt_date', `${currentYear}-${currentMonth.toString().padStart(2, '0')}-01`)
+        .lt('receipt_date', `${currentYear}-${(currentMonth + 1).toString().padStart(2, '0')}-01`);
+      
+      // Buscar despesas do mês atual
+      const { data: monthlyExpenses, error: monthlyExpensesError } = await supabase
+        .from('expenses')
+        .select('amount')
+        .eq('owner_id', userId)
+        .gte('due_date', `${currentYear}-${currentMonth.toString().padStart(2, '0')}-01`)
+        .lt('due_date', `${currentYear}-${(currentMonth + 1).toString().padStart(2, '0')}-01`);
+      
+      // Calcular totais
+      const saldoTotal = accounts?.reduce((sum, account) => sum + Number(account.balance), 0) || 0;
+      const receitasMes = monthlyIncomes?.reduce((sum, income) => sum + Number(income.amount), 0) || 0;
+      const despesasMes = monthlyExpenses?.reduce((sum, expense) => sum + Number(expense.amount), 0) || 0;
+      
+      // Atualizar estado
+      setSummaryData({
+        saldoTotal,
+        receitasMes,
+        despesasMes
+      });
+      
+    } catch (error) {
+      console.error('Erro ao buscar dados do resumo:', error);
+    } finally {
+      setLoadingSummaryData(false);
+    }
+  };
+
+  // Função para buscar últimas transações
+  const fetchRecentTransactions = async () => {
+    try {
+      setLoadingTransactions(true);
+      
+      // Obter a sessão atual
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session?.user) {
+        console.error('Erro ao obter sessão:', sessionError);
+        return;
+      }
+      
+      const userId = session.user.id;
+      
+      // Buscar as 10 transações mais recentes do usuário
+      const { data: transactions, error: transactionsError } = await supabase
+        .from('transactions')
+        .select(`
+          id,
+          description,
+          amount,
+          transaction_date,
+          transaction_type,
+          payment_method,
+          category,
+          icon,
+          accounts!transactions_account_id_fkey(name)
+        `)
+        .eq('owner_id', userId)
+        .order('transaction_date', { ascending: false })
+        .limit(10);
+      
+      if (transactionsError) {
+        console.error('Erro ao buscar transações:', transactionsError);
+        return;
+      }
+      
+      // Formatar transações para o formato esperado pelo componente
+      const formattedTransactions = transactions?.map(transaction => {
+        // Definir ícone baseado na categoria ou usar o ícone salvo
+        let icon = transaction.icon || '💰';
+        let backgroundColor = '#E3F5FF';
+        
+        // Definir ícone e cor baseado na categoria se não houver ícone personalizado
+        if (!transaction.icon) {
+          switch (transaction.category?.toLowerCase()) {
+            case 'alimentação':
+            case 'mercado':
+              icon = '🥕';
+              backgroundColor = '#FFEEE2';
+              break;
+            case 'transporte':
+            case 'combustível':
+              icon = '⛽';
+              backgroundColor = '#E3F5FF';
+              break;
+            case 'restaurante':
+            case 'lazer':
+              icon = '🍽️';
+              backgroundColor = '#FFE2E6';
+              break;
+            case 'saúde':
+              icon = '🏥';
+              backgroundColor = '#E8F5E8';
+              break;
+            case 'educação':
+              icon = '📚';
+              backgroundColor = '#FFF2E8';
+              break;
+            default:
+              icon = '💰';
+              backgroundColor = '#E3F5FF';
+          }
+        }
+        
+        // Formatar subtítulo baseado no tipo de transação
+        let subtitle = '';
+        if (transaction.accounts?.name) {
+          subtitle = `${transaction.accounts.name}`;
+        }
+        if (transaction.payment_method) {
+          subtitle += subtitle ? ` - ${transaction.payment_method}` : transaction.payment_method;
+        }
+        
+        return {
+          id: transaction.id,
+          icon,
+          backgroundColor,
+          title: transaction.description,
+          subtitle: subtitle || 'Transação',
+          amount: transaction.transaction_type === 'income' 
+            ? `+${formatCurrency(Math.abs(Number(transaction.amount)))}` 
+            : `-${formatCurrency(Math.abs(Number(transaction.amount)))}`,
+          paymentMethod: transaction.payment_method || 'N/A',
+          date: transaction.transaction_date,
+          type: transaction.transaction_type
+        };
+      }) || [];
+      
+      setRecentTransactions(formattedTransactions);
+      
+      // Resetar índice se necessário
+      if (formattedTransactions.length > 0 && currentTransactionIndex >= formattedTransactions.length) {
+        setCurrentTransactionIndex(0);
+      }
+      
+    } catch (error) {
+      console.error('Erro ao buscar transações recentes:', error);
+    } finally {
+      setLoadingTransactions(false);
+    }
+  };
+
+  // Função para buscar gastos por pessoa
+  const fetchExpensesByPerson = async () => {
+    try {
+      setLoadingExpensesByPerson(true);
+      
+      // Obter a sessão atual
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session?.user) {
+        console.error('Erro ao obter sessão:', sessionError);
+        return;
+      }
+      
+      const userId = session.user.id;
+      
+      // Buscar perfil do usuário atual para obter o nome
+      const { data: userProfile, error: userError } = await supabase
+        .from('profiles')
+        .select('name')
+        .eq('id', userId)
+        .single();
+      
+      // Buscar parceiro ativo
+      const { data: coupleData, error: coupleError } = await supabase
+        .from('couples')
+        .select('user1_id, user2_id, is_avatar, avatar_name')
+        .or(`user1_id.eq.${userId},user2_id.eq.${userId}`)
+        .eq('status', 'active')
+        .single();
+      
+      let partnerName = '';
+      let partnerId = null;
+      
+      if (coupleData && !coupleError) {
+        if (coupleData.is_avatar) {
+          partnerName = coupleData.avatar_name || 'Avatar';
+        } else {
+          partnerId = coupleData.user1_id === userId ? coupleData.user2_id : coupleData.user1_id;
+          
+          if (partnerId) {
+            const { data: partnerProfile } = await supabase
+              .from('profiles')
+              .select('name')
+              .eq('id', partnerId)
+              .single();
+            
+            partnerName = partnerProfile?.name || 'Parceiro';
+          }
+        }
+      }
+      
+      // Buscar todas as transações de despesa do usuário atual
+      const { data: userTransactions, error: userTransError } = await supabase
+        .from('transactions')
+        .select('amount')
+        .eq('owner_id', userId)
+        .eq('transaction_type', 'expense');
+      
+      // Buscar todas as despesas do usuário atual
+      const { data: userExpenses, error: userExpError } = await supabase
+        .from('expenses')
+        .select('amount')
+        .eq('owner_id', userId);
+      
+      // Calcular total de gastos do usuário atual
+      const userTransactionTotal = userTransactions?.reduce((sum, t) => sum + Math.abs(Number(t.amount)), 0) || 0;
+      const userExpenseTotal = userExpenses?.reduce((sum, e) => sum + Number(e.amount), 0) || 0;
+      const currentUserTotal = userTransactionTotal + userExpenseTotal;
+      
+      let partnerTotal = 0;
+      let sharedTotal = 0;
+      
+      if (partnerId) {
+        // Buscar transações do parceiro
+        const { data: partnerTransactions } = await supabase
+          .from('transactions')
+          .select('amount')
+          .eq('owner_id', partnerId)
+          .eq('transaction_type', 'expense');
+        
+        // Buscar despesas do parceiro
+        const { data: partnerExpenses } = await supabase
+          .from('expenses')
+          .select('amount')
+          .eq('owner_id', partnerId);
+        
+        const partnerTransactionTotal = partnerTransactions?.reduce((sum, t) => sum + Math.abs(Number(t.amount)), 0) || 0;
+        const partnerExpenseTotal = partnerExpenses?.reduce((sum, e) => sum + Number(e.amount), 0) || 0;
+        partnerTotal = partnerTransactionTotal + partnerExpenseTotal;
+        
+        // Buscar gastos compartilhados (onde partner_id está preenchido)
+        const { data: sharedTransactions } = await supabase
+          .from('transactions')
+          .select('amount')
+          .not('partner_id', 'is', null)
+          .or(`owner_id.eq.${userId},partner_id.eq.${userId}`)
+          .eq('transaction_type', 'expense');
+        
+        const { data: sharedExpenses } = await supabase
+          .from('expenses')
+          .select('amount')
+          .not('partner_id', 'is', null)
+          .or(`owner_id.eq.${userId},partner_id.eq.${userId}`);
+        
+        const sharedTransactionTotal = sharedTransactions?.reduce((sum, t) => sum + Math.abs(Number(t.amount)), 0) || 0;
+        const sharedExpenseTotal = sharedExpenses?.reduce((sum, e) => sum + Number(e.amount), 0) || 0;
+        sharedTotal = sharedTransactionTotal + sharedExpenseTotal;
+      }
+      
+      // Calcular total geral
+      const totalExpenses = currentUserTotal + partnerTotal + sharedTotal;
+      
+      // Calcular percentuais
+      const currentUserPercentage = totalExpenses > 0 ? (currentUserTotal / totalExpenses) * 100 : 0;
+      const partnerPercentage = totalExpenses > 0 ? (partnerTotal / totalExpenses) * 100 : 0;
+      const sharedPercentage = totalExpenses > 0 ? (sharedTotal / totalExpenses) * 100 : 0;
+      
+      // Atualizar estado
+      setExpensesByPerson({
+        currentUser: {
+          name: userProfile?.name || 'Você',
+          amount: currentUserTotal,
+          percentage: currentUserPercentage
+        },
+        partner: {
+          name: partnerName || 'Parceiro',
+          amount: partnerTotal,
+          percentage: partnerPercentage
+        },
+        shared: {
+          amount: sharedTotal,
+          percentage: sharedPercentage
+        }
+      });
+      
+    } catch (error) {
+      console.error('Erro ao buscar gastos por pessoa:', error);
+    } finally {
+      setLoadingExpensesByPerson(false);
+    }
+  };
+
+  // Função para buscar contas a pagar e cartões
+  const fetchBillsAndCards = async () => {
+    try {
+      setLoadingBillsAndCards(true);
+      
+      // Obter a sessão atual
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session?.user) {
+        console.error('Erro ao obter sessão:', sessionError);
+        return;
+      }
+      
+      const userId = session.user.id;
+      const currentDate = new Date();
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(currentDate.getDate() - 30);
+      
+      // Buscar despesas não pagas (contas a pagar) - incluindo vencidas
+      const { data: unpaidExpenses, error: expensesError } = await supabase
+        .from('expenses')
+        .select('*')
+        .eq('owner_id', userId)
+        .eq('is_paid', false)
+        .gte('due_date', thirtyDaysAgo.toISOString()) // Incluir contas vencidas dos últimos 30 dias
+        .order('due_date', { ascending: true })
+        .limit(8); // Aumentar limite para mais contas
+      
+      // Buscar cartões de crédito com saldo pendente (negativos)
+      const { data: creditCards, error: cardsError } = await supabase
+        .from('cards')
+        .select('*')
+        .eq('owner_id', userId)
+        .eq('is_credit', true)
+        .eq('is_active', true)
+        .gt('current_balance', 0)
+        .order('current_balance', { ascending: false })
+        .limit(5); // Aumentar limite para mais cartões
+      
+      const combinedData: any[] = [];
+      
+      // Processar despesas não pagas (contas a pagar)
+      if (unpaidExpenses && !expensesError) {
+        unpaidExpenses.forEach(expense => {
+          const dueDate = new Date(expense.due_date);
+          const today = new Date();
+          today.setHours(0, 0, 0, 0); // Zerar horas para comparação precisa
+          dueDate.setHours(0, 0, 0, 0);
+          
+          const diffTime = dueDate.getTime() - today.getTime();
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          
+          let dateText = '';
+          let backgroundColor = '#E3F5FF';
+          let iconColor = '#0095FF';
+          
+          if (diffDays < 0) {
+            const overdueDays = Math.abs(diffDays);
+            dateText = overdueDays === 1 ? 'Venceu ontem' : `Venceu há ${overdueDays} dias`;
+            backgroundColor = '#FFE2E6';
+            iconColor = '#FF3B30';
+          } else if (diffDays === 0) {
+            dateText = 'Vence hoje';
+            backgroundColor = '#FFE2E6';
+            iconColor = '#FF5A6E';
+          } else if (diffDays === 1) {
+            dateText = 'Vence amanhã';
+            backgroundColor = '#FFF6E3';
+            iconColor = '#FFB627';
+          } else if (diffDays <= 7) {
+            dateText = `Vence em ${diffDays} dias`;
+            backgroundColor = '#FFF6E3';
+            iconColor = '#FFB627';
+          } else if (diffDays <= 30) {
+            dateText = `Vence em ${dueDate.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}`;
+            backgroundColor = '#E3F5FF';
+            iconColor = '#0095FF';
+          } else {
+            dateText = `Vence em ${dueDate.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}`;
+            backgroundColor = '#F0F0F0';
+            iconColor = '#666666';
+          }
+          
+          // Definir ícone baseado na categoria ou tipo de despesa
+          let icon = Receipt;
+          const category = expense.category?.toLowerCase() || '';
+          const title = expense.title?.toLowerCase() || '';
+          
+          if (category.includes('cartão') || category.includes('crédito') || title.includes('cartão')) {
+            icon = CreditCard;
+          } else if (category.includes('energia') || category.includes('luz') || title.includes('energia') || title.includes('luz')) {
+            icon = Receipt; // Pode usar um ícone específico se disponível
+          } else if (category.includes('água') || title.includes('água')) {
+            icon = Receipt;
+          } else if (category.includes('internet') || category.includes('telefone') || title.includes('internet') || title.includes('telefone')) {
+            icon = Receipt;
+          } else if (category.includes('aluguel') || title.includes('aluguel')) {
+            icon = Receipt;
+          }
+          
+          combinedData.push({
+            id: expense.id,
+            type: 'expense',
+            title: expense.title || 'Conta a pagar',
+            subtitle: dateText,
+            amount: expense.amount,
+            backgroundColor,
+            iconColor,
+            icon,
+            dueDate: expense.due_date,
+            category: expense.category,
+            isOverdue: diffDays < 0
+          });
+        });
+      }
+      
+      // Processar cartões de crédito
+      if (creditCards && !cardsError) {
+        creditCards.forEach(card => {
+          const currentBalance = Number(card.current_balance) || 0;
+          const creditLimit = Number(card.credit_limit) || 0;
+          const availableLimit = creditLimit - currentBalance;
+          const usagePercentage = creditLimit > 0 ? (currentBalance / creditLimit) * 100 : 0;
+          
+          let subtitle = '';
+          let backgroundColor = '#E3F5FF';
+          let iconColor = '#0095FF';
+          
+          if (currentBalance <= 0) {
+            subtitle = `Sem fatura pendente`;
+            backgroundColor = '#E8F9E8';
+            iconColor = '#28A745';
+          } else if (usagePercentage > 90) {
+            subtitle = `Limite quase esgotado (${usagePercentage.toFixed(0)}%)`;
+            backgroundColor = '#FFE2E6';
+            iconColor = '#FF3B30';
+          } else if (usagePercentage > 70) {
+            subtitle = `${usagePercentage.toFixed(0)}% do limite usado`;
+            backgroundColor = '#FFF6E3';
+            iconColor = '#FFB627';
+          } else if (currentBalance > 0) {
+            subtitle = `Fatura atual: ${formatCurrency(currentBalance)}`;
+            backgroundColor = '#FFE2E6';
+            iconColor = '#FF5A6E';
+          }
+          
+          // Só adicionar cartões com saldo > 0 (com fatura pendente)
+          if (currentBalance > 0) {
+            combinedData.push({
+              id: card.id,
+              type: 'card',
+              title: card.name || 'Cartão de Crédito',
+              subtitle,
+              amount: currentBalance,
+              backgroundColor,
+              iconColor,
+              icon: CreditCard,
+              creditLimit,
+              availableLimit,
+              usagePercentage,
+              bankName: card.bank_name
+            });
+          }
+        });
+      }
+      
+      // Ordenar por urgência (contas vencidas primeiro, depois por vencimento, depois cartões)
+      combinedData.sort((a, b) => {
+        // Priorizar contas vencidas
+        if (a.type === 'expense' && b.type === 'expense') {
+          if (a.isOverdue && !b.isOverdue) return -1;
+          if (!a.isOverdue && b.isOverdue) return 1;
+          return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+        }
+        // Despesas sempre antes de cartões
+        if (a.type === 'expense' && b.type === 'card') return -1;
+        if (a.type === 'card' && b.type === 'expense') return 1;
+        // Entre cartões, ordenar por saldo
+        if (a.type === 'card' && b.type === 'card') {
+          return Number(b.amount) - Number(a.amount);
+        }
+        return 0;
+      });
+      
+      console.log('Contas a pagar encontradas:', unpaidExpenses?.length || 0);
+      console.log('Cartões encontrados:', creditCards?.length || 0);
+      console.log('Total combinado:', combinedData.length);
+      
+      setBillsAndCards(combinedData.slice(0, 8)); // Aumentar limite para 8 itens
+      
+    } catch (error) {
+      console.error('Erro ao buscar contas a pagar e cartões:', error);
+      setBillsAndCards([]); // Limpar dados em caso de erro
+    } finally {
+      setLoadingBillsAndCards(false);
+    }
+  };
+
+  // Função para buscar contas a receber
+  const fetchAccountsReceivable = async () => {
+    try {
+      console.log('Iniciando busca de contas a receber...');
+      setLoadingAccountsReceivable(true);
+      
+      // Obter a sessão atual
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session?.user) {
+        console.error('Erro ao obter sessão:', sessionError);
+        return;
+      }
+      
+      const userId = session.user.id;
+      
+      // Buscar receitas não recebidas (contas a receber)
+      const { data: unpaidIncomes, error: incomesError } = await supabase
+        .from('incomes')
+        .select('*')
+        .eq('owner_id', userId)
+        .eq('is_received', false)
+        .order('receipt_date', { ascending: false })
+        .limit(3);
+      
+      const receivableData: any[] = [];
+      
+      // Processar receitas não recebidas
+      if (unpaidIncomes && !incomesError) {
+        unpaidIncomes.forEach(income => {
+          const receiptDate = new Date(income.receipt_date);
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          receiptDate.setHours(0, 0, 0, 0);
+          
+          const diffTime = receiptDate.getTime() - today.getTime();
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          
+          let dateText = '';
+          let backgroundColor = '#E8F9E8';
+          let iconColor = '#28A745';
+          
+          if (diffDays < 0) {
+            const overdueDays = Math.abs(diffDays);
+            if (overdueDays === 1) {
+              dateText = 'Atrasou ontem';
+            } else if (overdueDays <= 30) {
+              dateText = `Atrasou há ${overdueDays} dias`;
+            } else {
+              dateText = `Atrasou em ${receiptDate.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}`;
+            }
+            backgroundColor = '#FFF6E3';
+            iconColor = '#FFB627';
+          } else if (diffDays === 0) {
+            dateText = 'Recebe hoje';
+            backgroundColor = '#E8F9E8';
+            iconColor = '#28A745';
+          } else if (diffDays === 1) {
+            dateText = 'Recebe amanhã';
+            backgroundColor = '#E8F9E8';
+            iconColor = '#28A745';
+          } else if (diffDays <= 7) {
+            dateText = `Recebe em ${diffDays} dias`;
+            backgroundColor = '#E8F9E8';
+            iconColor = '#28A745';
+          } else {
+            dateText = `Previsto para ${receiptDate.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}`;
+            backgroundColor = '#E3F5FF';
+            iconColor = '#0095FF';
+          }
+          
+          // Definir categoria baseada na descrição
+          let category = 'Receita';
+          const description = income.description?.toLowerCase() || '';
+          
+          if (description.includes('salário') || description.includes('salario')) {
+            category = 'Salário';
+          } else if (description.includes('freelance') || description.includes('freela')) {
+            category = 'Freelance';
+          } else if (description.includes('reembolso')) {
+            category = 'Reembolso';
+          } else if (description.includes('venda')) {
+            category = 'Venda';
+          } else if (description.includes('aluguel')) {
+            category = 'Aluguel';
+          }
+          
+          receivableData.push({
+            id: income.id,
+            type: 'income',
+            title: income.description || 'Receita',
+            subtitle: dateText,
+            amount: income.amount,
+            backgroundColor,
+            iconColor,
+            icon: ArrowDownCircle,
+            receiptDate: income.receipt_date,
+            category,
+            isOverdue: diffDays < 0
+          });
+        });
+      }
+      
+      if (incomesError) {
+        console.error('Erro ao buscar receitas:', incomesError);
+      }
+      
+      console.log('Contas a receber encontradas:', unpaidIncomes?.length || 0);
+      console.log('Dados das receitas:', unpaidIncomes);
+      console.log('Dados processados para exibição:', receivableData);
+      
+      setAccountsReceivable(receivableData);
+      
+    } catch (error) {
+      console.error('Erro ao buscar contas a receber:', error);
+      setAccountsReceivable([]);
+    } finally {
+      setLoadingAccountsReceivable(false);
+    }
+  };
+
+  // Função para buscar metas financeiras
+  const fetchFinancialGoals = async () => {
+    try {
+      console.log('Iniciando busca de metas financeiras...');
+      setLoadingFinancialGoals(true);
+      
+      // Obter a sessão atual
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session?.user) {
+        console.error('Erro ao obter sessão:', sessionError);
+        return;
+      }
+      
+      const userId = session.user.id;
+      
+      // Buscar metas financeiras do usuário
+      const { data: goals, error: goalsError } = await supabase
+        .from('financial_goals')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(3);
+      
+      if (goalsError) {
+        console.error('Erro ao buscar metas financeiras:', goalsError);
+        setFinancialGoals([]);
+        return;
+      }
+      
+      const goalsData: any[] = [];
+      
+      // Processar metas financeiras
+      if (goals && goals.length > 0) {
+        goals.forEach(goal => {
+          const targetAmount = Number(goal.target_amount) || 0;
+          const currentAmount = Number(goal.current_amount) || 0;
+          const percentage = targetAmount > 0 ? Math.round((currentAmount / targetAmount) * 100) : 0;
+          
+          goalsData.push({
+            id: goal.id,
+            title: goal.title || 'Meta Financeira',
+            targetAmount,
+            currentAmount,
+            percentage: Math.min(percentage, 100), // Limitar a 100%
+            deadline: goal.deadline,
+            icon: goal.icon || '🎯',
+            color: goal.color || theme.primary
+          });
+        });
+      }
+      
+      console.log('Metas financeiras encontradas:', goals?.length || 0);
+      console.log('Dados das metas:', goalsData);
+      
+      setFinancialGoals(goalsData);
+      
+    } catch (error) {
+      console.error('Erro ao buscar metas financeiras:', error);
+      setFinancialGoals([]);
+    } finally {
+      setLoadingFinancialGoals(false);
+    }
+  };
+
+  // Função para buscar saldo inicial
+  const fetchInitialBalance = async () => {
+    try {
+      // Obter a sessão atual
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session?.user) {
+        console.error('Erro ao obter sessão:', sessionError);
+        return;
+      }
+      
+      const userId = session.user.id;
+      
+      // Buscar todas as contas do usuário
+      const { data: accounts, error: accountsError } = await supabase
+        .from('accounts')
+        .select('initial_balance')
+        .eq('owner_id', userId);
+      
+      if (accountsError) {
+        console.error('Erro ao buscar contas:', accountsError);
+        return;
+      }
+      
+      // Somar todos os saldos iniciais
+      const totalInitialBalance = accounts?.reduce((total, account) => {
+        return total + (Number(account.initial_balance) || 0);
+      }, 0) || 0;
+      
+      setInitialBalance(totalInitialBalance);
+      
+    } catch (error) {
+      console.error('Erro ao buscar saldo inicial:', error);
+    }
+  };
+
+  // Função para buscar saldo atual
+  const fetchCurrentBalance = async () => {
+    try {
+      // Obter a sessão atual
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session?.user) {
+        console.error('Erro ao obter sessão:', sessionError);
+        return;
+      }
+      
+      const userId = session.user.id;
+      
+      // Buscar todas as contas do usuário
+      const { data: accounts, error: accountsError } = await supabase
+        .from('accounts')
+        .select('balance')
+        .eq('owner_id', userId);
+      
+      if (accountsError) {
+        console.error('Erro ao buscar contas:', accountsError);
+        return;
+      }
+      
+      // Somar todos os saldos atuais
+      const totalCurrentBalance = accounts?.reduce((total, account) => {
+        return total + (Number(account.balance) || 0);
+      }, 0) || 0;
+      
+      setCurrentBalance(totalCurrentBalance);
+      
+    } catch (error) {
+      console.error('Erro ao buscar saldo atual:', error);
+    }
+  };
+
+  // Função para buscar saldo previsto (receitas - gastos do mês)
+  const fetchPredictedBalance = async () => {
+    try {
+      // Obter a sessão atual
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session?.user) {
+        console.error('Erro ao obter sessão:', sessionError);
+        return;
+      }
+      
+      const userId = session.user.id;
+      const currentDate = new Date();
+      const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+      const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+      
+      // Buscar receitas do mês
+      const { data: incomes, error: incomesError } = await supabase
+        .from('incomes')
+        .select('amount')
+        .eq('owner_id', userId)
+        .gte('receipt_date', startOfMonth.toISOString())
+        .lte('receipt_date', endOfMonth.toISOString());
+      
+      // Buscar despesas do mês
+      const { data: expenses, error: expensesError } = await supabase
+        .from('expenses')
+        .select('amount')
+        .eq('owner_id', userId)
+        .gte('due_date', startOfMonth.toISOString())
+        .lte('due_date', endOfMonth.toISOString());
+      
+      if (incomesError || expensesError) {
+        console.error('Erro ao buscar receitas/despesas:', incomesError || expensesError);
+        return;
+      }
+      
+      // Somar receitas do mês
+      const totalIncomes = incomes?.reduce((total, income) => {
+        return total + (Number(income.amount) || 0);
+      }, 0) || 0;
+      
+      // Somar despesas do mês
+      const totalExpenses = expenses?.reduce((total, expense) => {
+        return total + (Number(expense.amount) || 0);
+      }, 0) || 0;
+      
+      // Saldo previsto = receitas - despesas
+      const predicted = totalIncomes - totalExpenses;
+      setPredictedBalance(predicted);
+      
+    } catch (error) {
+      console.error('Erro ao buscar saldo previsto:', error);
+    }
+  };
+
+  // Função para buscar dados do gráfico
+  const fetchChartData = async () => {
+    try {
+      // Obter a sessão atual
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session?.user) {
+        console.error('Erro ao obter sessão:', sessionError);
+        return;
+      }
+      
+      const userId = session.user.id;
+      
+      // Buscar saldo inicial das contas
+      const { data: accounts, error: accountsError } = await supabase
+        .from('accounts')
+        .select('balance, initial_balance')
+        .eq('owner_id', userId);
+      
+      if (accountsError) {
+        console.error('Erro ao buscar contas:', accountsError);
+        return;
+      }
+      
+      const currentAccountBalance = accounts?.reduce((total, account) => {
+        return total + (Number(account.balance) || 0);
+      }, 0) || 0;
+      
+      const initialAccountBalance = accounts?.reduce((total, account) => {
+        return total + (Number(account.initial_balance) || 0);
+      }, 0) || 0;
+      
+      // Buscar todas as transações para calcular saldos históricos
+      const accountIds = accounts?.map(acc => acc.id).filter(id => id) || [];
+      
+      let transactions = [];
+      
+      if (accountIds.length > 0) {
+        const { data: transactionData } = await supabase
+          .from('transactions')
+          .select('amount, transaction_date, account_id')
+          .in('account_id', accountIds)
+          .order('transaction_date', { ascending: true });
+        
+        transactions = transactionData || [];
+      } else {
+        console.log('Nenhuma conta encontrada, usando dados padrão para o gráfico');
+      }
+      
+      // Gerar dados do gráfico: ontem, hoje e próximos 5 dias
+      const chartPoints = [];
+      
+      // Calcular saldo de ontem baseado nas transações
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      yesterday.setHours(23, 59, 59, 999); // Final do dia de ontem
+      
+      // Transações até o final de ontem
+      const transactionsUntilYesterday = transactions.filter(transaction => {
+        const transactionDate = new Date(transaction.transaction_date);
+        return transactionDate <= yesterday;
+      });
+      
+      const totalTransactionsUntilYesterday = transactionsUntilYesterday.reduce((sum, transaction) => {
+        return sum + (Number(transaction.amount) || 0);
+      }, 0);
+      
+      const yesterdayBalance = initialAccountBalance + totalTransactionsUntilYesterday;
+      
+      // Adicionar ponto de ontem
+      const yesterdayDate = new Date();
+      yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+      chartPoints.push({
+        date: yesterdayDate,
+        balance: yesterdayBalance,
+        day: yesterdayDate.getDate(),
+        isToday: false
+      });
+      
+      // Buscar receitas e despesas futuras (próximos 5 dias)
+      const futureDate = new Date();
+      futureDate.setDate(futureDate.getDate() + 5);
+      futureDate.setHours(23, 59, 59, 999);
+      
+      const { data: futureIncomes } = await supabase
+        .from('incomes')
+        .select('amount, receipt_date')
+        .eq('owner_id', userId)
+        .gte('receipt_date', new Date().toISOString())
+        .lte('receipt_date', futureDate.toISOString())
+        .eq('is_received', false);
+      
+      const { data: futureExpenses } = await supabase
+        .from('expenses')
+        .select('amount, due_date')
+        .eq('owner_id', userId)
+        .gte('due_date', new Date().toISOString())
+        .lte('due_date', futureDate.toISOString())
+        .eq('is_paid', false);
+      
+      // Gerar pontos de hoje e próximos dias
+      for (let i = 0; i < 6; i++) {
+        const date = new Date();
+        date.setDate(date.getDate() + i);
+        
+        let dayBalance;
+        
+        if (i === 0) {
+          // Hoje: usar saldo atual real
+          dayBalance = currentAccountBalance;
+        } else {
+          // Dias futuros: calcular baseado em receitas e despesas previstas até esta data
+          const targetDate = new Date();
+          targetDate.setDate(targetDate.getDate() + i);
+          targetDate.setHours(23, 59, 59, 999);
+          
+          // Filtrar receitas até esta data
+          const incomesUntilDate = (futureIncomes || []).filter(income => {
+            const incomeDate = new Date(income.receipt_date);
+            return incomeDate <= targetDate;
+          });
+          
+          // Filtrar despesas até esta data
+          const expensesUntilDate = (futureExpenses || []).filter(expense => {
+            const expenseDate = new Date(expense.due_date);
+            return expenseDate <= targetDate;
+          });
+          
+          const totalFutureIncome = incomesUntilDate.reduce((sum, income) => sum + (Number(income.amount) || 0), 0);
+          const totalFutureExpense = expensesUntilDate.reduce((sum, expense) => sum + (Number(expense.amount) || 0), 0);
+          
+          dayBalance = currentAccountBalance + totalFutureIncome - totalFutureExpense;
+        }
+        
+        chartPoints.push({
+          date: date,
+          balance: dayBalance,
+          day: date.getDate(),
+          isToday: i === 0
+        });
+      }
+      
+      // Debug: log dos pontos calculados
+      console.log('Chart Data Calculado:', chartPoints.map(point => ({
+        date: point.date.toLocaleDateString('pt-BR'),
+        balance: point.balance,
+        isToday: point.isToday
+      })));
+      
+      setChartData(chartPoints);
+      
+    } catch (error) {
+      console.error('Erro ao buscar dados do gráfico:', error);
+    }
+  };
+
+  // Função para buscar transações do calendário financeiro
+  const fetchCalendarEvents = async () => {
+    try {
+      setLoadingCalendar(true);
+      
+      // Obter a sessão atual
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session?.user) {
+        console.error('Erro ao obter sessão:', sessionError);
+        return;
+      }
+      
+      const userId = session.user.id;
+      const currentDate = new Date();
+      const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+      startOfMonth.setHours(0, 0, 0, 0);
+      const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+      endOfMonth.setHours(23, 59, 59, 999);
+      
+      // Buscar todas as transações do mês
+      const { data: monthData, error: transactionsError } = await supabase
+        .from('transactions')
+        .select('transaction_date, transaction_type, amount')
+        .gte('transaction_date', startOfMonth.toISOString())
+        .lte('transaction_date', endOfMonth.toISOString())
+        .or(`owner_id.eq.${userId},partner_id.eq.${userId}`);
+      
+      if (transactionsError) {
+        console.error('Erro ao buscar transações do mês:', transactionsError);
+        return;
+      }
+      
+      // Processar os dados para criar um mapa de dias com transações
+      const transactionsByDay: {[key: string]: {income: boolean, expense: boolean, transfer: boolean}} = {};
+      
+      if (monthData && monthData.length > 0) {
+        monthData.forEach(transaction => {
+          const date = new Date(transaction.transaction_date);
+          const day = date.getDate();
+          const key = day.toString();
+          
+          // Inicializar o objeto para este dia se ainda não existir
+          if (!transactionsByDay[key]) {
+            transactionsByDay[key] = {
+              income: false,
+              expense: false,
+              transfer: false
+            };
+          }
+          
+          // Marcar o tipo de transação
+          if (transaction.transaction_type === 'income' || parseFloat(transaction.amount) > 0) {
+            transactionsByDay[key].income = true;
+          } else if (transaction.transaction_type === 'expense' || parseFloat(transaction.amount) < 0) {
+            transactionsByDay[key].expense = true;
+          } else if (transaction.transaction_type === 'transfer') {
+            transactionsByDay[key].transfer = true;
+          }
+        });
+      }
+      
+      setCalendarEvents(transactionsByDay);
+      
+    } catch (error) {
+      console.error('Erro ao buscar transações do calendário:', error);
+    } finally {
+      setLoadingCalendar(false);
+    }
+  };
+
   // Funções para navegar entre meses
   const goToPreviousMonth = () => {
     setCurrentMonth(prevMonth => {
@@ -399,6 +1633,42 @@ export default function Dashboard() {
   // Capitalize primeira letra
   const capitalizeFirstLetter = (string: string) => {
     return string.charAt(0).toUpperCase() + string.slice(1);
+  };
+
+  // Função para formatar valores monetários
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL'
+    }).format(value);
+  };
+
+  // Função para formatar percentual de mudança
+  const formatPercentageChange = (change: number) => {
+    const sign = change >= 0 ? '+' : '';
+    return `${sign}${change.toFixed(1)}% desde o mês anterior`;
+  };
+
+  // Função para gerar dias do calendário
+  const generateCalendarDays = () => {
+    const today = new Date();
+    const currentDay = today.getDate();
+    const daysInWeek = 7;
+    const startDay = Math.max(1, currentDay - 3); // Mostrar 3 dias antes do atual
+    const endDay = Math.min(new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate(), startDay + daysInWeek - 1);
+    
+    const days = [];
+    for (let day = startDay; day <= endDay; day++) {
+      days.push(day);
+    }
+    
+    return days;
+  };
+
+  // Função para obter transações de um dia específico
+  const getTransactionsForDay = (day: number) => {
+    const dayKey = day.toString();
+    return calendarEvents[dayKey] || null;
   };
 
   // Nomes baseados no tema
@@ -435,35 +1705,50 @@ export default function Dashboard() {
   
   // Funções para navegar entre transações
   const goToPreviousTransaction = () => {
-    setCurrentTransactionIndex(prev => 
-      prev === 0 ? transactions.length - 1 : prev - 1
-    );
+    if (recentTransactions.length > 0) {
+      setCurrentTransactionIndex(prev => 
+        prev === 0 ? recentTransactions.length - 1 : prev - 1
+      );
+    }
   };
   
   const goToNextTransaction = () => {
-    setCurrentTransactionIndex(prev => 
-      prev === transactions.length - 1 ? 0 : prev + 1
-    );
+    if (recentTransactions.length > 0) {
+      setCurrentTransactionIndex(prev => 
+        prev === recentTransactions.length - 1 ? 0 : prev + 1
+      );
+    }
   };
 
   // Gerar datas para a linha do tempo
   const generateTimelineDates = (date: Date) => {
-    const firstDay = new Date(date.getFullYear(), date.getMonth(), 1);
-    const dates = [];
+    // Sempre retornar chartData se disponível, pois contém os saldos reais
+    if (chartData.length > 0) {
+      return chartData;
+    }
     
-    // Gerar 7 datas começando do primeiro dia do mês
-    for (let i = 0; i < 7; i++) {
-      const currentDate = new Date(firstDay);
-      currentDate.setDate(firstDay.getDate() + i);
-      dates.push(currentDate);
+    // Fallback: gerar dados vazios se chartData ainda não foi carregado
+    const dates = [];
+    for (let i = -1; i < 6; i++) {
+      const currentDate = new Date();
+      currentDate.setDate(currentDate.getDate() + i);
+      dates.push({
+        date: currentDate,
+        balance: 0, // Saldo zero até os dados reais serem carregados
+        day: currentDate.getDate(),
+        isToday: i === 0
+      });
     }
     
     return dates;
   };
 
   // Formatar data para exibição
-  const formatDateForTimeline = (date: Date) => {
-    return `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+  const formatDateForTimeline = (dataPoint: any) => {
+    if (dataPoint.date) {
+      return `${dataPoint.date.getDate().toString().padStart(2, '0')}/${(dataPoint.date.getMonth() + 1).toString().padStart(2, '0')}`;
+    }
+    return `${dataPoint.getDate().toString().padStart(2, '0')}/${(dataPoint.getMonth() + 1).toString().padStart(2, '0')}`;
   };
 
   // Função para selecionar imagem da galeria
@@ -916,27 +2201,17 @@ export default function Dashboard() {
               
               <View style={styles.balanceValueRow}>
                 <View style={styles.balanceValueItem}>
-                  <Text style={styles.balanceAmountSmall}>R$ 0,00</Text>
+                  <Text style={styles.balanceAmountSmall}>{formatCurrency(initialBalance)}</Text>
                 </View>
                 <View style={[styles.balanceValueItem, styles.balanceValueCenterItem]}>
-                  <Text style={styles.balanceAmountLarge}>R$ 0,00</Text>
+                  <Text style={styles.balanceAmountLarge}>{formatCurrency(currentBalance)}</Text>
                 </View>
                 <View style={styles.balanceValueItem}>
-                  <Text style={styles.balanceAmountSmall}>R$ 0,00</Text>
+                  <Text style={styles.balanceAmountSmall}>{formatCurrency(predictedBalance)}</Text>
                 </View>
               </View>
               
-              <View style={styles.dateSelector}>
-                <View style={styles.dateTimeline}>
-                  <View style={styles.timelineLine} />
-                  {generateTimelineDates(currentMonth).map((date, index) => (
-                    <View key={index} style={styles.dateItem}>
-                      <View style={styles.dateDot} />
-                      <Text style={styles.dateText}>{formatDateForTimeline(date)}</Text>
-                    </View>
-                  ))}
-                </View>
-              </View>
+
             </View>
 
             <View style={styles.usersRow}>
@@ -1012,12 +2287,21 @@ export default function Dashboard() {
               onPressIn={() => setPressedCard('receitas')}
               onPressOut={() => {
                 setPressedCard(null);
-                router.push('/historico-receitas');
               }}
             >
               <Text style={styles.cardLabel}>Receitas</Text>
-              <Text style={styles.cardAmount}>R$ 5.000</Text>
-              <Text style={styles.cardChangePositive}>+10% desde Março</Text>
+              {loadingFinancialData ? (
+                <ActivityIndicator size="small" color={theme.primary} />
+              ) : (
+                <>
+                  <Text style={styles.cardAmount}>{formatCurrency(financialData.receitas.total)}</Text>
+                  <Text style={[
+                    financialData.receitas.change >= 0 ? styles.cardChangePositive : styles.cardChangeNegative
+                  ]}>
+                    {formatPercentageChange(financialData.receitas.change)}
+                  </Text>
+                </>
+              )}
             </Pressable>
 
             <Pressable 
@@ -1029,46 +2313,73 @@ export default function Dashboard() {
               onPressIn={() => setPressedCard('despesas')}
               onPressOut={() => {
                 setPressedCard(null);
-                router.push('/historico-despesas');
               }}
             >
               <Text style={styles.cardLabel}>Despesas</Text>
-              <Text style={styles.cardAmount}>R$ 1.880</Text>
-              <Text style={styles.cardChangeNegative}>-3,2% desde Março</Text>
+              {loadingFinancialData ? (
+                <ActivityIndicator size="small" color={theme.primary} />
+              ) : (
+                <>
+                  <Text style={styles.cardAmount}>{formatCurrency(financialData.despesas.total)}</Text>
+                  <Text style={[
+                    financialData.despesas.change >= 0 ? styles.cardChangeNegative : styles.cardChangePositive
+                  ]}>
+                    {formatPercentageChange(financialData.despesas.change)}
+                  </Text>
+                </>
+              )}
             </Pressable>
             
             <Pressable 
               style={({pressed}) => [
-                styles.card, 
+                styles.financialCard, 
                 { backgroundColor: theme.card },
-                pressed && styles.cardPressed
+                pressed && styles.financialCardPressed
               ]}
               onPressIn={() => setPressedCard('debitos')}
               onPressOut={() => {
                 setPressedCard(null);
-                router.push('/historico-debitos');
               }}
             >
               <Text style={styles.cardLabel}>Débitos</Text>
-              <Text style={styles.cardAmount}>R$ 2.350</Text>
-              <Text style={styles.cardChangeNegative}>+5,7% desde Março</Text>
+              {loadingFinancialData ? (
+                <ActivityIndicator size="small" color={theme.primary} />
+              ) : (
+                <>
+                  <Text style={styles.cardAmount}>{formatCurrency(financialData.debitos.total)}</Text>
+                  <Text style={[
+                    financialData.debitos.change >= 0 ? styles.cardChangeNegative : styles.cardChangePositive
+                  ]}>
+                    {formatPercentageChange(financialData.debitos.change)}
+                  </Text>
+                </>
+              )}
             </Pressable>
             
             <Pressable 
               style={({pressed}) => [
-                styles.card, 
+                styles.financialCard, 
                 { backgroundColor: theme.card },
-                pressed && styles.cardPressed
+                pressed && styles.financialCardPressed
               ]}
               onPressIn={() => setPressedCard('creditos')}
               onPressOut={() => {
                 setPressedCard(null);
-                router.push('/historico-creditos');
               }}
             >
               <Text style={styles.cardLabel}>Créditos</Text>
-              <Text style={styles.cardAmount}>R$ 3.200</Text>
-              <Text style={styles.cardChangePositive}>+8,3% desde Março</Text>
+              {loadingFinancialData ? (
+                <ActivityIndicator size="small" color={theme.primary} />
+              ) : (
+                <>
+                  <Text style={styles.cardAmount}>{formatCurrency(financialData.creditos.total)}</Text>
+                  <Text style={[
+                    financialData.creditos.change >= 0 ? styles.cardChangeNegative : styles.cardChangePositive
+                  ]}>
+                    {formatPercentageChange(financialData.creditos.change)}
+                  </Text>
+                </>
+              )}
             </Pressable>
           </View>
         </ScrollView>
@@ -1082,48 +2393,60 @@ export default function Dashboard() {
             </TouchableOpacity>
           </View>
           
-          <View style={styles.transactionWrapper}>
-            <TouchableOpacity onPress={goToPreviousTransaction} style={styles.transactionNavButton}>
-              <ChevronRight size={20} color="#999" style={{transform: [{rotate: '180deg'}] as any}} />
-            </TouchableOpacity>
-            
-            <View style={styles.transaction}>
-              <View style={[styles.transactionIconContainer, {backgroundColor: transactions[currentTransactionIndex].backgroundColor}]}>
-                <Text style={styles.transactionIcon}>{transactions[currentTransactionIndex].icon}</Text>
-              </View>
-              <View style={styles.transactionDetails}>
-                <Text style={styles.transactionTitle}>{transactions[currentTransactionIndex].title}</Text>
-                {currentTransactionIndex === 2 ? (
-                  <>
-                    <Text style={styles.transactionSubtitle}>Almoço - Compartilhado</Text>
-                  </>
-                ) : (
-                  <Text style={styles.transactionSubtitle}>{transactions[currentTransactionIndex].subtitle}</Text>
-                )}
-              </View>
-              <View style={styles.transactionAmountContainer}>
-                <Text style={styles.transactionAmount}>{transactions[currentTransactionIndex].amount}</Text>
-                <Text style={styles.transactionType}>{transactions[currentTransactionIndex].paymentMethod}</Text>
-              </View>
+          {loadingTransactions ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="small" color={theme.primary} />
+              <Text style={styles.loadingText}>Carregando transações...</Text>
             </View>
-            
-            <TouchableOpacity onPress={goToNextTransaction} style={styles.transactionNavButton}>
-              <ChevronRight size={20} color="#999" />
-            </TouchableOpacity>
-          </View>
-          
-          <View style={styles.paginationDots}>
-            {transactions.map((_, index) => (
-              <View 
-                key={index}
-                style={[styles.paginationDot, 
-                  index === currentTransactionIndex ? 
-                  { backgroundColor: theme.secondary, width: 20 } : 
-                  { backgroundColor: '#e0e0e0' }
-                ]} 
-              />
-            ))}
-          </View>
+          ) : recentTransactions.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>Nenhuma transação encontrada</Text>
+            </View>
+          ) : (
+            <>
+              <TouchableOpacity onPress={goToNextTransaction} style={styles.transactionRow}>
+                <View style={[styles.iconContainer, {backgroundColor: recentTransactions[currentTransactionIndex]?.backgroundColor || '#E3F5FF'}]}>
+                  <Text style={styles.iconText}>{recentTransactions[currentTransactionIndex]?.icon || '💰'}</Text>
+                </View>
+                
+                <View style={styles.textContainer}>
+                  <Text style={styles.titleText} numberOfLines={1}>
+                    {recentTransactions[currentTransactionIndex]?.title || 'Transação'}
+                  </Text>
+                  <Text style={styles.subtitleText} numberOfLines={1}>
+                    {recentTransactions[currentTransactionIndex]?.subtitle || 'Detalhes'}
+                  </Text>
+                </View>
+                
+                <View style={styles.amountContainer}>
+                  <Text style={[
+                    styles.amountText,
+                    { color: recentTransactions[currentTransactionIndex]?.type === 'income' ? '#4CD964' : '#FF3B30' }
+                  ]} numberOfLines={1}>
+                    {recentTransactions[currentTransactionIndex]?.amount || 'R$ 0,00'}
+                  </Text>
+                  <Text style={styles.methodText} numberOfLines={1}>
+                    {recentTransactions[currentTransactionIndex]?.paymentMethod || 'N/A'}
+                  </Text>
+                </View>
+                
+                <ChevronRight size={16} color="#999" />
+              </TouchableOpacity>
+              
+              <View style={styles.paginationDots}>
+                {recentTransactions.map((_, index) => (
+                  <View 
+                    key={index}
+                    style={[styles.paginationDot, 
+                      index === currentTransactionIndex ? 
+                      { backgroundColor: theme.secondary, width: 20 } : 
+                      { backgroundColor: '#e0e0e0' }
+                    ]} 
+                  />
+                ))}
+              </View>
+            </>
+          )}
         </View>
 
         {/* Resumo do Mês */}
@@ -1132,28 +2455,37 @@ export default function Dashboard() {
             <Text style={styles.sectionTitle}>Resumo do Mês</Text>
           </View>
 
-          <View style={styles.summaryItem}>
-            <DollarSign size={18} color={theme.primary} />
-            <Text style={styles.summaryLabel}>Saldo total atual:</Text>
-            <Text style={styles.summaryValue}>R$ 3.120,00</Text>
-          </View>
+          {loadingSummaryData ? (
+            <View style={styles.summaryItem}>
+              <ActivityIndicator size="small" color={theme.primary} />
+              <Text style={styles.summaryLabel}>Carregando dados...</Text>
+            </View>
+          ) : (
+            <>
+              <View style={styles.summaryItem}>
+                <DollarSign size={18} color={theme.primary} />
+                <Text style={styles.summaryLabel}>Saldo total atual:</Text>
+                <Text style={styles.summaryValue}>{formatCurrency(summaryData.saldoTotal)}</Text>
+              </View>
 
-          <TouchableOpacity 
-            style={[styles.summaryItem, styles.clickableItem]}
-            onPress={() => router.push('/historico-receitas')}
-            activeOpacity={0.7}
-          >
-            <ArrowDownCircle size={18} color={theme.income} />
-            <Text style={styles.summaryLabel}>Receitas totais do mês:</Text>
-            <Text style={[styles.summaryValue, {color: theme.income}]}>R$ 5.000,00</Text>
-            <ChevronRight size={16} color="#999" style={styles.chevronIcon} />
-          </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.summaryItem, styles.clickableItem]}
+                onPress={() => router.push('/historico-receitas')}
+                activeOpacity={0.7}
+              >
+                <ArrowDownCircle size={18} color={theme.income} />
+                <Text style={styles.summaryLabel}>Receitas totais do mês:</Text>
+                <Text style={[styles.summaryValue, {color: theme.income}]}>{formatCurrency(summaryData.receitasMes)}</Text>
+                <ChevronRight size={16} color="#999" style={styles.chevronIcon} />
+              </TouchableOpacity>
 
-          <View style={styles.summaryItem}>
-            <ArrowUpCircle size={18} color={theme.expense} />
-            <Text style={styles.summaryLabel}>Despesas totais do mês:</Text>
-            <Text style={[styles.summaryValue, {color: theme.expense}]}>R$ 1.880,00</Text>
-          </View>
+              <View style={styles.summaryItem}>
+                <ArrowUpCircle size={18} color={theme.expense} />
+                <Text style={styles.summaryLabel}>Despesas totais do mês:</Text>
+                <Text style={[styles.summaryValue, {color: theme.expense}]}>{formatCurrency(summaryData.despesasMes)}</Text>
+              </View>
+            </>
+          )}
         </View>
 
         {/* Gastos por Pessoa */}
@@ -1162,35 +2494,65 @@ export default function Dashboard() {
             <Text style={styles.sectionTitle}>Gastos por Pessoa (até hoje)</Text>
           </View>
 
-          <View style={styles.personExpense}>
-            <View style={styles.personExpenseHeader}>
-              <Text style={styles.personName}>{primaryPerson}:</Text>
-              <Text style={styles.personAmount}>R$ 860,00</Text>
+          {loadingExpensesByPerson ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="small" color={theme.primary} />
+              <Text style={styles.loadingText}>Carregando gastos...</Text>
             </View>
-            <View style={styles.progressBar}>
-              <View style={[styles.progressFill, { backgroundColor: theme.primary, width: '45%' }]} />
-            </View>
-          </View>
+          ) : (
+            <>
+              <View style={styles.personExpense}>
+                <View style={styles.personExpenseHeader}>
+                  <Text style={styles.personName}>{expensesByPerson.currentUser.name}:</Text>
+                  <Text style={styles.personAmount}>{formatCurrency(expensesByPerson.currentUser.amount)}</Text>
+                </View>
+                <View style={styles.progressBar}>
+                  <View style={[styles.progressFill, { 
+                    backgroundColor: theme.primary, 
+                    width: `${expensesByPerson.currentUser.percentage}%` 
+                  }]} />
+                </View>
+              </View>
 
-          <View style={styles.personExpense}>
-            <View style={styles.personExpenseHeader}>
-              <Text style={styles.personName}>{secondaryPerson}:</Text>
-              <Text style={styles.personAmount}>R$ 1.020,00</Text>
-            </View>
-            <View style={styles.progressBar}>
-              <View style={[styles.progressFill, { backgroundColor: theme === themes.masculine ? theme.shared : theme.primary, width: '54%' }]} />
-            </View>
-          </View>
+              {expensesByPerson.partner.name !== 'Parceiro' && expensesByPerson.partner.amount > 0 && (
+                <View style={styles.personExpense}>
+                  <View style={styles.personExpenseHeader}>
+                    <Text style={styles.personName}>{expensesByPerson.partner.name}:</Text>
+                    <Text style={styles.personAmount}>{formatCurrency(expensesByPerson.partner.amount)}</Text>
+                  </View>
+                  <View style={styles.progressBar}>
+                    <View style={[styles.progressFill, { 
+                      backgroundColor: theme === themes.masculine ? theme.shared : theme.primary, 
+                      width: `${expensesByPerson.partner.percentage}%` 
+                    }]} />
+                  </View>
+                </View>
+              )}
 
-          <View style={styles.personExpense}>
-            <View style={styles.personExpenseHeader}>
-              <Text style={styles.personName}>Compartilhado:</Text>
-              <Text style={styles.personAmount}>R$ 1.200,00</Text>
-            </View>
-            <View style={styles.progressBar}>
-              <View style={[styles.progressFill, { backgroundColor: theme.shared, width: '63%' }]} />
-            </View>
-          </View>
+              {expensesByPerson.shared.amount > 0 && (
+                <View style={styles.personExpense}>
+                  <View style={styles.personExpenseHeader}>
+                    <Text style={styles.personName}>Compartilhado:</Text>
+                    <Text style={styles.personAmount}>{formatCurrency(expensesByPerson.shared.amount)}</Text>
+                  </View>
+                  <View style={styles.progressBar}>
+                    <View style={[styles.progressFill, { 
+                      backgroundColor: theme.shared, 
+                      width: `${expensesByPerson.shared.percentage}%` 
+                    }]} />
+                  </View>
+                </View>
+              )}
+
+              {expensesByPerson.currentUser.amount === 0 && 
+               expensesByPerson.partner.amount === 0 && 
+               expensesByPerson.shared.amount === 0 && (
+                <View style={styles.emptyContainer}>
+                  <Text style={styles.emptyText}>Nenhum gasto encontrado</Text>
+                </View>
+              )}
+            </>
+          )}
         </View>
 
         {/* Contas a Pagar & Cartões */}
@@ -1200,76 +2562,64 @@ export default function Dashboard() {
               <Text style={styles.sectionTitle}>Contas a Pagar & Cartões</Text>
               <ChevronRight size={20} color="#999" />
             </View>
-            <View style={styles.billItem}>
-              <View style={[styles.billIconContainer, {backgroundColor: '#FFE2E6'}]}>
-                <CreditCard size={20} color="#FF5A6E" />
+            
+            {loadingBillsAndCards ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="small" color={theme.primary} />
+                <Text style={styles.loadingText}>Carregando contas...</Text>
               </View>
-              <View style={styles.billDetails}>
-                <Text style={styles.billTitle}>Cartão Nubank</Text>
-                <Text style={styles.billDate}>Vence em 10 Abr</Text>
+            ) : billsAndCards.length === 0 ? (
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyText}>Nenhuma conta pendente</Text>
               </View>
-              <Text style={styles.billAmount}>R$ 783,50</Text>
-            </View>
-            <View style={styles.billItem}>
-              <View style={[styles.billIconContainer, {backgroundColor: '#E3F5FF'}]}>
-                <Receipt size={20} color="#0095FF" />
-              </View>
-              <View style={styles.billDetails}>
-                <Text style={styles.billTitle}>Aluguel</Text>
-                <Text style={styles.billDate}>Débito automático · 05 Abr</Text>
-              </View>
-              <Text style={styles.billAmount}>R$ 1.200,00</Text>
-            </View>
-            <View style={styles.billItem}>
-              <View style={[styles.billIconContainer, {backgroundColor: '#FFF6E3'}]}>
-                <Receipt size={20} color="#FFB627" />
-              </View>
-              <View style={styles.billDetails}>
-                <Text style={styles.billTitle}>Internet</Text>
-                <Text style={styles.billDate}>Boleto · 15 Abr</Text>
-              </View>
-              <Text style={styles.billAmount}>R$ 120,00</Text>
-            </View>
+            ) : (
+              billsAndCards.map((item, index) => (
+                <View key={item.id || index} style={styles.billItem}>
+                  <View style={[styles.billIconContainer, {backgroundColor: item.backgroundColor}]}>
+                    <item.icon size={20} color={item.iconColor} />
+                  </View>
+                  <View style={styles.billDetails}>
+                    <Text style={styles.billTitle}>{item.title}</Text>
+                    <Text style={styles.billDate}>{item.subtitle}</Text>
+                  </View>
+                  <Text style={styles.billAmount}>{formatCurrency(Number(item.amount))}</Text>
+                </View>
+              ))
+            )}
           </View>
         </TouchableOpacity>
 
         {/* Contas a Receber */}
-        <TouchableOpacity onPress={() => router.push('/income')} activeOpacity={0.8}>
+        <TouchableOpacity onPress={() => router.push('/receitas')} activeOpacity={0.8}>
           <View style={[styles.sectionContainer, { backgroundColor: theme.card }]}> 
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Contas a Receber</Text>
               <ChevronRight size={20} color="#999" />
             </View>
-            <View style={styles.billItem}>
-              <View style={[styles.billIconContainer, {backgroundColor: '#E2FFE9'}]}>
-                <ArrowDownCircle size={20} color="#4CD964" />
+            
+            {loadingAccountsReceivable ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="small" color={theme.primary} />
+                <Text style={styles.loadingText}>Carregando receitas...</Text>
               </View>
-              <View style={styles.billDetails}>
-                <Text style={styles.billTitle}>Salário</Text>
-                <Text style={styles.billDate}>Previsto para 05 Abr</Text>
+            ) : accountsReceivable.length === 0 ? (
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyText}>Nenhuma receita pendente</Text>
               </View>
-              <Text style={styles.billAmount}>R$ 3.500,00</Text>
-            </View>
-            <View style={styles.billItem}>
-              <View style={[styles.billIconContainer, {backgroundColor: '#E8F9E8'}]}>
-                <ArrowDownCircle size={20} color="#28A745" />
-              </View>
-              <View style={styles.billDetails}>
-                <Text style={styles.billTitle}>Freelance</Text>
-                <Text style={styles.billDate}>Confirmado · 12 Abr</Text>
-              </View>
-              <Text style={styles.billAmount}>R$ 850,00</Text>
-            </View>
-            <View style={styles.billItem}>
-              <View style={[styles.billIconContainer, {backgroundColor: '#DEFCE4'}]}>
-                <ArrowDownCircle size={20} color="#20C948" />
-              </View>
-              <View style={styles.billDetails}>
-                <Text style={styles.billTitle}>Reembolso</Text>
-                <Text style={styles.billDate}>Pix · 20 Abr</Text>
-              </View>
-              <Text style={styles.billAmount}>R$ 650,00</Text>
-            </View>
+            ) : (
+              accountsReceivable.map((item, index) => (
+                <View key={item.id || index} style={styles.billItem}>
+                  <View style={[styles.billIconContainer, {backgroundColor: item.backgroundColor}]}>
+                    <item.icon size={20} color={item.iconColor} />
+                  </View>
+                  <View style={styles.billDetails}>
+                    <Text style={styles.billTitle}>{item.title}</Text>
+                    <Text style={styles.billDate}>{item.subtitle}</Text>
+                  </View>
+                  <Text style={styles.billAmount}>{formatCurrency(Number(item.amount))}</Text>
+                </View>
+              ))
+            )}
           </View>
         </TouchableOpacity>
 
@@ -1277,90 +2627,130 @@ export default function Dashboard() {
         <View style={[styles.sectionContainer, { backgroundColor: theme.card }]}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Metas Financeiras</Text>
-            <TouchableOpacity>
+            <TouchableOpacity onPress={() => router.push('/planning')}>
               <ChevronRight size={20} color="#999" />
             </TouchableOpacity>
           </View>
 
-          <View style={styles.goalItem}>
-            <View style={styles.goalHeader}>
-              <View style={styles.goalTitleContainer}>
-                <Target size={18} color={theme.primary} />
-                <Text style={styles.goalTitle}>Economizar R$ 1.000/mês</Text>
+          {loadingFinancialGoals ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="small" color={theme.primary} />
+              <Text style={styles.loadingText}>Carregando metas...</Text>
+            </View>
+          ) : financialGoals.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>Nenhuma meta cadastrada</Text>
+            </View>
+          ) : (
+            financialGoals.map((goal, index) => (
+              <View key={goal.id || index} style={styles.goalItem}>
+                <View style={styles.goalHeader}>
+                  <View style={styles.goalTitleContainer}>
+                    <Target size={18} color={goal.color} />
+                    <Text style={styles.goalTitle}>{goal.title}</Text>
+                  </View>
+                  {goal.percentage <= 100 ? (
+                    <Text style={styles.goalPercentage}>{goal.percentage}%</Text>
+                  ) : (
+                    <Text style={styles.goalAmount}>
+                      {formatCurrency(goal.currentAmount)} <Text style={styles.goalTarget}>/ {formatCurrency(goal.targetAmount)}</Text>
+                    </Text>
+                  )}
+                </View>
+                <View style={styles.progressBar}>
+                  <View style={[styles.progressFill, { backgroundColor: goal.color, width: `${Math.min(goal.percentage, 100)}%` }]} />
+                </View>
               </View>
-              <Text style={styles.goalPercentage}>65%</Text>
-            </View>
-            <View style={styles.progressBar}>
-              <View style={[styles.progressFill, { backgroundColor: theme.primary, width: '65%' }]} />
-            </View>
-          </View>
-
-          <View style={styles.goalItem}>
-            <View style={styles.goalHeader}>
-              <View style={styles.goalTitleContainer}>
-                <Target size={18} color={theme.secondary} />
-                <Text style={styles.goalTitle}>Fundo para carro novo</Text>
-              </View>
-              <Text style={styles.goalAmount}>R$ 12.000 <Text style={styles.goalTarget}>/ R$ 25.000</Text></Text>
-            </View>
-            <View style={styles.progressBar}>
-              <View style={[styles.progressFill, { backgroundColor: theme.secondary, width: '48%' }]} />
-            </View>
-          </View>
+            ))
+          )}
         </View>
 
-        {/* Calendário Financeiro - Preview */}
+        {/* Calendário Financeiro - Funcional */}
         <View style={[styles.sectionContainer, { backgroundColor: theme.card, marginBottom: 100 }]}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Calendário Financeiro</Text>
-            <TouchableOpacity>
+            <TouchableOpacity onPress={() => router.push('/(app)/registers')}>
               <ChevronRight size={20} color="#999" />
             </TouchableOpacity>
           </View>
 
-          <View style={styles.calendarPreview}>
-            <View style={styles.calendarRow}>
-              <View style={styles.calendarDay}>
-                <Text style={styles.calendarDayText}>5</Text>
-                <View style={[styles.calendarEvent, {backgroundColor: '#E3F5FF'}]}></View>
-              </View>
-              <View style={styles.calendarDay}>
-                <Text style={styles.calendarDayText}>6</Text>
-              </View>
-              <View style={styles.calendarDay}>
-                <Text style={styles.calendarDayText}>7</Text>
-              </View>
-              <View style={styles.calendarDay}>
-                <Text style={styles.calendarDayText}>8</Text>
-              </View>
-              <View style={[styles.calendarDay, styles.calendarDayToday]}>
-                <Text style={styles.calendarDayTextToday}>9</Text>
-                <View style={[styles.calendarEvent, {backgroundColor: '#FFE2E6'}]}></View>
-              </View>
-              <View style={styles.calendarDay}>
-                <Text style={styles.calendarDayText}>10</Text>
-                <View style={[styles.calendarEvent, {backgroundColor: '#FFE2E6'}]}></View>
-              </View>
-              <View style={styles.calendarDay}>
-                <Text style={styles.calendarDayText}>11</Text>
-              </View>
+          {loadingCalendar ? (
+            <View style={styles.calendarLoadingContainer}>
+              <ActivityIndicator size="small" color={theme.primary} />
+              <Text style={styles.calendarLoadingText}>Carregando eventos...</Text>
             </View>
+          ) : (
+            <View style={styles.calendarPreview}>
+              <View style={styles.calendarRow}>
+                {generateCalendarDays().map((day, index) => {
+                  const today = new Date().getDate();
+                  const isToday = day === today;
+                  const dayTransactions = getTransactionsForDay(day);
+                  
+                  return (
+                    <TouchableOpacity 
+                      key={day} 
+                      style={[
+                        styles.calendarDay,
+                        isToday && styles.calendarDayToday
+                      ]}
+                      onPress={() => {
+                        if (dayTransactions) {
+                          const types = [];
+                          if (dayTransactions.income) types.push('Receitas');
+                          if (dayTransactions.expense) types.push('Despesas');
+                          if (dayTransactions.transfer) types.push('Transferências');
+                          
+                          Alert.alert(
+                            `Transações do dia ${day}`,
+                            `Tipos de transações:\n• ${types.join('\n• ')}`,
+                            [{ text: 'OK' }]
+                          );
+                        }
+                      }}
+                    >
+                      <Text style={[
+                        styles.calendarDayText,
+                        isToday && styles.calendarDayTextToday
+                      ]}>
+                        {day}
+                      </Text>
+                      
+                      {/* Indicadores de transações */}
+                      {dayTransactions && (
+                        <View style={styles.calendarTransactionIndicators}>
+                          {dayTransactions.income && (
+                            <View style={[styles.calendarTransactionDot, { backgroundColor: '#4CD964' }]} />
+                          )}
+                          {dayTransactions.expense && (
+                            <View style={[styles.calendarTransactionDot, { backgroundColor: '#FF3A30' }]} />
+                          )}
+                          {dayTransactions.transfer && (
+                            <View style={[styles.calendarTransactionDot, { backgroundColor: '#FFCC02' }]} />
+                          )}
+                        </View>
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
 
-            <View style={styles.calendarLegend}>
-              <View style={styles.legendItem}>
-                <View style={[styles.legendDot, {backgroundColor: '#FFE2E6'}]} />
-                <Text style={styles.legendText}>Faturas de cartão</Text>
-              </View>
-              <View style={styles.legendItem}>
-                <View style={[styles.legendDot, {backgroundColor: '#E3F5FF'}]} />
-                <Text style={styles.legendText}>Débito automático</Text>
-              </View>
-              <View style={styles.legendItem}>
-                <View style={[styles.legendDot, {backgroundColor: '#FFF6E3'}]} />
-                <Text style={styles.legendText}>Boletos</Text>
+              <View style={styles.calendarLegend}>
+                <View style={styles.legendItem}>
+                  <View style={[styles.legendDot, {backgroundColor: '#4CD964'}]} />
+                  <Text style={styles.legendText}>Receitas</Text>
+                </View>
+                <View style={styles.legendItem}>
+                  <View style={[styles.legendDot, {backgroundColor: '#FF3A30'}]} />
+                  <Text style={styles.legendText}>Despesas</Text>
+                </View>
+                <View style={styles.legendItem}>
+                  <View style={[styles.legendDot, {backgroundColor: '#FFCC02'}]} />
+                  <Text style={styles.legendText}>Transferências</Text>
+                </View>
               </View>
             </View>
-          </View>
+          )}
         </View>
       </ScrollView>
 
@@ -2190,7 +3580,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   balanceAmountLarge: {
-    fontSize: 36,
+    fontSize: 28,
     fontFamily: fontFallbacks.Poppins_600SemiBold,
     color: 'white',
     textAlign: 'center',
@@ -2361,21 +3751,21 @@ const styles = StyleSheet.create({
     }),
   },
   cardLabel: {
-    fontSize: 16,
+    fontSize: 14,
     fontFamily: fontFallbacks.Poppins_600SemiBold,
     color: '#333',
     marginBottom: 8,
     flexShrink: 1,
   },
   cardAmount: {
-    fontSize: 24,
+    fontSize: 20,
     fontFamily: fontFallbacks.Poppins_600SemiBold,
     color: '#333',
     marginBottom: 2,
     flexShrink: 1,
   },
   cardChangePositive: {
-    fontSize: 14,
+    fontSize: 12,
     fontFamily: fontFallbacks.Poppins_400Regular,
     color: '#4CD964',
     flexShrink: 1,
@@ -2383,7 +3773,7 @@ const styles = StyleSheet.create({
     marginBottom: 0,
   },
   cardChangeNegative: {
-    fontSize: 14,
+    fontSize: 12,
     fontFamily: fontFallbacks.Poppins_400Regular,
     color: '#FF3B30',
     flexShrink: 1,
@@ -2448,59 +3838,76 @@ const styles = StyleSheet.create({
       }
     }),
   },
-  transactionWrapper: {
+  // Loading and Empty States
+  loadingContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 5,
-  },
-  transaction: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 15,
-    justifyContent: 'space-between',
-  },
-  transactionNavButton: {
-    padding: 10,
-  },
-  transactionIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#FFEEE2',
     justifyContent: 'center',
+    paddingVertical: 20,
+  },
+  loadingText: {
+    fontSize: 14,
+    fontFamily: fontFallbacks.Poppins_400Regular,
+    color: '#666',
+    marginLeft: 10,
+  },
+  emptyContainer: {
     alignItems: 'center',
-    marginRight: 15,
+    justifyContent: 'center',
+    paddingVertical: 20,
   },
-  transactionIcon: {
-    fontSize: 20,
-  },
-  transactionDetails: {
-    flex: 2,
-    marginRight: 10,
-  },
-  transactionTitle: {
-    fontSize: 16,
-    fontFamily: fontFallbacks.Poppins_500Medium,
-    color: '#333',
-  },
-  transactionSubtitle: {
+  emptyText: {
     fontSize: 14,
     fontFamily: fontFallbacks.Poppins_400Regular,
     color: '#666',
   },
-  transactionAmountContainer: {
-    justifyContent: 'flex-end',
-    alignItems: 'flex-end',
-    marginLeft: 5,
+  
+  // Transaction Row
+  transactionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
-  transactionAmount: {
+
+  iconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  iconText: {
+    fontSize: 16,
+  },
+  textContainer: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  titleText: {
+    fontSize: 16,
+    fontFamily: fontFallbacks.Poppins_500Medium,
+    color: '#333',
+    marginBottom: 2,
+  },
+  subtitleText: {
+    fontSize: 14,
+    fontFamily: fontFallbacks.Poppins_400Regular,
+    color: '#666',
+  },
+  amountContainer: {
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+    marginRight: 8,
+  },
+  amountText: {
     fontSize: 16,
     fontFamily: fontFallbacks.Poppins_600SemiBold,
     color: '#333',
+    marginBottom: 2,
   },
-  transactionType: {
+  methodText: {
     fontSize: 14,
     fontFamily: fontFallbacks.Poppins_400Regular,
     color: '#666',
@@ -2710,6 +4117,32 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: fontFallbacks.Poppins_400Regular,
     color: '#666',
+  },
+  calendarLoadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 20,
+  },
+  calendarLoadingText: {
+    marginLeft: 8,
+    fontSize: 14,
+    fontFamily: fontFallbacks.Poppins_400Regular,
+    color: '#666',
+  },
+  calendarTransactionIndicators: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    position: 'absolute',
+    bottom: 2,
+    left: 0,
+    right: 0,
+  },
+  calendarTransactionDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+    marginHorizontal: 1,
   },
   // Bottom Navigation
   bottomNav: {

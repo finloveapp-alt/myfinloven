@@ -1550,6 +1550,34 @@ const styles = StyleSheet.create({
     color: '#666',
     marginLeft: 4,
   },
+  // Estilos para seleção de meta/orçamento
+  allocationTypeContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  allocationTypeButton: {
+    flex: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    marginHorizontal: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  activeAllocationButton: {
+    borderWidth: 2,
+  },
+  allocationTypeText: {
+    fontSize: 14,
+    fontFamily: fontFallbacks.Poppins_500Medium,
+    color: '#666',
+  },
+  activeAllocationText: {
+    fontFamily: fontFallbacks.Poppins_600SemiBold,
+  },
 });
 
 export default function Registers() {
@@ -1614,6 +1642,17 @@ export default function Registers() {
   const [newAccountOwner, setNewAccountOwner] = useState('');
   const [accountTypesVisible, setAccountTypesVisible] = useState(false);
   const [accountOwnersVisible, setAccountOwnersVisible] = useState(false);
+  const [userCategories, setUserCategories] = useState<any[]>([]);
+  const [categoriesVisible, setCategoriesVisible] = useState(false);
+  
+  // Estados para seleção de meta ou orçamento
+  const [allocationType, setAllocationType] = useState<'none' | 'goal' | 'budget'>('none');
+  const [selectedGoalId, setSelectedGoalId] = useState<string | null>(null);
+  const [selectedBudgetId, setSelectedBudgetId] = useState<string | null>(null);
+  const [userGoals, setUserGoals] = useState<any[]>([]);
+  const [userBudgets, setUserBudgets] = useState<any[]>([]);
+  const [goalsVisible, setGoalsVisible] = useState(false);
+  const [budgetsVisible, setBudgetsVisible] = useState(false);
   
   // Lista de ícones disponíveis para seleção
   const availableIcons = [
@@ -1655,6 +1694,11 @@ export default function Registers() {
     fetchUserPartners();
     // Buscar cartões do usuário
     fetchUserCards();
+    // Buscar categorias do usuário
+    fetchUserCategories();
+    // Buscar metas e orçamentos do usuário
+    fetchUserGoals();
+    fetchUserBudgets();
   }, []);
 
   // useEffect para atualizar as transações quando o usuário seleciona outro dia
@@ -1902,11 +1946,11 @@ export default function Registers() {
       
       const userId = session.user.id;
       
-      // Construir o intervalo de datas para filtrar as transações
-      const startDate = new Date(currentYear, currentMonth, selectedDay);
+      // Construir o intervalo de datas para o mês inteiro
+      const startDate = new Date(currentYear, currentMonth, 1);
       startDate.setHours(0, 0, 0, 0);
       
-      const endDate = new Date(currentYear, currentMonth, selectedDay);
+      const endDate = new Date(currentYear, currentMonth + 1, 0);
       endDate.setHours(23, 59, 59, 999);
       
       // Consultar transações no intervalo de datas
@@ -2059,6 +2103,122 @@ export default function Registers() {
     }
   };
 
+  // Função para buscar as categorias do usuário
+  const fetchUserCategories = async () => {
+    try {
+      // Obter a sessão atual
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError) {
+        console.error('Erro ao obter sessão:', sessionError);
+        return;
+      }
+      
+      if (!session?.user) {
+        console.log('Nenhuma sessão de usuário encontrada');
+        return;
+      }
+      
+      const userId = session.user.id;
+      
+      // Buscar as categorias do usuário
+      const { data: categories, error: categoriesError } = await supabase
+        .from('categories')
+        .select('*')
+        .eq('user_id', userId)
+        .order('name', { ascending: true });
+      
+      if (categoriesError) {
+        console.error('Erro ao buscar categorias:', categoriesError);
+        setUserCategories([]);
+        return;
+      }
+      
+      if (categories && categories.length > 0) {
+        setUserCategories(categories);
+        console.log('Categorias encontradas:', categories);
+      } else {
+        console.log('Nenhuma categoria encontrada para o usuário');
+        setUserCategories([]);
+      }
+    } catch (error) {
+      console.error('Erro ao buscar categorias:', error);
+      setUserCategories([]);
+    }
+  };
+
+  // Função para buscar metas financeiras do usuário
+  const fetchUserGoals = async () => {
+    try {
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError) {
+        console.error('Erro ao obter sessão:', sessionError);
+        return;
+      }
+      
+      if (!session?.user) {
+        console.log('Nenhuma sessão de usuário encontrada');
+        return;
+      }
+      
+      const userId = session.user.id;
+      
+      const { data: goals, error: goalsError } = await supabase
+        .from('financial_goals')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+        
+      if (goalsError) {
+        console.error('Erro ao buscar metas financeiras:', goalsError);
+        return;
+      }
+      
+      setUserGoals(goals || []);
+    } catch (error) {
+      console.error('Erro ao buscar metas financeiras:', error);
+    }
+  };
+
+  // Função para buscar categorias de orçamento do usuário
+  const fetchUserBudgets = async () => {
+    try {
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError) {
+        console.error('Erro ao obter sessão:', sessionError);
+        return;
+      }
+      
+      if (!session?.user) {
+        console.log('Nenhuma sessão de usuário encontrada');
+        return;
+      }
+      
+      const userId = session.user.id;
+      const currentMonth = new Date().getMonth() + 1;
+      const currentYear = new Date().getFullYear();
+      
+      const { data: budgets, error: budgetsError } = await supabase
+        .from('budget_categories')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('month', currentMonth)
+        .eq('year', currentYear)
+        .order('created_at', { ascending: false });
+        
+      if (budgetsError) {
+        console.error('Erro ao buscar categorias de orçamento:', budgetsError);
+        return;
+      }
+      
+      setUserBudgets(budgets || []);
+    } catch (error) {
+      console.error('Erro ao buscar categorias de orçamento:', error);
+    }
+  };
+
   // Função para alternar a visibilidade da lista de parceiros
   const togglePartners = () => {
     setPartnersVisible(!partnersVisible);
@@ -2107,6 +2267,13 @@ export default function Registers() {
     setIsSharedTransaction(false); // Resetar para transação pessoal
     setSelectedPartnerId(null); // Resetar parceiro selecionado
     
+    // Resetar seleção de meta/orçamento
+    setAllocationType('none');
+    setSelectedGoalId(null);
+    setSelectedBudgetId(null);
+    setGoalsVisible(false);
+    setBudgetsVisible(false);
+    
     setModalVisible(true);
   };
 
@@ -2124,6 +2291,17 @@ export default function Registers() {
     setNewCategoryName(''); // Limpar nome da categoria
     setNewCategoryIcon(''); // Limpar ícone da categoria
     setNewCategoryIconsVisible(false); // Fechar seletor de ícones da categoria
+    setCategoriesVisible(false); // Fechar o dropdown de categorias
+    setIsAddingAccount(false); // Fechar o formulário de nova conta
+    setNewAccountName(''); // Limpar nome da conta
+    setNewAccountInitialBalance(''); // Limpar saldo inicial
+    setNewAccountType(''); // Limpar tipo da conta
+    setNewAccountOwner(''); // Limpar proprietário da conta
+    setAccountTypesVisible(false); // Fechar dropdown de tipos de conta
+    setAccountOwnersVisible(false); // Fechar dropdown de proprietários
+    setCardsVisible(false); // Fechar dropdown de cartões
+    setGoalsVisible(false); // Fechar dropdown de metas
+    setBudgetsVisible(false); // Fechar dropdown de orçamentos
   };
 
   // Função para alternar a visibilidade do seletor de ícones
@@ -2219,8 +2397,8 @@ export default function Registers() {
   };
 
   const selectRecurrenceEndDateFromPicker = (day: number) => {
-    setPickerDay(day);
-    const newDate = `${String(day).padStart(2, '0')}/${String(pickerMonth + 1).padStart(2, '0')}/${pickerYear}`;
+    setRecurrenceEndPickerDay(day);
+    const newDate = `${String(day).padStart(2, '0')}/${String(recurrenceEndPickerMonth + 1).padStart(2, '0')}/${recurrenceEndPickerYear}`;
     setRecurrenceEndDate(newDate);
     setRecurrenceEndDateVisible(false);
   };
@@ -2299,7 +2477,7 @@ export default function Registers() {
 
     // Agrupar os dias em semanas
     days.forEach((day, index) => {
-      const isSelected = pickerDay === day.day && day.currentMonth;
+      const isSelected = recurrenceEndPickerDay === day.day && day.currentMonth;
       
       cells.push(
         <TouchableOpacity
@@ -2425,6 +2603,8 @@ export default function Registers() {
         owner_id: userId,
         partner_id: isSharedTransaction ? selectedPartnerId : null, // Incluir parceiro apenas se for transação compartilhada
         card_id: selectedCardId || null, // Incluir o ID do cartão se selecionado
+        goal_id: allocationType === 'goal' ? selectedGoalId : null, // Incluir o ID da meta se selecionada
+        budget_category_id: allocationType === 'budget' ? selectedBudgetId : null, // Incluir o ID do orçamento se selecionado
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
         icon: selectedIcon || null // Incluir o ícone selecionado nos dados da transação
@@ -2443,7 +2623,23 @@ export default function Registers() {
         return;
       }
       
-      console.log('Transação salva com sucesso:', data);
+            console.log('Transação salva com sucesso:', data);
+      
+      // Vincular transação ao orçamento se selecionado (apenas para despesas)
+      if (transactionType === 'expense' && data && data[0] && allocationType === 'budget' && selectedBudgetId) {
+        const positiveAmount = Math.abs(transactionAmount); // Usar valor positivo para cálculos
+        
+        // Atualizar gasto do orçamento
+        const { error: budgetError } = await supabase.rpc('update_budget_spent', {
+          budget_id: selectedBudgetId,
+          amount_to_add: positiveAmount
+        });
+        
+        if (budgetError) {
+          console.error('Erro ao atualizar orçamento:', budgetError);
+          // Não interromper o fluxo, apenas logar o erro
+        }
+      }
       
       // O saldo do cartão é atualizado automaticamente pelo trigger do banco de dados
       
@@ -2498,13 +2694,39 @@ export default function Registers() {
   const createRecurringTransactions = async (baseTransactionData: any, startDate: Date, endDate: Date) => {
     try {
       const recurringTransactions = [];
-      const currentDate = new Date(startDate);
       
-      // Avançar para o próximo mês
-      currentDate.setMonth(currentDate.getMonth() + 1);
+      // Obter os componentes da data inicial
+      const originalDay = startDate.getDate();
+      const originalHour = startDate.getHours();
+      const originalMinute = startDate.getMinutes();
+      const originalSecond = startDate.getSeconds();
+      
+      let currentYear = startDate.getFullYear();
+      let currentMonth = startDate.getMonth() + 1; // Começar do próximo mês
       
       // Criar transações mensais até a data de fim
-      while (currentDate <= endDate) {
+      let iterationCount = 0;
+      while (true) {
+        iterationCount++;
+        
+        // Ajustar o ano se necessário
+        if (currentMonth > 11) {
+          currentMonth = 0;
+          currentYear++;
+        }
+        
+        // Criar a data para este mês
+        // Usar Math.min para garantir que o dia seja válido no mês atual
+        const daysInCurrentMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+        const dayToUse = Math.min(originalDay, daysInCurrentMonth);
+        
+        const currentDate = new Date(currentYear, currentMonth, dayToUse, originalHour, originalMinute, originalSecond);
+        
+        // Verificar se ainda está dentro do período de recorrência
+        if (currentDate > endDate) {
+          break;
+        }
+        
         const recurringTransaction = {
           ...baseTransactionData,
           transaction_date: currentDate.toISOString(),
@@ -2515,25 +2737,31 @@ export default function Registers() {
         recurringTransactions.push(recurringTransaction);
         
         // Avançar para o próximo mês
-        currentDate.setMonth(currentDate.getMonth() + 1);
+        currentMonth++;
+        
+        // Proteção contra loop infinito
+        if (iterationCount > 100) {
+          console.error('ERRO: Loop infinito detectado na criação de transações recorrentes.');
+          break;
+        }
       }
       
       // Inserir todas as transações recorrentes de uma vez
       if (recurringTransactions.length > 0) {
-        const { error: recurringError } = await supabase
+        const { data, error: recurringError } = await supabase
           .from('transactions')
-          .insert(recurringTransactions);
+          .insert(recurringTransactions)
+          .select();
         
         if (recurringError) {
           console.error('Erro ao criar transações recorrentes:', recurringError);
-          // Não interromper o fluxo, apenas logar o erro
         } else {
           console.log(`${recurringTransactions.length} transações recorrentes criadas com sucesso`);
         }
       }
+      
     } catch (error) {
       console.error('Erro ao processar transações recorrentes:', error);
-      // Não interromper o fluxo, apenas logar o erro
     }
   };
 
@@ -2895,8 +3123,13 @@ export default function Registers() {
 
   // Filtrar registros pelo dia selecionado
   const filteredRecords = React.useMemo(() => {
-    return transactions;
-  }, [transactions]);
+    return transactions.filter(transaction => {
+      const transactionDate = new Date(transaction.transaction_date);
+      return transactionDate.getDate() === selectedDay &&
+             transactionDate.getMonth() === currentMonth &&
+             transactionDate.getFullYear() === currentYear;
+    });
+  }, [transactions, selectedDay, currentMonth, currentYear]);
 
   // Calcular totais de receitas e despesas
   const { incomeTotal, expenseTotal } = React.useMemo(() => {
@@ -2927,6 +3160,13 @@ export default function Registers() {
   const selectPaymentMethod = (method: string) => {
     setPaymentMethod(method);
     setPaymentMethodsVisible(false);
+    
+    // Limpar cartão selecionado se for PIX ou Dinheiro
+    if (method === 'PIX' || method === 'Dinheiro') {
+      setSelectedCard('');
+      setSelectedCardId(null);
+      setCardsVisible(false);
+    }
   };
 
   // Funções para o seletor de contas
@@ -2939,6 +3179,9 @@ export default function Registers() {
     }
     if (calendarVisible) {
       setCalendarVisible(false);
+    }
+    if (categoriesVisible) {
+      setCategoriesVisible(false);
     }
   };
 
@@ -2968,6 +3211,9 @@ export default function Registers() {
     if (recurrenceVisible) {
       setRecurrenceVisible(false);
     }
+    if (categoriesVisible) {
+      setCategoriesVisible(false);
+    }
   };
 
   const selectCard = (card: Card) => {
@@ -2975,6 +3221,79 @@ export default function Registers() {
     setSelectedCard(`${card.bank_name} •••• ${lastFourDigits}`);
     setSelectedCardId(card.id);
     setCardsVisible(false);
+  };
+
+  // Função para alternar a visibilidade da lista de categorias
+  const toggleCategories = () => {
+    setCategoriesVisible(!categoriesVisible);
+    
+    // Fechar outros dropdowns se estiverem abertos
+    if (paymentMethodsVisible) {
+      setPaymentMethodsVisible(false);
+    }
+    if (calendarVisible) {
+      setCalendarVisible(false);
+    }
+    if (accountsVisible) {
+      setAccountsVisible(false);
+    }
+    if (iconsVisible) {
+      setIconsVisible(false);
+    }
+    if (partnersVisible) {
+      setPartnersVisible(false);
+    }
+    if (cardsVisible) {
+      setCardsVisible(false);
+    }
+    if (recurrenceVisible) {
+      setRecurrenceVisible(false);
+    }
+    if (recurrenceEndDateVisible) {
+      setRecurrenceEndDateVisible(false);
+    }
+    if (newCategoryIconsVisible) {
+      setNewCategoryIconsVisible(false);
+    }
+  };
+
+  // Função para selecionar uma categoria
+  const selectCategory = (category: any) => {
+    setSelectedCategory(category.name);
+    setCategoriesVisible(false);
+  };
+
+  // Funções para controlar seleção de meta ou orçamento
+  const toggleGoals = () => {
+    setGoalsVisible(!goalsVisible);
+    setBudgetsVisible(false);
+  };
+
+  const toggleBudgets = () => {
+    setBudgetsVisible(!budgetsVisible);
+    setGoalsVisible(false);
+  };
+
+  const selectGoal = (goal: any) => {
+    setSelectedGoalId(goal.id);
+    setAllocationType('goal');
+    setSelectedBudgetId(null);
+    setGoalsVisible(false);
+  };
+
+  const selectBudget = (budget: any) => {
+    setSelectedBudgetId(budget.id);
+    setAllocationType('budget');
+    setSelectedGoalId(null);
+    setBudgetsVisible(false);
+  };
+
+  const resetAllocation = () => {
+    setAllocationType('none');
+    setSelectedGoalId(null);
+    setSelectedBudgetId(null);
+    setGoalsVisible(false);
+    setBudgetsVisible(false);
   };
 
   // Converter data no formato DD/MM/YYYY para objeto Date
@@ -3094,6 +3413,9 @@ export default function Registers() {
     if (recurrenceEndDateVisible) {
       setRecurrenceEndDateVisible(false);
     }
+    if (categoriesVisible) {
+      setCategoriesVisible(false);
+    }
   };
 
   const selectNewCategoryIcon = (icon: string) => {
@@ -3122,24 +3444,17 @@ export default function Registers() {
       
       const userId = session.user.id;
       
-      // Determinar a cor automática baseada no tipo de transação
-      const categoryColor = transactionType === 'expense' ? '#FF5252' : 
-                           transactionType === 'income' ? '#9AFFCB' : '#666666';
-      
       // Preparar os dados da categoria
       const categoryData = {
         user_id: userId,
-        nome: newCategoryName.trim(),
-        tipo: transactionType === 'expense' ? 'despesa' : 
-              transactionType === 'income' ? 'receita' : 'transferencia',
-        icone: newCategoryIcon,
-        cor: categoryColor,
-        created_at: new Date().toISOString()
+        name: newCategoryName.trim(),
+        icon: newCategoryIcon,
+        type: transactionType
       };
       
       // Inserir a categoria no banco de dados
       const { data, error } = await supabase
-        .from('user_categories')
+        .from('categories')
         .insert([categoryData])
         .select();
       
@@ -3151,13 +3466,17 @@ export default function Registers() {
       
       console.log('Categoria salva com sucesso:', data);
       
-      // Criar a nova categoria formatada para uso local
-      const newCategory = `${newCategoryIcon} ${newCategoryName.trim()}`;
-      setSelectedCategory(newCategory);
+      // Atualizar a lista de categorias
+      await fetchUserCategories();
+      
+      // Selecionar a nova categoria
+      if (data && data.length > 0) {
+        setSelectedCategory(data[0].name);
+      }
       
       // Resetar e fechar o formulário
       setNewCategoryName('');
-      setNewCategoryIcon('');
+      setNewCategoryIcon('📝');
       setIsAddingCategory(false);
       setNewCategoryIconsVisible(false);
       
@@ -3240,17 +3559,39 @@ export default function Registers() {
       
       const userId = session.user.id;
       
-      // Preparar os dados da conta
+      // Determinar o owner_id e partner_id baseado na seleção
+      let ownerId = userId;
+      let partnerId = null;
+      let ownershipType = 'individual';
+      
+      if (newAccountOwner === 'Você') {
+        ownerId = userId;
+        partnerId = null;
+        ownershipType = 'individual';
+      } else {
+        // Encontrar o parceiro selecionado
+        const selectedPartner = userPartners.find(p => p.name === newAccountOwner);
+        if (selectedPartner) {
+          ownerId = selectedPartner.id;
+          partnerId = userId; // O usuário atual é o parceiro
+          ownershipType = 'compartilhada';
+        }
+      }
+      
+      // Converter valor inicial para número
+      const initialBalance = parseFloat(newAccountInitialBalance.replace(',', '.')) || 0;
+      
+      // Preparar os dados da conta conforme a estrutura da tabela
       const accountData = {
         name: newAccountName.trim(),
         type: newAccountType,
-        initial_balance: parseFloat(newAccountInitialBalance.replace(',', '.')) || 0,
-        current_balance: parseFloat(newAccountInitialBalance.replace(',', '.')) || 0,
-        owner_id: newAccountOwner === 'Você' ? userId : 
-                  userPartners.find(p => p.name === newAccountOwner)?.id || userId,
-        partner_id: newAccountOwner !== 'Você' ? userId : null,
-        color: '#0073ea', // Cor padrão
-        created_at: new Date().toISOString()
+        bank: newAccountName.trim(), // Usar o nome como banco também
+        balance: initialBalance,
+        initial_balance: initialBalance,
+        ownership_type: ownershipType,
+        color: '#0073ea', // Cor padrão azul
+        owner_id: ownerId,
+        partner_id: partnerId
       };
       
       // Inserir a conta no banco de dados
@@ -3521,7 +3862,9 @@ export default function Registers() {
                     borderColor: theme.expense 
                   }]
                 ]}
-                onPress={() => setTransactionType('expense')}
+                onPress={() => {
+                  setTransactionType('expense');
+                }}
               >
                 <View style={[styles.transactionIconContainer, { backgroundColor: transactionType === 'expense' ? theme.expense : '#f5f5f5' }]}>
                   <ArrowDown size={20} color={transactionType === 'expense' ? 'white' : '#666'} />
@@ -3540,7 +3883,15 @@ export default function Registers() {
                     borderColor: theme.income 
                   }]
                 ]}
-                onPress={() => setTransactionType('income')}
+                onPress={() => {
+                  setTransactionType('income');
+                  // Limpar forma de pagamento e cartão para receitas
+                  setPaymentMethod('');
+                  setSelectedCard('');
+                  setSelectedCardId(null);
+                  setPaymentMethodsVisible(false);
+                  setCardsVisible(false);
+                }}
               >
                 <View style={[styles.transactionIconContainer, { backgroundColor: transactionType === 'income' ? theme.income : '#f5f5f5' }]}>
                   <ArrowUp size={20} color={transactionType === 'income' ? 'white' : '#666'} />
@@ -3559,7 +3910,9 @@ export default function Registers() {
                     borderColor: 'rgb(255, 204, 0)' 
                   }]
                 ]}
-                onPress={() => setTransactionType('transfer')}
+                onPress={() => {
+                  setTransactionType('transfer');
+                }}
               >
                 <View style={[styles.transactionIconContainer, { backgroundColor: transactionType === 'transfer' ? 'rgb(255, 204, 0)' : '#f5f5f5' }]}>
                   <RefreshCw size={20} color={transactionType === 'transfer' ? 'white' : '#666'} />
@@ -3584,7 +3937,7 @@ export default function Registers() {
             </View>
 
             {/* Seletor de Ícone */}
-            <View style={[styles.inputGroup, { zIndex: 12 }]}>
+            <View style={[styles.inputGroup, { zIndex: 15 }]}>
               <Text style={styles.inputLabel}>Ícone</Text>
               <TouchableOpacity 
                 style={[
@@ -3663,7 +4016,7 @@ export default function Registers() {
 
             {/* Seletor de Parceiro (apenas visível se for transação compartilhada) */}
             {isSharedTransaction && (
-              <View style={[styles.inputGroup, { zIndex: 11 }]}>
+              <View style={[styles.inputGroup, { zIndex: 12 }]}>
                 <Text style={styles.inputLabel}>Compartilhar com</Text>
                 <TouchableOpacity 
                   style={[
@@ -3769,145 +4122,150 @@ export default function Registers() {
               </View>
             </View>
 
-            <View style={[styles.inputGroup, { zIndex: 25 }]}>
-              <Text style={styles.inputLabel}>Forma de Pagamento</Text>
-              <TouchableOpacity 
-                style={[
-                  styles.paymentMethodFullButton,
-                  paymentMethod ? styles.paymentMethodSelected : null
-                ]} 
-                onPress={togglePaymentMethods}
-              >
-                {paymentMethod ? (
-                  <>
-                    {paymentMethod === 'Débito' && <CreditCard size={20} color={theme.primary} style={{marginRight: 10}} />}
-                    {paymentMethod === 'Crédito' && <CreditCard size={20} color={theme.primary} style={{marginRight: 10}} />}
-                    {paymentMethod === 'PIX' && <RefreshCw size={20} color={theme.primary} style={{marginRight: 10}} />}
-                    {paymentMethod === 'Dinheiro' && <DollarSign size={20} color={theme.primary} style={{marginRight: 10}} />}
-                    <Text style={styles.paymentMethodSelectedText}>{paymentMethod}</Text>
-                  </>
-                ) : (
-                  <Text style={styles.paymentMethodText}>Selecione forma de pagamento</Text>
-                )}
-                <ChevronRight size={18} color="#666" style={{ transform: [{ rotate: '90deg' }] as any }} />
-              </TouchableOpacity>
-              
-              {paymentMethodsVisible && (
-                <View style={[styles.paymentMethodsDropdown, { zIndex: 30 }]}>
-                  <TouchableOpacity 
-                    style={[
-                      styles.paymentMethodOption,
-                      paymentMethod === 'Débito' && styles.paymentMethodOptionSelected
-                    ]} 
-                    onPress={() => selectPaymentMethod('Débito')}
-                  >
-                    <CreditCard size={20} color={paymentMethod === 'Débito' ? theme.primary : theme.text} />
-                    <Text style={[
-                      styles.paymentMethodOptionText,
-                      paymentMethod === 'Débito' && styles.paymentMethodOptionTextSelected
-                    ]}>Débito</Text>
-                  </TouchableOpacity>
-                  
-                  <TouchableOpacity 
-                    style={[
-                      styles.paymentMethodOption,
-                      paymentMethod === 'Crédito' && styles.paymentMethodOptionSelected
-                    ]} 
-                    onPress={() => selectPaymentMethod('Crédito')}
-                  >
-                    <CreditCard size={20} color={paymentMethod === 'Crédito' ? theme.primary : theme.text} />
-                    <Text style={[
-                      styles.paymentMethodOptionText,
-                      paymentMethod === 'Crédito' && styles.paymentMethodOptionTextSelected
-                    ]}>Crédito</Text>
-                  </TouchableOpacity>
-                  
-                  <TouchableOpacity 
-                    style={[
-                      styles.paymentMethodOption,
-                      paymentMethod === 'PIX' && styles.paymentMethodOptionSelected
-                    ]} 
-                    onPress={() => selectPaymentMethod('PIX')}
-                  >
-                    <RefreshCw size={20} color={paymentMethod === 'PIX' ? theme.primary : theme.text} />
-                    <Text style={[
-                      styles.paymentMethodOptionText,
-                      paymentMethod === 'PIX' && styles.paymentMethodOptionTextSelected
-                    ]}>PIX</Text>
-                  </TouchableOpacity>
-                  
-                  <TouchableOpacity 
-                    style={[
-                      styles.paymentMethodOption,
-                      paymentMethod === 'Dinheiro' && styles.paymentMethodOptionSelected,
-                      {borderBottomWidth: 0}
-                    ]} 
-                    onPress={() => selectPaymentMethod('Dinheiro')}
-                  >
-                    <DollarSign size={20} color={paymentMethod === 'Dinheiro' ? theme.primary : theme.text} />
-                    <Text style={[
-                      styles.paymentMethodOptionText,
-                      paymentMethod === 'Dinheiro' && styles.paymentMethodOptionTextSelected
-                    ]}>Dinheiro</Text>
-                  </TouchableOpacity>
-                </View>
-              )}
-            </View>
-
-            {/* Seleção de Cartão */}
-            <View style={[styles.inputGroup, { zIndex: 15 }]}>
-              <Text style={styles.inputLabel}>Selecione o Cartão</Text>
-              <TouchableOpacity style={styles.selectInput} onPress={toggleCards}>
-                <Text style={styles.selectPlaceholder}>
-                  {selectedCard || 'Selecione um cartão'}
-                </Text>
-                <ChevronRight size={20} color="#666" style={{ transform: [{ rotate: '90deg' }] as any }} />
-              </TouchableOpacity>
-              
-              {cardsVisible && (
-                <View style={[styles.paymentMethodsDropdown, { zIndex: 20 }]}>
-                  {userCards.length > 0 ? (
-                    userCards.map((card) => (
-                      <TouchableOpacity 
-                        key={card.id}
-                        style={[
-                          styles.paymentMethodOption,
-                          selectedCardId === card.id && styles.paymentMethodOptionSelected
-                        ]} 
-                        onPress={() => selectCard(card)}
-                      >
-                        <CreditCard size={20} color={selectedCardId === card.id ? theme.primary : theme.text} />
-                                                 <View style={{ flex: 1, marginLeft: 10 }}>
-                           <Text style={[
-                             styles.paymentMethodOptionText,
-                             selectedCardId === card.id && styles.paymentMethodOptionTextSelected
-                           ]}>
-                             {card.bank_name}
-                           </Text>
-                           <Text style={[
-                             styles.paymentMethodOptionText,
-                             { fontSize: 12, opacity: 0.7 },
-                             selectedCardId === card.id && styles.paymentMethodOptionTextSelected
-                           ]}>
-                             •••• {card.card_number?.slice(-4) || '0000'}
-                           </Text>
-                         </View>
-                      </TouchableOpacity>
-                    ))
+            {/* Forma de Pagamento - Ocultar para Receitas */}
+            {transactionType !== 'income' && (
+              <View style={[styles.inputGroup, { zIndex: 70 }]}>
+                <Text style={styles.inputLabel}>Forma de Pagamento</Text>
+                <TouchableOpacity 
+                  style={[
+                    styles.paymentMethodFullButton,
+                    paymentMethod ? styles.paymentMethodSelected : null
+                  ]} 
+                  onPress={togglePaymentMethods}
+                >
+                  {paymentMethod ? (
+                    <>
+                      {paymentMethod === 'Débito' && <CreditCard size={20} color={theme.primary} style={{marginRight: 10}} />}
+                      {paymentMethod === 'Crédito' && <CreditCard size={20} color={theme.primary} style={{marginRight: 10}} />}
+                      {paymentMethod === 'PIX' && <RefreshCw size={20} color={theme.primary} style={{marginRight: 10}} />}
+                      {paymentMethod === 'Dinheiro' && <DollarSign size={20} color={theme.primary} style={{marginRight: 10}} />}
+                      <Text style={styles.paymentMethodSelectedText}>{paymentMethod}</Text>
+                    </>
                   ) : (
-                    <View style={styles.paymentMethodOption}>
-                      <CreditCard size={20} color="#999" />
-                      <Text style={[styles.paymentMethodOptionText, { color: '#999' }]}>
-                        Nenhum cartão cadastrado
-                      </Text>
-                    </View>
+                    <Text style={styles.paymentMethodText}>Selecione forma de pagamento</Text>
                   )}
-                </View>
-              )}
-            </View>
+                  <ChevronRight size={18} color="#666" style={{ transform: [{ rotate: '90deg' }] as any }} />
+                </TouchableOpacity>
+                
+                                  {paymentMethodsVisible && (
+                    <View style={[styles.paymentMethodsDropdown, { zIndex: 75 }]}>
+                    <TouchableOpacity 
+                      style={[
+                        styles.paymentMethodOption,
+                        paymentMethod === 'Débito' && styles.paymentMethodOptionSelected
+                      ]} 
+                      onPress={() => selectPaymentMethod('Débito')}
+                    >
+                      <CreditCard size={20} color={paymentMethod === 'Débito' ? theme.primary : theme.text} />
+                      <Text style={[
+                        styles.paymentMethodOptionText,
+                        paymentMethod === 'Débito' && styles.paymentMethodOptionTextSelected
+                      ]}>Débito</Text>
+                    </TouchableOpacity>
+                    
+                    <TouchableOpacity 
+                      style={[
+                        styles.paymentMethodOption,
+                        paymentMethod === 'Crédito' && styles.paymentMethodOptionSelected
+                      ]} 
+                      onPress={() => selectPaymentMethod('Crédito')}
+                    >
+                      <CreditCard size={20} color={paymentMethod === 'Crédito' ? theme.primary : theme.text} />
+                      <Text style={[
+                        styles.paymentMethodOptionText,
+                        paymentMethod === 'Crédito' && styles.paymentMethodOptionTextSelected
+                      ]}>Crédito</Text>
+                    </TouchableOpacity>
+                    
+                    <TouchableOpacity 
+                      style={[
+                        styles.paymentMethodOption,
+                        paymentMethod === 'PIX' && styles.paymentMethodOptionSelected
+                      ]} 
+                      onPress={() => selectPaymentMethod('PIX')}
+                    >
+                      <RefreshCw size={20} color={paymentMethod === 'PIX' ? theme.primary : theme.text} />
+                      <Text style={[
+                        styles.paymentMethodOptionText,
+                        paymentMethod === 'PIX' && styles.paymentMethodOptionTextSelected
+                      ]}>PIX</Text>
+                    </TouchableOpacity>
+                    
+                    <TouchableOpacity 
+                      style={[
+                        styles.paymentMethodOption,
+                        paymentMethod === 'Dinheiro' && styles.paymentMethodOptionSelected,
+                        {borderBottomWidth: 0}
+                      ]} 
+                      onPress={() => selectPaymentMethod('Dinheiro')}
+                    >
+                      <DollarSign size={20} color={paymentMethod === 'Dinheiro' ? theme.primary : theme.text} />
+                      <Text style={[
+                        styles.paymentMethodOptionText,
+                        paymentMethod === 'Dinheiro' && styles.paymentMethodOptionTextSelected
+                      ]}>Dinheiro</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
+            )}
+
+            {/* Seleção de Cartão - Ocultar para Receitas e PIX */}
+            {transactionType !== 'income' && paymentMethod !== 'PIX' && paymentMethod !== 'Dinheiro' && (
+              <View style={[styles.inputGroup, { zIndex: 60 }]}>
+                <Text style={styles.inputLabel}>Selecione o Cartão</Text>
+                <TouchableOpacity style={styles.selectInput} onPress={toggleCards}>
+                  <Text style={styles.selectPlaceholder}>
+                    {selectedCard || 'Selecione um cartão'}
+                  </Text>
+                  <ChevronRight size={20} color="#666" style={{ transform: [{ rotate: '90deg' }] as any }} />
+                </TouchableOpacity>
+                
+                                  {cardsVisible && (
+                    <View style={[styles.paymentMethodsDropdown, { zIndex: 65 }]}>
+                    {userCards.length > 0 ? (
+                      userCards.map((card) => (
+                        <TouchableOpacity 
+                          key={card.id}
+                          style={[
+                            styles.paymentMethodOption,
+                            selectedCardId === card.id && styles.paymentMethodOptionSelected
+                          ]} 
+                          onPress={() => selectCard(card)}
+                        >
+                          <CreditCard size={20} color={selectedCardId === card.id ? theme.primary : theme.text} />
+                                                   <View style={{ flex: 1, marginLeft: 10 }}>
+                             <Text style={[
+                               styles.paymentMethodOptionText,
+                               selectedCardId === card.id && styles.paymentMethodOptionTextSelected
+                             ]}>
+                               {card.bank_name}
+                             </Text>
+                             <Text style={[
+                               styles.paymentMethodOptionText,
+                               { fontSize: 12, opacity: 0.7 },
+                               selectedCardId === card.id && styles.paymentMethodOptionTextSelected
+                             ]}>
+                               •••• {card.card_number?.slice(-4) || '0000'}
+                             </Text>
+                           </View>
+                        </TouchableOpacity>
+                      ))
+                    ) : (
+                      <View style={styles.paymentMethodOption}>
+                        <CreditCard size={20} color="#999" />
+                        <Text style={[styles.paymentMethodOptionText, { color: '#999' }]}>
+                          Nenhum cartão cadastrado
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                )}
+              </View>
+            )}
 
             {/* Configuração de Repetição */}
-            <View style={[styles.inputGroup, { zIndex: 10 }]}>
+            <View style={[styles.inputGroup, { zIndex: 55 }]}>
               <Text style={styles.inputLabel}>Configurar Repetição</Text>
               <TouchableOpacity 
                 style={[
@@ -3930,7 +4288,7 @@ export default function Registers() {
               </TouchableOpacity>
               
               {recurrenceVisible && (
-                <View style={styles.paymentMethodsDropdown}>
+                <View style={[styles.paymentMethodsDropdown, { zIndex: 58 }]}>
                   <TouchableOpacity 
                     style={[
                       styles.paymentMethodOption,
@@ -4006,14 +4364,62 @@ export default function Registers() {
             )}
 
             {/* Categoria */}
-            <View style={styles.inputGroup}>
+            <View style={[styles.inputGroup, { zIndex: 50 }]}>
               <Text style={styles.inputLabel}>Categoria</Text>
-              <TouchableOpacity style={styles.selectInput}>
-                <Text style={styles.selectPlaceholder}>
-                  {selectedCategory || 'Selecione'}
-                </Text>
+              <TouchableOpacity 
+                style={[
+                  styles.selectInput,
+                  selectedCategory ? { borderColor: theme.primary, borderWidth: 1.5 } : null
+                ]} 
+                onPress={toggleCategories}
+              >
+                {selectedCategory ? (
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Text style={[styles.selectPlaceholder, { color: theme.primary, fontFamily: fontFallbacks.Poppins_500Medium }]}>
+                      {selectedCategory}
+                    </Text>
+                  </View>
+                ) : (
+                  <Text style={styles.selectPlaceholder}>Selecione</Text>
+                )}
                 <ChevronRight size={20} color="#666" style={{ transform: [{ rotate: '90deg' }] as any }} />
               </TouchableOpacity>
+              
+              {categoriesVisible && (
+                <View style={[styles.paymentMethodsDropdown, { zIndex: 100 }]}>
+                  {userCategories.filter(category => category.type === transactionType).length > 0 ? (
+                    userCategories
+                      .filter(category => category.type === transactionType)
+                      .map((category, index, filteredArray) => (
+                        <TouchableOpacity 
+                          key={category.id}
+                          style={[
+                            styles.paymentMethodOption,
+                            selectedCategory === category.name && styles.paymentMethodOptionSelected,
+                            index === filteredArray.length - 1 && {borderBottomWidth: 0}
+                          ]} 
+                          onPress={() => selectCategory(category)}
+                        >
+                          <Text style={{ fontSize: 20, marginRight: 10 }}>
+                            {category.icon}
+                          </Text>
+                          <Text style={[
+                            styles.paymentMethodOptionText,
+                            selectedCategory === category.name && styles.paymentMethodOptionTextSelected
+                          ]}>
+                            {category.name}
+                          </Text>
+                        </TouchableOpacity>
+                      ))
+                  ) : (
+                    <View style={styles.paymentMethodOption}>
+                      <Text style={styles.paymentMethodOptionText}>
+                        Nenhuma categoria encontrada para {transactionType === 'expense' ? 'despesas' : transactionType === 'income' ? 'receitas' : 'transferências'}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              )}
               <TouchableOpacity style={styles.addCategoryButton} onPress={toggleAddCategory}>
                 <PlusCircle size={16} color={theme.primary} />
                 <Text style={[styles.addCategoryText, { color: theme.primary }]}>Adicionar Nova Categoria</Text>
@@ -4109,8 +4515,215 @@ export default function Registers() {
               </View>
             )}
 
+            {/* Seleção de Meta ou Orçamento - Para todos os tipos de transação */}
+            {(transactionType === 'expense' || transactionType === 'income' || transactionType === 'transfer') && (
+              <View style={[styles.inputGroup, { zIndex: 35 }]}>
+                <Text style={styles.inputLabel}>Vincular à Meta ou Orçamento (Opcional)</Text>
+                
+                {/* Botões de seleção de tipo */}
+                <View style={styles.allocationTypeContainer}>
+                  <TouchableOpacity
+                    style={[
+                      styles.allocationTypeButton,
+                      allocationType === 'none' && [styles.activeAllocationButton, { borderColor: '#666' }]
+                    ]}
+                    onPress={resetAllocation}
+                  >
+                    <Text style={[
+                      styles.allocationTypeText,
+                      allocationType === 'none' && [styles.activeAllocationText, { color: '#666' }]
+                    ]}>Nenhum</Text>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity
+                    style={[
+                      styles.allocationTypeButton,
+                      allocationType === 'goal' && [styles.activeAllocationButton, { borderColor: theme.primary }]
+                    ]}
+                    onPress={() => {
+                      if (allocationType === 'goal') {
+                        toggleGoals();
+                      } else {
+                        setAllocationType('goal');
+                        setSelectedBudgetId(null);
+                        setBudgetsVisible(false);
+                      }
+                    }}
+                  >
+                    <Text style={[
+                      styles.allocationTypeText,
+                      allocationType === 'goal' && [styles.activeAllocationText, { color: theme.primary }]
+                    ]}>Meta</Text>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity
+                    style={[
+                      styles.allocationTypeButton,
+                      allocationType === 'budget' && [styles.activeAllocationButton, { borderColor: theme.secondary }]
+                    ]}
+                    onPress={() => {
+                      if (allocationType === 'budget') {
+                        toggleBudgets();
+                      } else {
+                        setAllocationType('budget');
+                        setSelectedGoalId(null);
+                        setGoalsVisible(false);
+                      }
+                    }}
+                  >
+                    <Text style={[
+                      styles.allocationTypeText,
+                      allocationType === 'budget' && [styles.activeAllocationText, { color: theme.secondary }]
+                    ]}>Orçamento</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Seletor de Meta */}
+                {allocationType === 'goal' && (
+                  <>
+                    <TouchableOpacity 
+                      style={[
+                        styles.selectInput,
+                        selectedGoalId ? { borderColor: theme.primary, borderWidth: 1.5 } : null
+                      ]} 
+                      onPress={toggleGoals}
+                    >
+                      {selectedGoalId ? (
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                          <Text style={{ fontSize: 20, marginRight: 10 }}>
+                            {userGoals.find(g => g.id === selectedGoalId)?.icon || '🎯'}
+                          </Text>
+                          <Text style={[styles.selectPlaceholder, { color: theme.primary, fontFamily: fontFallbacks.Poppins_500Medium }]}>
+                            {userGoals.find(g => g.id === selectedGoalId)?.title || 'Meta selecionada'}
+                          </Text>
+                        </View>
+                      ) : (
+                        <Text style={styles.selectPlaceholder}>Selecione uma meta</Text>
+                      )}
+                      <ChevronRight size={20} color="#666" style={{ transform: [{ rotate: '90deg' }] as any }} />
+                    </TouchableOpacity>
+                    
+
+                  </>
+                )}
+
+                {/* Seletor de Orçamento */}
+                {allocationType === 'budget' && (
+                  <>
+                    <TouchableOpacity 
+                      style={[
+                        styles.selectInput,
+                        selectedBudgetId ? { borderColor: theme.secondary, borderWidth: 1.5 } : null
+                      ]} 
+                      onPress={toggleBudgets}
+                    >
+                      {selectedBudgetId ? (
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                          <Text style={{ fontSize: 20, marginRight: 10 }}>
+                            {userBudgets.find(b => b.id === selectedBudgetId)?.icon || '📊'}
+                          </Text>
+                          <Text style={[styles.selectPlaceholder, { color: theme.secondary, fontFamily: fontFallbacks.Poppins_500Medium }]}>
+                            {userBudgets.find(b => b.id === selectedBudgetId)?.category || 'Orçamento selecionado'}
+                          </Text>
+                        </View>
+                      ) : (
+                        <Text style={styles.selectPlaceholder}>Selecione um orçamento</Text>
+                      )}
+                      <ChevronRight size={20} color="#666" style={{ transform: [{ rotate: '90deg' }] as any }} />
+                    </TouchableOpacity>
+                    
+
+                  </>
+                )}
+              </View>
+            )}
+
+            {/* Dropdown de metas - movido para fora do container */}
+            {(transactionType === 'expense' || transactionType === 'income' || transactionType === 'transfer') && allocationType === 'goal' && goalsVisible && (
+              <View style={[styles.paymentMethodsDropdown, { 
+                position: 'relative', 
+                zIndex: 999999, 
+                elevation: 999999,
+                backgroundColor: 'white',
+                marginTop: 0,
+                marginHorizontal: 16,
+                top: -10
+              }]}>
+                {userGoals.length > 0 ? userGoals.map((goal, index) => (
+                  <TouchableOpacity 
+                    key={goal.id}
+                    style={[
+                      styles.paymentMethodOption,
+                      selectedGoalId === goal.id && styles.paymentMethodOptionSelected,
+                      index === userGoals.length - 1 && {borderBottomWidth: 0}
+                    ]} 
+                    onPress={() => selectGoal(goal)}
+                  >
+                    <Text style={{ fontSize: 20, marginRight: 10 }}>
+                      {goal.icon || '🎯'}
+                    </Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[
+                        styles.paymentMethodOptionText,
+                        selectedGoalId === goal.id && styles.paymentMethodOptionTextSelected
+                      ]}>{goal.title}</Text>
+                      <Text style={{ fontSize: 12, color: '#777', fontFamily: fontFallbacks.Poppins_400Regular }}>
+                        {goal.percentage || 0}% • R$ {(goal.current_amount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} / R$ {(goal.target_amount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                )) : (
+                  <View style={styles.paymentMethodOption}>
+                    <Text style={styles.paymentMethodOptionText}>Nenhuma meta encontrada</Text>
+                  </View>
+                )}
+              </View>
+            )}
+
+            {/* Dropdown de orçamentos - movido para fora do container */}
+            {(transactionType === 'expense' || transactionType === 'income' || transactionType === 'transfer') && allocationType === 'budget' && budgetsVisible && (
+              <View style={[styles.paymentMethodsDropdown, { 
+                position: 'relative', 
+                zIndex: 999999, 
+                elevation: 999999,
+                backgroundColor: 'white',
+                marginTop: 0,
+                marginHorizontal: 16,
+                top: -10
+              }]}>
+                {userBudgets.length > 0 ? userBudgets.map((budget, index) => (
+                  <TouchableOpacity 
+                    key={budget.id}
+                    style={[
+                      styles.paymentMethodOption,
+                      selectedBudgetId === budget.id && styles.paymentMethodOptionSelected,
+                      index === userBudgets.length - 1 && {borderBottomWidth: 0}
+                    ]} 
+                    onPress={() => selectBudget(budget)}
+                  >
+                    <Text style={{ fontSize: 20, marginRight: 10 }}>
+                      {budget.icon || '📊'}
+                    </Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[
+                        styles.paymentMethodOptionText,
+                        selectedBudgetId === budget.id && styles.paymentMethodOptionTextSelected
+                      ]}>{budget.category}</Text>
+                      <Text style={{ fontSize: 12, color: '#777', fontFamily: fontFallbacks.Poppins_400Regular }}>
+                        {budget.percentage || 0}% • R$ {(budget.spent || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} / R$ {(budget.allocated || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                )) : (
+                  <View style={styles.paymentMethodOption}>
+                    <Text style={styles.paymentMethodOptionText}>Nenhum orçamento encontrado</Text>
+                  </View>
+                )}
+              </View>
+            )}
+
             {/* Conta */}
-            <View style={[styles.inputGroup, { zIndex: 9 }]}>
+            <View style={[styles.inputGroup, { zIndex: 40 }]}>
               <Text style={styles.inputLabel}>Conta</Text>
               <TouchableOpacity 
                 style={[

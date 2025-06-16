@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Dimensions, Platform, TextInput, Modal, Alert, SafeAreaView, KeyboardAvoidingView, AppState } from 'react-native';
-import { ArrowLeft, MoreVertical, Plus, BarChart2, Target, Repeat, DollarSign, User, Clock, X, Edit2, AlertCircle, BarChart, Menu, Receipt, CreditCard, PlusCircle, Home, Bell, Wallet, Info, ExternalLink } from 'lucide-react-native';
+import { ArrowLeft, MoreVertical, Plus, BarChart2, Target, Repeat, DollarSign, User, Clock, X, Edit2, AlertCircle, BarChart, Menu, Receipt, CreditCard, PlusCircle, Home, Bell, Wallet, Info, ExternalLink, Calendar } from 'lucide-react-native';
 import { StatusBar } from 'expo-status-bar';
 import { router, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -177,15 +177,17 @@ export default function Planning() {
   const [activeTab, setActiveTab] = useState('budget'); // 'budget' ou 'goals'
   const [expandedBudget, setExpandedBudget] = useState<string | null>(null);
   const [expandedGoal, setExpandedGoal] = useState<string | null>(null);
-  const [budgetData, setBudgetData] = useState(budgets);
+  const [budgetData, setBudgetData] = useState<any[]>([]);
   const [goalsData, setGoalsData] = useState(goals);
+  const [loading, setLoading] = useState(true);
+  const [historyTransactions, setHistoryTransactions] = useState<any[]>([]);
   
   // Estados para modais
   const [showNewBudgetModal, setShowNewBudgetModal] = useState(false);
   const [showEditBudgetModal, setShowEditBudgetModal] = useState(false);
   const [showNewGoalModal, setShowNewGoalModal] = useState(false);
   const [showEditGoalModal, setShowEditGoalModal] = useState(false);
-  const [showAddDepositModal, setShowAddDepositModal] = useState(false);
+
   const [menuModalVisible, setMenuModalVisible] = useState(false); // Para o modal de menu
   
   // Estados para edição
@@ -195,13 +197,469 @@ export default function Planning() {
   // Valores para novos orçamentos/metas
   const [newCategory, setNewCategory] = useState('');
   const [newAllocated, setNewAllocated] = useState('');
+  const [newCategoryIcon, setNewCategoryIcon] = useState('📊');
+  const [newCategoryIconsVisible, setNewCategoryIconsVisible] = useState(false);
   const [newGoalTitle, setNewGoalTitle] = useState('');
   const [newGoalAmount, setNewGoalAmount] = useState('');
   const [newGoalDeadline, setNewGoalDeadline] = useState('');
-  const [newDepositAmount, setNewDepositAmount] = useState('');
-  const [selectedUser, setSelectedUser] = useState('Maria');
+  const [newGoalIcon, setNewGoalIcon] = useState('🎯');
+  const [newGoalIconsVisible, setNewGoalIconsVisible] = useState(false);
+
+
+  // Estados para o calendário do modal de meta
+  const [goalCalendarVisible, setGoalCalendarVisible] = useState(false);
+  const [goalPickerMonth, setGoalPickerMonth] = useState(new Date().getMonth());
+  const [goalPickerYear, setGoalPickerYear] = useState(new Date().getFullYear());
+  const [goalPickerDay, setGoalPickerDay] = useState(new Date().getDate());
+  const [goalSelectedDate, setGoalSelectedDate] = useState(
+    `${String(new Date().getDate()).padStart(2, '0')}/${String(new Date().getMonth() + 1).padStart(2, '0')}/${new Date().getFullYear()}`
+  );
+
+  // Constantes para o calendário
+  const months = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+  const weekDays = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
 
   const scrollViewRef = useRef<ScrollView>(null);
+
+  // Função para buscar transações com orçamento definido
+  const fetchHistoryTransactions = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: transactions, error } = await supabase
+        .from('transactions')
+        .select(`
+          *,
+          accounts!transactions_account_id_fkey(name),
+          profiles!transactions_owner_id_fkey(name),
+          budget_categories!transactions_budget_category_id_fkey(category, icon)
+        `)
+        .not('budget_category_id', 'is', null)
+        .or(`owner_id.eq.${user.id},partner_id.eq.${user.id}`)
+        .order('transaction_date', { ascending: false })
+        .limit(5); // Últimas 5 transações
+
+      if (error) {
+        console.error('Erro ao buscar transações do histórico:', error);
+        return;
+      }
+
+      const formattedTransactions = (transactions || []).map(transaction => ({
+        id: transaction.id,
+        description: transaction.description || 'Transação',
+        amount: Math.abs(parseFloat(transaction.amount)),
+        type: transaction.transaction_type,
+        date: new Date(transaction.transaction_date).toLocaleDateString('pt-BR', {
+          day: '2-digit',
+          month: 'short',
+          year: 'numeric'
+        }),
+        time: new Date(transaction.transaction_date).toLocaleTimeString('pt-BR', {
+          hour: '2-digit',
+          minute: '2-digit'
+        }),
+        user: transaction.profiles?.name || 'Usuário',
+        budgetCategory: transaction.budget_categories?.category || 'Orçamento',
+        budgetIcon: transaction.budget_categories?.icon || '📊'
+      }));
+
+      setHistoryTransactions(formattedTransactions);
+    } catch (error) {
+      console.error('Erro ao buscar transações do histórico:', error);
+    }
+  };
+
+  // Função para buscar categorias de orçamento do usuário
+  const fetchBudgetCategories = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const currentDate = new Date();
+      const currentMonth = currentDate.getMonth() + 1;
+      const currentYear = currentDate.getFullYear();
+
+      const { data, error } = await supabase
+        .from('budget_categories')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('month', currentMonth)
+        .eq('year', currentYear)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Erro ao buscar categorias de orçamento:', error);
+        return;
+      }
+
+      // Para cada categoria de orçamento, buscar as transações relacionadas
+      const formattedData = await Promise.all(data.map(async (item) => {
+        // Buscar transações da categoria no mês atual
+        const startOfMonth = new Date(currentYear, currentMonth - 1, 1);
+        const endOfMonth = new Date(currentYear, currentMonth, 0);
+        
+        const { data: transactions, error: transactionsError } = await supabase
+          .from('transactions')
+          .select(`
+            *,
+            accounts!transactions_account_id_fkey(name),
+            profiles!transactions_owner_id_fkey(name)
+          `)
+          .eq('budget_category_id', item.id)
+          .gte('transaction_date', startOfMonth.toISOString())
+          .lte('transaction_date', endOfMonth.toISOString())
+          .or(`owner_id.eq.${user.id},partner_id.eq.${user.id}`)
+          .order('transaction_date', { ascending: false })
+          .limit(10); // Limitar a 10 transações mais recentes
+
+        if (transactionsError) {
+          console.error('Erro ao buscar transações da categoria:', transactionsError);
+        }
+
+        // Não precisamos mais calcular gastos por usuário
+
+        // Formatar transações para exibição
+        const formattedTransactions = (transactions || []).map(transaction => ({
+          description: transaction.description || 'Transação',
+          date: new Date(transaction.transaction_date).toLocaleDateString('pt-BR', {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric'
+          }),
+          amount: Math.abs(parseFloat(transaction.amount)),
+          user: transaction.profiles?.name || 'Usuário'
+        }));
+
+        return {
+          id: item.id,
+          category: item.category,
+          allocated: Number(item.allocated),
+          spent: Number(item.spent), // Usar valor do banco de dados
+          percentage: Number(item.percentage), // Usar porcentagem do banco de dados
+          icon: item.icon,
+          color: item.color,
+          warning: Number(item.percentage) > 80, // Usar porcentagem do banco para warning
+          transactions: formattedTransactions
+        };
+      }));
+
+      setBudgetData(formattedData);
+    } catch (error) {
+      console.error('Erro ao buscar categorias de orçamento:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Função para buscar metas financeiras do usuário
+  const fetchFinancialGoals = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: goals, error } = await supabase
+        .from('financial_goals')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Erro ao buscar metas financeiras:', error);
+        return;
+      }
+
+      // Para cada meta, buscar as transações vinculadas
+      const formattedGoals = await Promise.all(goals.map(async (goal) => {
+        // Buscar transações vinculadas à meta
+        const { data: transactions, error: transactionsError } = await supabase
+          .from('transactions')
+          .select('*')
+          .eq('goal_id', goal.id)
+          .order('created_at', { ascending: false });
+
+        if (transactionsError) {
+          console.error('Erro ao buscar transações da meta:', transactionsError);
+        }
+
+        return {
+          id: goal.id || '',
+          title: goal.title || 'Meta sem título',
+          target: goal.target_amount || 0,
+          current: goal.current_amount || 0,
+          percentage: goal.percentage || 0,
+          deadline: goal.deadline || 'Sem prazo',
+          color: goal.color || '#6C5CE7',
+          icon: goal.icon || '🎯',
+          transactions: (transactions || []).map((transaction: any) => ({
+            id: transaction.id,
+            description: transaction.description || 'Transação',
+            date: transaction.created_at 
+              ? new Date(transaction.created_at).toLocaleDateString('pt-BR', {
+                  day: '2-digit',
+                  month: 'short',
+                  year: 'numeric'
+                })
+              : 'Data inválida',
+            amount: transaction.amount || 0,
+            type: transaction.type || 'expense'
+          }))
+        };
+      }));
+
+      setGoalsData(formattedGoals);
+    } catch (error) {
+      console.error('Erro ao buscar metas financeiras:', error);
+    }
+  };
+
+  // Função para salvar nova meta financeira
+  const saveFinancialGoal = async (title: string, targetAmount: number, deadline: string, icon: string) => {
+    try {
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) {
+        console.error('Erro ao obter sessão:', sessionError);
+        return false;
+      }
+
+      if (!session?.user) {
+        console.error('Nenhuma sessão ativa encontrada');
+        return false;
+      }
+
+      const user = session.user;
+      const randomColor = '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6, '0');
+
+      const insertData = {
+        user_id: user.id,
+        title: title,
+        target_amount: targetAmount,
+        current_amount: 0,
+        percentage: 0,
+        deadline: deadline,
+        icon: icon,
+        color: randomColor
+      };
+
+      const { data, error } = await supabase
+        .from('financial_goals')
+        .insert([insertData])
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Erro do Supabase:', error);
+        return false;
+      }
+
+      // Criar contribuições iniciais da equipe
+      const teamContributions = [
+        { goal_id: data.id, user_name: 'Maria', total_amount: 0, percentage: 0 },
+        { goal_id: data.id, user_name: 'João', total_amount: 0, percentage: 0 }
+      ];
+
+      const { error: teamError } = await supabase
+        .from('goal_team_contributions')
+        .insert(teamContributions);
+
+      if (teamError) {
+        console.error('Erro ao criar contribuições da equipe:', teamError);
+        // Não retorna false aqui pois a meta foi criada com sucesso
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Erro ao salvar meta financeira:', error);
+      return false;
+    }
+  };
+
+  // Função para salvar depósito em meta financeira
+  const saveGoalDeposit = async (goalId: string, amount: number, userName: string) => {
+    try {
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError || !session?.user) {
+        console.error('Erro de autenticação:', sessionError);
+        return false;
+      }
+
+      const user = session.user;
+
+      // Inserir o depósito
+      const { data: depositData, error: depositError } = await supabase
+        .from('goal_deposits')
+        .insert([{
+          goal_id: goalId,
+          user_id: user.id,
+          amount: amount,
+          user_name: userName
+        }])
+        .select()
+        .single();
+
+      if (depositError) {
+        console.error('Erro ao inserir depósito:', depositError);
+        return false;
+      }
+
+      // Buscar todos os depósitos da meta para recalcular o total
+      const { data: allDeposits, error: depositsError } = await supabase
+        .from('goal_deposits')
+        .select('amount, user_name')
+        .eq('goal_id', goalId);
+
+      if (depositsError) {
+        console.error('Erro ao buscar depósitos:', depositsError);
+        return false;
+      }
+
+      // Calcular novo total
+      const newCurrentAmount = allDeposits.reduce((sum, deposit) => sum + parseFloat(deposit.amount), 0);
+
+      // Buscar a meta para obter o valor alvo
+      const { data: goalData, error: goalError } = await supabase
+        .from('financial_goals')
+        .select('target_amount')
+        .eq('id', goalId)
+        .single();
+
+      if (goalError) {
+        console.error('Erro ao buscar meta:', goalError);
+        return false;
+      }
+
+      const newPercentage = parseFloat(((newCurrentAmount / goalData.target_amount) * 100).toFixed(1));
+
+      // Atualizar a meta com os novos valores
+      const { error: updateError } = await supabase
+        .from('financial_goals')
+        .update({
+          current_amount: newCurrentAmount,
+          percentage: newPercentage
+        })
+        .eq('id', goalId);
+
+      if (updateError) {
+        console.error('Erro ao atualizar meta:', updateError);
+        return false;
+      }
+
+      // Recalcular contribuições da equipe
+      const teamContributions = allDeposits.reduce((acc: any, deposit) => {
+        const userName = deposit.user_name;
+        if (!acc[userName]) {
+          acc[userName] = 0;
+        }
+        acc[userName] += parseFloat(deposit.amount);
+        return acc;
+      }, {});
+
+      // Atualizar contribuições da equipe
+      for (const [name, totalAmount] of Object.entries(teamContributions)) {
+        const percentage = parseFloat(((totalAmount as number / newCurrentAmount) * 100).toFixed(1));
+        
+        await supabase
+          .from('goal_team_contributions')
+          .upsert({
+            goal_id: goalId,
+            user_name: name,
+            total_amount: totalAmount,
+            percentage: percentage
+          }, {
+            onConflict: 'goal_id,user_name'
+          });
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Erro ao salvar depósito:', error);
+      return false;
+    }
+  };
+
+  // Função para salvar nova categoria de orçamento
+  const saveBudgetCategory = async (category: string, allocated: number) => {
+    try {
+      console.log('Iniciando saveBudgetCategory...');
+      
+      // Primeiro, verificar a sessão
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) {
+        console.error('Erro ao obter sessão:', sessionError);
+        Alert.alert('Erro', 'Erro de autenticação. Faça login novamente.');
+        return false;
+      }
+
+      if (!session?.user) {
+        console.error('Nenhuma sessão ativa encontrada');
+        Alert.alert('Erro', 'Você precisa estar logado para criar categorias.');
+        return false;
+      }
+
+      const user = session.user;
+      console.log('Usuário autenticado:', user.id);
+
+      const currentDate = new Date();
+      const currentMonth = currentDate.getMonth() + 1;
+      const currentYear = currentDate.getFullYear();
+
+      // Gerar cor aleatória
+      const randomColor = '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6, '0');
+
+      const insertData = {
+        user_id: user.id,
+        category: category,
+        allocated: allocated,
+        spent: 0,
+        percentage: 0,
+        icon: newCategoryIcon,
+        color: randomColor,
+        warning: false,
+        month: currentMonth,
+        year: currentYear
+      };
+
+      console.log('Dados para inserir:', insertData);
+      
+      const { data, error } = await supabase
+        .from('budget_categories')
+        .insert([insertData])
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Erro do Supabase:', error);
+        Alert.alert('Erro', `Falha ao salvar: ${error.message}`);
+        return false;
+      }
+
+      console.log('Categoria criada com sucesso:', data);
+
+      // Adicionar nova categoria à lista local
+      const newBudgetItem = {
+        id: data.id,
+        category: data.category,
+        allocated: parseFloat(data.allocated),
+        spent: parseFloat(data.spent),
+        percentage: parseFloat(data.percentage),
+        icon: data.icon,
+        color: data.color,
+        warning: data.warning,
+        users: [
+          { name: 'Maria', spent: 0, percentage: 0 },
+          { name: 'João', spent: 0, percentage: 0 }
+        ],
+        transactions: []
+      };
+
+      setBudgetData(prev => [newBudgetItem, ...prev]);
+      return true;
+    } catch (error) {
+      console.error('Erro catch:', error);
+      Alert.alert('Erro', `Erro inesperado: ${error.message || error}`);
+      return false;
+    }
+  };
 
   // Salvar o tema no AsyncStorage quando ele for alterado
   const saveThemeToStorage = async (themeValue: string) => {
@@ -346,6 +804,13 @@ export default function Planning() {
     fetchUserAndSetTheme();
   }, []);
 
+  // Carregar categorias de orçamento e metas financeiras quando o componente for montado
+  useEffect(() => {
+    fetchBudgetCategories();
+    fetchFinancialGoals();
+    fetchHistoryTransactions();
+  }, []);
+
   const toggleBudgetExpanded = (id: string) => {
     if (expandedBudget === id) {
       setExpandedBudget(null);
@@ -362,32 +827,43 @@ export default function Planning() {
     }
   };
   
-  const handleAddBudget = () => {
-    if (!newCategory || !newAllocated) {
+  const handleAddBudget = async () => {
+    console.log('=== INÍCIO handleAddBudget ===');
+    console.log('newCategory:', newCategory);
+    console.log('newAllocated:', newAllocated);
+    
+    if (!newCategory || !newAllocated || parseFloat(newAllocated) <= 0) {
+      console.log('Campos incompletos - parando execução');
       Alert.alert("Informações Incompletas", "Por favor, preencha todos os campos.");
       return;
     }
     
-    const newBudgetItem = {
-      id: (budgetData.length + 1).toString(),
-      category: newCategory,
-      allocated: parseFloat(newAllocated),
-      spent: 0,
-      percentage: 0,
-      icon: '📊',
-      color: '#' + Math.floor(Math.random()*16777215).toString(16),
-      warning: false,
-      users: [
-        { name: 'Maria', spent: 0, percentage: 0 },
-        { name: 'João', spent: 0, percentage: 0 }
-      ],
-      transactions: []
-    };
+    const allocatedValue = parseFloat(newAllocated);
+    console.log('allocatedValue calculado:', allocatedValue);
     
-    setBudgetData([...budgetData, newBudgetItem]);
-    setNewCategory('');
-    setNewAllocated('');
-    setShowNewBudgetModal(false);
+    if (isNaN(allocatedValue) || allocatedValue <= 0) {
+      console.log('Valor inválido - parando execução');
+      Alert.alert("Valor Inválido", "Por favor, insira um valor válido para o orçamento.");
+      return;
+    }
+
+    console.log('Chamando saveBudgetCategory...');
+    const success = await saveBudgetCategory(newCategory, allocatedValue);
+    console.log('Resultado de saveBudgetCategory:', success);
+    
+    if (success) {
+      console.log('Sucesso! Limpando campos e fechando modal...');
+      setNewCategory('');
+      setNewAllocated('');
+      setNewCategoryIcon('📊');
+      setNewCategoryIconsVisible(false);
+      setShowNewBudgetModal(false);
+      Alert.alert("Sucesso", "Categoria de orçamento criada com sucesso!");
+    } else {
+      console.log('Falha ao salvar categoria');
+      Alert.alert("Erro", "Falha ao criar categoria. Tente novamente.");
+    }
+    console.log('=== FIM handleAddBudget ===');
   };
   
   const handleEditBudget = () => {
@@ -402,87 +878,45 @@ export default function Planning() {
     setCurrentBudget(null);
   };
   
-  const handleAddGoal = () => {
+  const handleAddGoal = async () => {
     if (!newGoalTitle || !newGoalAmount || !newGoalDeadline) {
       Alert.alert("Informações Incompletas", "Por favor, preencha todos os campos.");
       return;
     }
     
-    const newGoalItem = {
-      id: (goalsData.length + 1).toString(),
-      title: newGoalTitle,
-      target: parseFloat(newGoalAmount),
-      current: 0,
-      percentage: 0,
-      deadline: newGoalDeadline,
-      color: '#' + Math.floor(Math.random()*16777215).toString(16),
-      icon: '🎯',
-      deposits: [],
-      teamContributions: [
-        { name: 'Maria', amount: 0, percentage: 0 },
-        { name: 'João', amount: 0, percentage: 0 }
-      ]
-    };
-    
-    setGoalsData([...goalsData, newGoalItem]);
-    setNewGoalTitle('');
-    setNewGoalAmount('');
-    setNewGoalDeadline('');
-    setShowNewGoalModal(false);
+    try {
+      const success = await saveFinancialGoal(newGoalTitle, parseFloat(newGoalAmount), newGoalDeadline, newGoalIcon);
+      
+      if (success) {
+        setNewGoalTitle('');
+        setNewGoalAmount('');
+        setNewGoalDeadline('');
+        setNewGoalIcon('🎯');
+        setNewGoalIconsVisible(false);
+        setGoalCalendarVisible(false);
+        
+        // Resetar estados do calendário
+        const today = new Date();
+        setGoalPickerMonth(today.getMonth());
+        setGoalPickerYear(today.getFullYear());
+        setGoalPickerDay(today.getDate());
+        setGoalSelectedDate(`${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`);
+        
+        setShowNewGoalModal(false);
+        Alert.alert("Sucesso", "Meta financeira criada com sucesso!");
+        
+        // Recarregar as metas
+        await fetchFinancialGoals();
+      } else {
+        Alert.alert("Erro", "Falha ao criar meta financeira. Tente novamente.");
+      }
+    } catch (error) {
+      console.error('Erro ao criar meta financeira:', error);
+      Alert.alert("Erro", "Falha ao criar meta financeira. Tente novamente.");
+    }
   };
   
-  const handleAddDeposit = () => {
-    if (!currentGoal || !newDepositAmount) {
-      Alert.alert("Informações Incompletas", "Por favor, preencha todos os campos.");
-      return;
-    }
-    
-    const depositAmount = parseFloat(newDepositAmount);
-    const today = new Date();
-    const formattedDate = `${today.getDate()} ${['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'][today.getMonth()]} ${today.getFullYear()}`;
-    
-    const newDeposit = {
-      date: formattedDate,
-      amount: depositAmount,
-      user: selectedUser
-    };
-    
-    // Atualiza o valor atual e a porcentagem
-    const updatedCurrent = currentGoal.current + depositAmount;
-    const updatedPercentage = parseFloat(((updatedCurrent / currentGoal.target) * 100).toFixed(1));
-    
-    // Atualiza as contribuições da equipe
-    const updatedTeamContributions = currentGoal.teamContributions.map((contribution: any) => {
-      if (contribution.name === selectedUser) {
-        const newAmount = contribution.amount + depositAmount;
-        return {
-          ...contribution,
-          amount: newAmount,
-          percentage: parseFloat(((newAmount / updatedCurrent) * 100).toFixed(1))
-        };
-      }
-      return {
-        ...contribution,
-        percentage: parseFloat(((contribution.amount / updatedCurrent) * 100).toFixed(1))
-      };
-    });
-    
-    const updatedGoal = {
-      ...currentGoal,
-      deposits: [newDeposit, ...currentGoal.deposits],
-      current: updatedCurrent,
-      percentage: updatedPercentage,
-      teamContributions: updatedTeamContributions
-    };
-    
-    const updatedGoals = goalsData.map(goal => 
-      goal.id === currentGoal.id ? updatedGoal : goal
-    );
-    
-    setGoalsData(updatedGoals);
-    setNewDepositAmount('');
-    setShowAddDepositModal(false);
-  };
+
 
   // Função para rolar até o topo quando abrir modais
   const scrollToTop = () => {
@@ -492,6 +926,7 @@ export default function Planning() {
   // Modificar as funções de abertura de modal para incluir scrollToTop
   const openNewBudgetModal = () => {
     scrollToTop();
+    setNewCategoryIconsVisible(false);
     setShowNewBudgetModal(true);
   };
   
@@ -503,6 +938,20 @@ export default function Planning() {
   
   const openNewGoalModal = () => {
     scrollToTop();
+    setNewGoalTitle('');
+    setNewGoalAmount('');
+    setNewGoalDeadline('');
+    setNewGoalIcon('🎯');
+    setNewGoalIconsVisible(false);
+    setGoalCalendarVisible(false);
+    
+    // Resetar estados do calendário
+    const today = new Date();
+    setGoalPickerMonth(today.getMonth());
+    setGoalPickerYear(today.getFullYear());
+    setGoalPickerDay(today.getDate());
+    setGoalSelectedDate(`${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`);
+    
     setShowNewGoalModal(true);
   };
   
@@ -512,10 +961,171 @@ export default function Planning() {
     setShowEditGoalModal(true);
   };
   
-  const openAddDepositModal = (goal: any) => {
-    scrollToTop();
-    setCurrentGoal(goal);
-    setShowAddDepositModal(true);
+
+
+  // Função para alternar a visibilidade do seletor de ícones da categoria
+  const toggleNewCategoryIcons = () => {
+    setNewCategoryIconsVisible(!newCategoryIconsVisible);
+  };
+
+  // Função para selecionar um ícone da categoria
+  const selectNewCategoryIcon = (icon: string) => {
+    setNewCategoryIcon(icon);
+    setNewCategoryIconsVisible(false);
+  };
+
+  // Função para alternar a visibilidade do seletor de ícones da meta
+  const toggleNewGoalIcons = () => {
+    setNewGoalIconsVisible(!newGoalIconsVisible);
+  };
+
+  // Função para selecionar um ícone da meta
+  const selectNewGoalIcon = (icon: string) => {
+    setNewGoalIcon(icon);
+    setNewGoalIconsVisible(false);
+  };
+
+  // Funções para o calendário do modal de meta
+  const toggleGoalCalendar = () => {
+    setGoalCalendarVisible(!goalCalendarVisible);
+  };
+
+  const goToPreviousGoalMonth = () => {
+    if (goalPickerMonth === 0) {
+      setGoalPickerMonth(11);
+      setGoalPickerYear(goalPickerYear - 1);
+    } else {
+      setGoalPickerMonth(goalPickerMonth - 1);
+    }
+  };
+
+  const goToNextGoalMonth = () => {
+    if (goalPickerMonth === 11) {
+      setGoalPickerMonth(0);
+      setGoalPickerYear(goalPickerYear + 1);
+    } else {
+      setGoalPickerMonth(goalPickerMonth + 1);
+    }
+  };
+
+  const selectGoalDateFromPicker = (day: number) => {
+    setGoalPickerDay(day);
+    const newDate = `${String(day).padStart(2, '0')}/${String(goalPickerMonth + 1).padStart(2, '0')}/${goalPickerYear}`;
+    setGoalSelectedDate(newDate);
+    
+    // Atualizar o prazo da meta
+    setNewGoalDeadline(newDate);
+    
+    setGoalCalendarVisible(false);
+  };
+
+  // Função para gerar os dias do mês para o calendário do modal de meta
+  const generateGoalCalendarDays = () => {
+    const daysInMonth = new Date(goalPickerYear, goalPickerMonth + 1, 0).getDate();
+    const firstDayOfMonth = new Date(goalPickerYear, goalPickerMonth, 1).getDay();
+    const adjustedFirstDay = firstDayOfMonth === 0 ? 6 : firstDayOfMonth - 1;
+    
+    // Dias do mês anterior para completar a primeira semana
+    const daysFromPreviousMonth = adjustedFirstDay;
+    const previousMonthDays = [];
+    if (daysFromPreviousMonth > 0) {
+      const daysInPreviousMonth = new Date(goalPickerYear, goalPickerMonth, 0).getDate();
+      for (let i = daysInPreviousMonth - daysFromPreviousMonth + 1; i <= daysInPreviousMonth; i++) {
+        previousMonthDays.push({
+          day: i,
+          currentMonth: false,
+          date: new Date(goalPickerYear, goalPickerMonth - 1, i)
+        });
+      }
+    }
+    
+    // Dias do mês atual
+    const currentMonthDays = [];
+    for (let i = 1; i <= daysInMonth; i++) {
+      currentMonthDays.push({
+        day: i,
+        currentMonth: true,
+        date: new Date(goalPickerYear, goalPickerMonth, i)
+      });
+    }
+    
+    // Dias do próximo mês para completar a última semana
+    const remainingDays = (7 - ((adjustedFirstDay + daysInMonth) % 7)) % 7;
+    const nextMonthDays = [];
+    for (let i = 1; i <= remainingDays; i++) {
+      nextMonthDays.push({
+        day: i,
+        currentMonth: false,
+        date: new Date(goalPickerYear, goalPickerMonth + 1, i)
+      });
+    }
+    
+    return [...previousMonthDays, ...currentMonthDays, ...nextMonthDays];
+  };
+
+  // Renderizar os dias do calendário em formato de grade para o modal de meta
+  const renderGoalCalendarGrid = () => {
+    const days = generateGoalCalendarDays();
+    const rows: JSX.Element[] = [];
+    let cells: JSX.Element[] = [];
+
+    // Adicionar cabeçalho dos dias da semana
+    const headerCells = weekDays.map((day, index) => (
+      <View key={`goal-header-${index}`} style={styles.goalCalendarHeaderCell}>
+        <Text style={styles.goalCalendarHeaderText}>{day}</Text>
+      </View>
+    ));
+    rows.push(
+      <View key="goal-header" style={styles.goalCalendarRow}>
+        {headerCells}
+      </View>
+    );
+
+    // Agrupar os dias em semanas
+    days.forEach((day, index) => {
+      const isSelected = goalPickerDay === day.day && day.currentMonth;
+      
+      cells.push(
+        <TouchableOpacity
+          key={`goal-day-${index}`}
+          style={[
+            styles.goalCalendarCell,
+            day.currentMonth ? styles.goalCurrentMonthCell : styles.goalOtherMonthCell,
+            isSelected ? styles.goalSelectedCell : null
+          ]}
+          onPress={() => day.currentMonth && selectGoalDateFromPicker(day.day)}
+        >
+          <View
+            style={[
+              styles.goalDayCircle,
+              isSelected ? styles.goalSelectedDayCircle : null
+            ]}
+          >
+            <Text
+              style={[
+                styles.goalCalendarDay,
+                day.currentMonth ? styles.goalCurrentMonthDay : styles.goalOtherMonthDay,
+                isSelected ? [styles.goalSelectedDayText, { color: theme.primary }] : null
+              ]}
+            >
+              {day.day}
+            </Text>
+          </View>
+        </TouchableOpacity>
+      );
+
+      // Completar uma semana
+      if ((index + 1) % 7 === 0 || index === days.length - 1) {
+        rows.push(
+          <View key={`goal-row-${Math.floor(index / 7)}`} style={styles.goalCalendarRow}>
+            {cells}
+          </View>
+        );
+        cells = [];
+      }
+    });
+
+    return rows;
   };
 
   // Definir estilos dentro do componente para ter acesso ao tema
@@ -745,6 +1355,19 @@ export default function Planning() {
       borderRadius: 30,
       justifyContent: 'center',
       alignItems: 'center',
+    },
+    addCategoryButton: {
+      backgroundColor: theme.primary,
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      justifyContent: 'center',
+      alignItems: 'center',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 3,
     },
     addButtonText: {
       color: '#FFF',
@@ -1097,125 +1720,21 @@ export default function Planning() {
       borderTopWidth: 1,
       borderTopColor: '#eee',
     },
-    goalDepositsSection: {
+    goalTransactionsSection: {
       marginBottom: 20,
     },
-    depositRow: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      marginBottom: 12,
-    },
-    depositInfo: {
-      flexDirection: 'row',
-      alignItems: 'center',
-    },
-    depositUserName: {
-      fontSize: 14,
-      fontFamily: fontFallbacks.Poppins_500Medium,
-      color: '#333',
-    },
-    depositDate: {
-      fontSize: 12,
-      fontFamily: fontFallbacks.Poppins_400Regular,
-      color: '#888',
-    },
-    depositAmount: {
-      fontSize: 14,
-      fontFamily: fontFallbacks.Poppins_500Medium,
-      color: '#4CD964',
-    },
-    teamProgress: {
-      marginBottom: 20,
-    },
-    teamMembersProgress: {
-      
-    },
-    teamMember: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      marginBottom: 16,
-    },
-    teamMemberIcon: {
-      width: 36,
-      height: 36,
-      borderRadius: 18,
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginRight: 12,
-    },
-    teamMemberInfo: {
-      flex: 1,
-    },
-    teamMemberNameRow: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      marginBottom: 4,
-    },
-    teamMemberName: {
-      fontSize: 14,
-      fontFamily: fontFallbacks.Poppins_500Medium,
-      color: '#333',
-    },
-    teamMemberContribution: {
-      fontSize: 14,
-      fontFamily: fontFallbacks.Poppins_500Medium,
-      color: '#333',
-    },
-    teamMemberBarContainer: {
-      height: 6,
-      backgroundColor: '#f0f0f0',
-      borderRadius: 3,
-      marginBottom: 4,
-    },
-    teamMemberBar: {
-      height: 6,
-      borderRadius: 3,
-    },
-    teamMemberPercentage: {
-      fontSize: 12,
-      fontFamily: fontFallbacks.Poppins_400Regular,
-      color: '#888',
-    },
-    goalActions: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      marginTop: 20,
-    },
-    goalActionButton: {
-      flexDirection: 'row',
+    emptyTransactions: {
+      padding: 20,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: theme.primary,
-      paddingVertical: 12,
-      paddingHorizontal: 20,
-      borderRadius: 12,
-      flex: 0.48,
-      shadowColor: theme.primary,
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.3,
-      shadowRadius: 4,
-      elevation: 3,
     },
-    goalActionButtonText: {
+    emptyTransactionsText: {
       fontSize: 14,
-      fontFamily: fontFallbacks.Poppins_500Medium,
-      color: '#FFF',
-      marginLeft: 8,
+      fontFamily: fontFallbacks.Poppins_400Regular,
+      color: '#888',
+      textAlign: 'center',
     },
-    goalEditButton: {
-      backgroundColor: 'transparent',
-      borderWidth: 1,
-      borderColor: theme.primary,
-      shadowColor: 'transparent',
-      shadowOpacity: 0,
-      elevation: 0,
-    },
-    goalEditButtonText: {
-      color: theme.primary,
-      fontSize: 14,
-      fontFamily: fontFallbacks.Poppins_500Medium,
-    },
+
     
     // Estilos para modais
     modalContainer: {
@@ -1263,6 +1782,96 @@ export default function Planning() {
       fontFamily: fontFallbacks.Poppins_400Regular,
       borderWidth: 1,
       borderColor: '#efefef',
+    },
+    amountInputContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: '#e0e0e0',
+      borderRadius: 12,
+      padding: 12,
+      backgroundColor: '#f5f7fa',
+    },
+    currencySymbol: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: '#333333',
+      marginRight: 5,
+      fontFamily: fontFallbacks.Poppins_600SemiBold,
+    },
+    amountInput: {
+      flex: 1,
+      fontSize: 16,
+      fontWeight: '500',
+      color: '#333333',
+      fontFamily: fontFallbacks.Poppins_500Medium,
+    },
+    iconSelectorContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: '#e0e0e0',
+      borderRadius: 12,
+      backgroundColor: '#f5f7fa',
+      overflow: 'hidden',
+    },
+    emojiSelectorButton: {
+      width: 50,
+      height: 48,
+      backgroundColor: '#ffffff',
+      borderRightWidth: 1,
+      borderRightColor: '#e0e0e0',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    emojiSelectorText: {
+      fontSize: 24,
+      lineHeight: 24,
+    },
+    iconSelectorText: {
+      flex: 1,
+      paddingHorizontal: 12,
+      paddingVertical: 14,
+      fontSize: 16,
+      fontFamily: fontFallbacks.Poppins_400Regular,
+      color: '#666',
+    },
+    emojiDropdown: {
+      backgroundColor: '#ffffff',
+      borderWidth: 1,
+      borderColor: '#e0e0e0',
+      borderRadius: 12,
+      padding: 12,
+      marginTop: 8,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.1,
+      shadowRadius: 8,
+      elevation: 10,
+      zIndex: 1000,
+    },
+    emojiGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      justifyContent: 'space-between',
+    },
+    emojiGridItem: {
+      width: '14.28%', // 7 colunas: 100% / 7
+      aspectRatio: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 8,
+      borderRadius: 6,
+      backgroundColor: 'transparent',
+    },
+    emojiGridItemSelected: {
+      backgroundColor: '#f3f4f6',
+      borderWidth: 1,
+      borderColor: '#d1d5db',
+    },
+    emojiGridText: {
+      fontSize: 20,
+      lineHeight: 24,
     },
     submitButton: {
       backgroundColor: theme.primary,
@@ -1576,6 +2185,160 @@ export default function Planning() {
         }
       }),
     },
+    
+    // Estilos para loading e empty state
+    loadingContainer: {
+      backgroundColor: '#fff',
+      borderRadius: 16,
+      padding: 40,
+      marginBottom: 16,
+      alignItems: 'center',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 2,
+      borderWidth: 0.5,
+      borderColor: '#f0f0f0',
+    },
+    loadingText: {
+      fontSize: 16,
+      color: '#666',
+      fontFamily: fontFallbacks.Poppins_400Regular,
+    },
+    emptyContainer: {
+      backgroundColor: '#fff',
+      borderRadius: 16,
+      padding: 40,
+      marginBottom: 16,
+      alignItems: 'center',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 2,
+      borderWidth: 0.5,
+      borderColor: '#f0f0f0',
+    },
+    emptyText: {
+      fontSize: 16,
+      color: '#333',
+      fontFamily: fontFallbacks.Poppins_500Medium,
+      textAlign: 'center',
+      marginBottom: 8,
+    },
+    emptySubtext: {
+      fontSize: 14,
+      color: '#666',
+      fontFamily: fontFallbacks.Poppins_400Regular,
+      textAlign: 'center',
+    },
+    // Estilos do calendário para o modal de meta
+    goalDateInput: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: '#e0e0e0',
+      borderRadius: 8,
+      paddingHorizontal: 12,
+      paddingVertical: 12,
+      backgroundColor: '#fff',
+    },
+    inputIcon: {
+      marginRight: 10,
+    },
+    goalDateText: {
+      flex: 1,
+      fontSize: 16,
+      color: '#333',
+      fontFamily: fontFallbacks.Poppins_400Regular,
+    },
+    calendarButton: {
+      padding: 4,
+    },
+    goalCalendarPickerContainer: {
+      marginHorizontal: 4,
+    },
+    goalCalendarPickerHeader: {
+      borderRadius: 12,
+      padding: 16,
+      marginTop: 8,
+    },
+    goalCalendarPickerMonthSelector: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 16,
+    },
+    goalCalendarPickerArrow: {
+      padding: 8,
+    },
+    goalCalendarPickerMonthText: {
+      color: '#FFF',
+      fontSize: 18,
+      fontFamily: fontFallbacks.Poppins_600SemiBold,
+    },
+    goalCalendarContainer: {
+      marginHorizontal: 4,
+    },
+    goalCalendarHeaderCell: {
+      width: 40,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    goalCalendarHeaderText: {
+      color: '#FFF',
+      fontSize: 12,
+      fontFamily: fontFallbacks.Poppins_400Regular,
+      opacity: 0.9,
+    },
+    goalCalendarRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-around',
+      marginBottom: 8,
+    },
+    goalCalendarCell: {
+      width: 40,
+      height: 38,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    goalDayCircle: {
+      width: 34,
+      height: 34,
+      borderRadius: 17,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    goalSelectedDayCircle: {
+      backgroundColor: '#FFF',
+    },
+    goalCalendarDay: {
+      fontSize: 16,
+      fontFamily: fontFallbacks.Poppins_400Regular,
+    },
+    goalCurrentMonthCell: {},
+    goalOtherMonthCell: {
+      opacity: 0.6,
+    },
+    goalSelectedCell: {},
+    goalCurrentMonthDay: {
+      color: '#FFF',
+    },
+    goalOtherMonthDay: {
+      color: 'rgba(255, 255, 255, 0.4)',
+    },
+    goalSelectedDayText: {
+      fontFamily: fontFallbacks.Poppins_600SemiBold,
+    },
+    // Estilos do ScrollView do modal
+    modalScrollView: {
+      flex: 1,
+      maxHeight: height * 0.6, // Limita a altura máxima do scroll
+    },
+    modalScrollContent: {
+      paddingBottom: 20,
+    },
   });
 
   return (
@@ -1676,52 +2439,49 @@ export default function Planning() {
               </View>
 
               <View style={styles.transactionsList}>
-                <View style={styles.transactionItem}>
-                  <View style={[styles.transactionIcon, { backgroundColor: 'rgba(76, 217, 100, 0.15)' }]}>
-                    <DollarSign size={24} color="#4CD964" />
+                {historyTransactions.length === 0 ? (
+                  <View style={styles.emptyTransactions}>
+                    <Text style={styles.emptyTransactionsText}>Nenhuma transação com orçamento encontrada ainda.</Text>
                   </View>
-                  <View style={styles.transactionInfo}>
-                    <Text style={styles.transactionTitle}>Receita</Text>
-                    <Text style={styles.transactionTime}>11:25 am • Maria</Text>
-                  </View>
-                  <Text style={[styles.transactionAmount, styles.incomeAmount]}>+R$ 982,21</Text>
-                </View>
-
-                <View style={styles.transactionItem}>
-                  <View style={[styles.transactionIcon, { backgroundColor: 'rgba(255, 59, 48, 0.15)' }]}>
-                    <ArrowLeft size={24} color="#FF3B30" />
-                  </View>
-                  <View style={styles.transactionInfo}>
-                    <Text style={styles.transactionTitle}>Despesa</Text>
-                    <Text style={styles.transactionTime}>01:50 pm • João</Text>
-                  </View>
-                  <Text style={styles.transactionAmount}>-R$ 387,11</Text>
-                </View>
-
-                <View style={styles.transactionItem}>
-                  <View style={[styles.transactionIcon, { backgroundColor: 'rgba(88, 86, 214, 0.15)' }]}>
-                    <Repeat size={24} color="#5856D6" />
-                  </View>
-                  <View style={styles.transactionInfo}>
-                    <Text style={styles.transactionTitle}>Transferência</Text>
-                    <Text style={styles.transactionTime}>09:30 am • Maria → João</Text>
-                  </View>
-                  <Text style={[styles.transactionAmount, styles.transferAmount]}>R$ 500,00</Text>
-                </View>
+                ) : (
+                  historyTransactions.map((transaction, index) => (
+                    <View key={transaction.id} style={styles.transactionItem}>
+                      <View style={[styles.transactionIcon, { backgroundColor: 'rgba(255, 59, 48, 0.15)' }]}>
+                        <Text style={{ fontSize: 20 }}>{transaction.budgetIcon}</Text>
+                      </View>
+                      <View style={styles.transactionInfo}>
+                        <Text style={styles.transactionTitle}>{transaction.description}</Text>
+                        <Text style={styles.transactionTime}>{transaction.time} • {transaction.user}</Text>
+                      </View>
+                      <Text style={styles.transactionAmount}>
+                        -R$ {transaction.amount.toFixed(2).replace('.', ',')}
+                      </Text>
+                    </View>
+                  ))
+                )}
               </View>
 
               <View style={styles.sectionHeader}>
                 <Text style={styles.sectionTitle}>Categorias de Orçamento</Text>
                 <TouchableOpacity 
-                  style={styles.addButton}
+                  style={styles.addCategoryButton}
                   onPress={openNewBudgetModal}
                 >
-                  <Plus size={16} color="#FFF" />
-                  <Text style={styles.addButtonText}>Adicionar</Text>
+                  <Plus size={20} color="#FFF" />
                 </TouchableOpacity>
               </View>
 
-              {budgetData.map(budget => (
+              {loading ? (
+                <View style={styles.loadingContainer}>
+                  <Text style={styles.loadingText}>Carregando categorias...</Text>
+                </View>
+              ) : budgetData.length === 0 ? (
+                <View style={styles.emptyContainer}>
+                  <Text style={styles.emptyText}>Nenhuma categoria de orçamento criada ainda.</Text>
+                  <Text style={styles.emptySubtext}>Toque no botão + para criar sua primeira categoria!</Text>
+                </View>
+              ) : (
+                budgetData.map(budget => (
                 <View key={budget.id} style={styles.budgetCard}>
                   <TouchableOpacity 
                     style={styles.budgetHeader}
@@ -1767,41 +2527,24 @@ export default function Planning() {
                   
                   {expandedBudget === budget.id && (
                     <View style={styles.budgetExpanded}>
-                      <View style={styles.spendingByPersonSection}>
-                        <Text style={styles.expandedSectionTitle}>Quem gastou</Text>
-                        
-                        {budget.users.map((user, index) => (
-                          <View key={index} style={styles.userRow}>
-                            <View style={styles.userInfo}>
-                              <View style={[
-                                styles.userIcon, 
-                                { backgroundColor: user.name === 'Maria' ? `rgba(${theme === themes.feminine ? '182, 135, 254' : '0, 115, 234'}, 0.2)` : `rgba(${theme === themes.feminine ? '0, 115, 234' : '182, 135, 254'}, 0.2)` }
-                              ]}>
-                                <User size={16} color={user.name === 'Maria' ? theme.primary : theme.shared} />
-                              </View>
-                              <Text style={styles.userName}>{user.name}</Text>
-                            </View>
-
-                            <View style={styles.userSpentInfo}>
-                              <Text style={styles.userSpentText}>R$ {user.spent.toFixed(2).replace('.', ',')}</Text>
-                              <Text style={styles.userPercentageText}>({user.percentage}%)</Text>
-                            </View>
-                          </View>
-                        ))}
-                      </View>
-                      
                       <View style={styles.transactionsSection}>
-                        <Text style={styles.expandedSectionTitle}>Últimas transações</Text>
+                        <Text style={styles.expandedSectionTitle}>Histórico de Transações</Text>
                         
-                        {budget.transactions.slice(0, 3).map((transaction, index) => (
-                          <View key={index} style={styles.transactionRow}>
-                            <View style={styles.transactionInfo}>
-                              <Text style={styles.transactionDesc}>{transaction.description}</Text>
-                              <Text style={styles.transactionDate}>{transaction.date} • {transaction.user}</Text>
-                            </View>
-                            <Text style={styles.transactionAmount}>R$ {transaction.amount.toFixed(2).replace('.', ',')}</Text>
+                        {budget.transactions.length === 0 ? (
+                          <View style={styles.emptyTransactions}>
+                            <Text style={styles.emptyTransactionsText}>Nenhuma transação vinculada a este orçamento ainda.</Text>
                           </View>
-                        ))}
+                        ) : (
+                          budget.transactions.map((transaction, index) => (
+                            <View key={index} style={styles.transactionRow}>
+                              <View style={styles.transactionInfo}>
+                                <Text style={styles.transactionDesc}>{transaction.description}</Text>
+                                <Text style={styles.transactionDate}>{transaction.date} • {transaction.user}</Text>
+                              </View>
+                              <Text style={styles.transactionAmount}>R$ {transaction.amount.toFixed(2).replace('.', ',')}</Text>
+                            </View>
+                          ))
+                        )}
                       </View>
                       
                       <View style={styles.budgetActions}>
@@ -1816,7 +2559,8 @@ export default function Planning() {
                     </View>
                   )}
                 </View>
-              ))}
+                ))
+              )}
               
               {/* Modal para adicionar nova categoria de orçamento */}
               <Modal
@@ -1830,7 +2574,10 @@ export default function Planning() {
                       <Text style={styles.modalTitle}>Nova Categoria de Orçamento</Text>
                       <TouchableOpacity 
                         style={styles.closeButton}
-                        onPress={() => setShowNewBudgetModal(false)}
+                        onPress={() => {
+                          setShowNewBudgetModal(false);
+                          setNewCategoryIconsVisible(false);
+                        }}
                       >
                         <X size={24} color="#333" />
                       </TouchableOpacity>
@@ -1847,14 +2594,68 @@ export default function Planning() {
                     </View>
                     
                     <View style={styles.inputGroup}>
-                      <Text style={styles.inputLabel}>Valor do Orçamento (R$)</Text>
-                      <TextInput
-                        style={styles.textInput}
-                        value={newAllocated}
-                        onChangeText={setNewAllocated}
-                        placeholder="500,00"
-                        keyboardType="decimal-pad"
-                      />
+                      <Text style={styles.inputLabel}>Valor do Orçamento</Text>
+                      <View style={styles.amountInputContainer}>
+                        <Text style={styles.currencySymbol}>R$</Text>
+                        <TextInput
+                          style={styles.amountInput}
+                          value={parseFloat(newAllocated) > 0 ? parseFloat(newAllocated).toLocaleString('pt-BR', {
+                            style: 'currency',
+                            currency: 'BRL'
+                          }).replace('R$', '').trim() : ''}
+                          onChangeText={(text) => {
+                            console.log('Valor digitado:', text);
+                            // Remove tudo que não é número
+                            const numericValue = text.replace(/[^0-9]/g, '');
+                            // Formata como moeda brasileira
+                            if (numericValue) {
+                              const formattedValue = (parseInt(numericValue) / 100);
+                              setNewAllocated(formattedValue.toString());
+                            } else {
+                              setNewAllocated('');
+                            }
+                          }}
+                          placeholder="0,00"
+                          keyboardType="numeric"
+                          placeholderTextColor="#999"
+                        />
+                      </View>
+                    </View>
+
+                    <View style={styles.inputGroup}>
+                      <Text style={styles.inputLabel}>Ícone da Categoria</Text>
+                      <TouchableOpacity 
+                        style={styles.iconSelectorContainer}
+                        onPress={toggleNewCategoryIcons}
+                      >
+                        <View style={styles.emojiSelectorButton}>
+                          <Text style={styles.emojiSelectorText}>
+                            {newCategoryIcon}
+                          </Text>
+                        </View>
+                        <Text style={styles.iconSelectorText}>
+                          Toque para escolher um ícone
+                        </Text>
+                      </TouchableOpacity>
+                      
+                      {newCategoryIconsVisible && (
+                        <View style={styles.emojiDropdown}>
+                          <View style={styles.emojiGrid}>
+                            {['📊', '🍽️', '🏠', '🚗', '🏥', '🎭', '💰', '🛒', '✈️', '📱', '📚', '🎁', '👕', '⚡'].map((emoji, index) => (
+                              <TouchableOpacity 
+                                key={index}
+                                style={[
+                                  styles.emojiGridItem,
+                                  newCategoryIcon === emoji && styles.emojiGridItemSelected
+                                ]}
+                                onPress={() => selectNewCategoryIcon(emoji)}
+                              >
+                                <Text style={styles.emojiGridText}>{emoji}</Text>
+                              </TouchableOpacity>
+                            ))}
+                          </View>
+                        </View>
+                      )}
                     </View>
 
                     <TouchableOpacity 
@@ -1942,7 +2743,14 @@ export default function Planning() {
                     {/* Simulação visual do gráfico */}
                     <View style={styles.donutChartInner}>
                       <Text style={styles.goalCompletionText}>
-                        {goalsData.reduce((sum, goal) => sum + goal.current, 0).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ".")}
+                        {goalsData.length > 0 
+                          ? goalsData
+                              .filter(goal => goal && typeof goal.current === 'number')
+                              .reduce((sum, goal) => sum + goal.current, 0)
+                              .toFixed(0)
+                              .replace(/\B(?=(\d{3})+(?!\d))/g, ".")
+                          : '0'
+                        }
                       </Text>
                       <Text style={styles.goalCompletionLabel}>Total Poupado</Text>
                     </View>
@@ -1960,16 +2768,26 @@ export default function Planning() {
                     <View style={styles.goalDivider} />
                     <View style={styles.goalMetricItem}>
                       <Text style={styles.goalMetricValue}>
-                        R$ {goalsData.reduce((sum, goal) => sum + (goal.target - goal.current), 0).toFixed(2).replace('.', ',')}
+                        R$ {goalsData.length > 0 
+                          ? goalsData
+                              .filter(goal => goal && typeof goal.target === 'number' && typeof goal.current === 'number')
+                              .reduce((sum, goal) => sum + (goal.target - goal.current), 0)
+                              .toFixed(2)
+                              .replace('.', ',')
+                          : '0,00'
+                        }
                       </Text>
                       <Text style={styles.goalMetricLabel}>Valor Restante</Text>
                     </View>
                     <View style={styles.goalDivider} />
                     <View style={styles.goalMetricItem}>
                       <Text style={styles.goalMetricValue}>
-                        {goalsData.sort((a, b) => 
-                          a.deadline.localeCompare(b.deadline)
-                        )[0].deadline}
+                        {goalsData.length > 0 && goalsData.filter(goal => goal && goal.deadline).length > 0
+                          ? goalsData
+                              .filter(goal => goal && goal.deadline)
+                              .sort((a, b) => a.deadline.localeCompare(b.deadline))[0].deadline
+                          : 'Nenhuma meta'
+                        }
                       </Text>
                       <Text style={styles.goalMetricLabel}>Próximo Prazo</Text>
                     </View>
@@ -1980,15 +2798,20 @@ export default function Planning() {
               <View style={styles.sectionHeader}>
                 <Text style={styles.sectionTitle}>Metas Financeiras</Text>
                 <TouchableOpacity 
-                  style={styles.addButton}
+                  style={styles.addCategoryButton}
                   onPress={openNewGoalModal}
                 >
-                  <Plus size={16} color="#FFF" />
-                  <Text style={styles.addButtonText}>Nova Meta</Text>
+                  <Plus size={20} color="#FFF" />
                 </TouchableOpacity>
               </View>
 
-              {goalsData.map(goal => (
+              {goalsData.length === 0 ? (
+                <View style={styles.emptyContainer}>
+                  <Text style={styles.emptyText}>Nenhuma meta financeira criada ainda.</Text>
+                  <Text style={styles.emptySubtext}>Toque no botão + para criar sua primeira meta!</Text>
+                </View>
+              ) : (
+                goalsData.filter(goal => goal && goal.id).map(goal => (
                 <View key={goal.id} style={styles.goalCard}>
                   <TouchableOpacity 
                     style={styles.goalHeader}
@@ -2018,10 +2841,10 @@ export default function Planning() {
                       
                       <View style={styles.goalDetails}>
                         <Text style={styles.goalAmountText}>
-                          R$ {goal.current.toFixed(2).replace('.', ',')} <Text style={styles.goalTargetText}>/ R$ {goal.target.toFixed(2).replace('.', ',')}</Text>
+                          R$ {(goal.current || 0).toFixed(2).replace('.', ',')} <Text style={styles.goalTargetText}>/ R$ {(goal.target || 0).toFixed(2).replace('.', ',')}</Text>
                         </Text>
                         <Text style={styles.goalPercentageText}>
-                          {goal.percentage}%
+                          {goal.percentage || 0}%
                         </Text>
                       </View>
                     </View>
@@ -2029,81 +2852,35 @@ export default function Planning() {
                   
                   {expandedGoal === goal.id && (
                     <View style={styles.goalExpanded}>
-                      <View style={styles.goalDepositsSection}>
-                        <Text style={styles.expandedSectionTitle}>Histórico de Depósitos</Text>
+                      <View style={styles.goalTransactionsSection}>
+                        <Text style={styles.expandedSectionTitle}>Histórico de Transações</Text>
                         
-                        {goal.deposits.map((deposit, index) => (
-                          <View key={index} style={styles.depositRow}>
-                            <View style={styles.depositInfo}>
-                              <View style={[
-                                styles.userIcon, 
-                                { backgroundColor: deposit.user === 'Maria' ? `rgba(${theme === themes.feminine ? '182, 135, 254' : '0, 115, 234'}, 0.2)` : `rgba(${theme === themes.feminine ? '0, 115, 234' : '182, 135, 254'}, 0.2)` }
-                              ]}>
-                                <User size={16} color={deposit.user === 'Maria' ? theme.primary : theme.shared} />
-                              </View>
-                              <View>
-                                <Text style={styles.depositUserName}>{deposit.user}</Text>
-                                <Text style={styles.depositDate}>{deposit.date}</Text>
-                              </View>
-                            </View>
-
-                            <Text style={styles.depositAmount}>+R$ {deposit.amount.toFixed(2).replace('.', ',')}</Text>
+                        {(goal.transactions || []).length === 0 ? (
+                          <View style={styles.emptyTransactions}>
+                            <Text style={styles.emptyTransactionsText}>Nenhuma transação vinculada a esta meta ainda.</Text>
                           </View>
-                        ))}
-                      </View>
-                      
-                      <View style={styles.teamProgress}>
-                        <Text style={styles.expandedSectionTitle}>Progresso da Equipe</Text>
-                        
-                        <View style={styles.teamMembersProgress}>
-                          {goal.teamContributions.map((member, index) => (
-                            <View key={index} style={styles.teamMember}>
-                              <View style={[styles.teamMemberIcon, { backgroundColor: member.name === 'Maria' ? `rgba(${theme === themes.feminine ? '182, 135, 254' : '0, 115, 234'}, 0.2)` : `rgba(${theme === themes.feminine ? '0, 115, 234' : '182, 135, 254'}, 0.2)` }]}>
-                                <User size={18} color={member.name === 'Maria' ? theme.primary : theme.shared} />
+                        ) : (
+                          (goal.transactions || []).map((transaction, index) => (
+                            <View key={transaction.id || index} style={styles.transactionRow}>
+                              <View style={styles.transactionInfo}>
+                                <Text style={styles.transactionDesc}>{transaction.description}</Text>
+                                <Text style={styles.transactionDate}>{transaction.date}</Text>
                               </View>
-                              <View style={styles.teamMemberInfo}>
-                                <View style={styles.teamMemberNameRow}>
-                                  <Text style={styles.teamMemberName}>{member.name}</Text>
-                                  <Text style={styles.teamMemberContribution}>R$ {member.amount.toFixed(2).replace('.', ',')}</Text>
-                                </View>
-                                <View style={styles.teamMemberBarContainer}>
-                                  <View 
-                                    style={[
-                                      styles.teamMemberBar, 
-                                      { 
-                                        width: `${member.percentage}%`,
-                                        backgroundColor: member.name === 'Maria' ? theme.primary : theme.shared
-                                      }
-                                    ]} 
-                                  />
-                                </View>
-                                <Text style={styles.teamMemberPercentage}>{member.percentage}%</Text>
-                              </View>
+                              <Text style={[
+                                styles.transactionAmount,
+                                { color: '#00C851' }
+                              ]}>
+                                +R$ {Math.abs(transaction.amount || 0).toFixed(2).replace('.', ',')}
+                              </Text>
                             </View>
-                          ))}
-                        </View>
-                      </View>
-                      
-                      <View style={styles.goalActions}>
-                        <TouchableOpacity 
-                          style={styles.goalActionButton}
-                          onPress={() => openAddDepositModal(goal)}
-                        >
-                          <DollarSign size={16} color="#FFF" />
-                          <Text style={styles.goalActionButtonText}>Adicionar Depósito</Text>
-                        </TouchableOpacity>
-                        
-                        <TouchableOpacity 
-                          style={[styles.goalActionButton, styles.goalEditButton]}
-                          onPress={() => openEditGoalModal(goal)}
-                        >
-                          <Text style={styles.goalEditButtonText}>Editar Meta</Text>
-                        </TouchableOpacity>
+                          ))
+                        )}
                       </View>
                     </View>
                   )}
                 </View>
-              ))}
+                ))
+              )}
               
               {/* Modal para adicionar nova meta */}
               <Modal
@@ -2117,13 +2894,22 @@ export default function Planning() {
                       <Text style={styles.modalTitle}>Nova Meta Financeira</Text>
                       <TouchableOpacity 
                         style={styles.closeButton}
-                        onPress={() => setShowNewGoalModal(false)}
+                        onPress={() => {
+                          setShowNewGoalModal(false);
+                          setNewGoalIconsVisible(false);
+                        }}
                       >
                         <X size={24} color="#333" />
                       </TouchableOpacity>
                     </View>
                     
-                    <View style={styles.inputGroup}>
+                    <ScrollView 
+                      style={styles.modalScrollView}
+                      contentContainerStyle={styles.modalScrollContent}
+                      showsVerticalScrollIndicator={false}
+                      keyboardShouldPersistTaps="handled"
+                    >
+                      <View style={styles.inputGroup}>
                       <Text style={styles.inputLabel}>Título da Meta</Text>
                       <TextInput
                         style={styles.textInput}
@@ -2134,25 +2920,106 @@ export default function Planning() {
                     </View>
                     
                     <View style={styles.inputGroup}>
-                      <Text style={styles.inputLabel}>Valor da Meta (R$)</Text>
-                      <TextInput
-                        style={styles.textInput}
-                        value={newGoalAmount}
-                        onChangeText={setNewGoalAmount}
-                        placeholder="10000,00"
-                        keyboardType="decimal-pad"
-                      />
+                      <Text style={styles.inputLabel}>Valor da Meta</Text>
+                      <View style={styles.amountInputContainer}>
+                        <Text style={styles.currencySymbol}>R$</Text>
+                        <TextInput
+                          style={styles.amountInput}
+                          value={parseFloat(newGoalAmount) > 0 ? parseFloat(newGoalAmount).toLocaleString('pt-BR', {
+                            style: 'currency',
+                            currency: 'BRL'
+                          }).replace('R$', '').trim() : ''}
+                          onChangeText={(text) => {
+                            // Remove tudo que não é número
+                            const numericValue = text.replace(/[^0-9]/g, '');
+                            // Formata como moeda brasileira
+                            if (numericValue) {
+                              const formattedValue = (parseInt(numericValue) / 100);
+                              setNewGoalAmount(formattedValue.toString());
+                            } else {
+                              setNewGoalAmount('');
+                            }
+                          }}
+                          placeholder="0,00"
+                          keyboardType="numeric"
+                          placeholderTextColor="#999"
+                        />
+                      </View>
                     </View>
                     
                     <View style={styles.inputGroup}>
                       <Text style={styles.inputLabel}>Prazo</Text>
-                      <TextInput
-                        style={styles.textInput}
-                        value={newGoalDeadline}
-                        onChangeText={setNewGoalDeadline}
-                        placeholder="Ex: Dez 2023"
-                      />
+                      <TouchableOpacity style={styles.goalDateInput} onPress={toggleGoalCalendar}>
+                        <Calendar size={20} color="#666" style={styles.inputIcon} />
+                        <Text style={styles.goalDateText}>{goalSelectedDate}</Text>
+                        <TouchableOpacity style={styles.calendarButton} onPress={toggleGoalCalendar}>
+                          <Calendar size={20} color="#666" />
+                        </TouchableOpacity>
+                      </TouchableOpacity>
+                      
+                      {goalCalendarVisible && (
+                        <View style={styles.goalCalendarPickerContainer}>
+                          <View
+                            style={[styles.goalCalendarPickerHeader, { backgroundColor: theme.primary }]}
+                          >
+                            <View style={styles.goalCalendarPickerMonthSelector}>
+                              <TouchableOpacity onPress={goToPreviousGoalMonth} style={styles.goalCalendarPickerArrow}>
+                                <ArrowLeft size={24} color="#FFF" />
+                              </TouchableOpacity>
+                              
+                              <Text style={styles.goalCalendarPickerMonthText}>
+                                {months[goalPickerMonth]} {goalPickerYear}
+                              </Text>
+                              
+                              <TouchableOpacity onPress={goToNextGoalMonth} style={styles.goalCalendarPickerArrow}>
+                                <ArrowLeft size={24} color="#FFF" style={{ transform: [{ rotate: '180deg' }] }} />
+                              </TouchableOpacity>
+                            </View>
+
+                            <View style={styles.goalCalendarContainer}>
+                              {renderGoalCalendarGrid()}
+                            </View>
+                          </View>
+                        </View>
+                      )}
                     </View>
+
+                    <View style={styles.inputGroup}>
+                      <Text style={styles.inputLabel}>Ícone da Meta</Text>
+                      <TouchableOpacity 
+                        style={styles.iconSelectorContainer}
+                        onPress={toggleNewGoalIcons}
+                      >
+                        <View style={styles.emojiSelectorButton}>
+                          <Text style={styles.emojiSelectorText}>
+                            {newGoalIcon}
+                          </Text>
+                        </View>
+                        <Text style={styles.iconSelectorText}>
+                          Toque para escolher um ícone
+                        </Text>
+                      </TouchableOpacity>
+                      
+                      {newGoalIconsVisible && (
+                        <View style={styles.emojiDropdown}>
+                          <View style={styles.emojiGrid}>
+                            {['🎯', '💰', '🏠', '🚗', '✈️', '🎓', '💍', '📱', '🏖️', '🎮', '📚', '🎸', '🏋️', '🎨'].map((emoji, index) => (
+                              <TouchableOpacity 
+                                key={index}
+                                style={[
+                                  styles.emojiGridItem,
+                                  newGoalIcon === emoji && styles.emojiGridItemSelected
+                                ]}
+                                onPress={() => selectNewGoalIcon(emoji)}
+                              >
+                                <Text style={styles.emojiGridText}>{emoji}</Text>
+                              </TouchableOpacity>
+                            ))}
+                          </View>
+                        </View>
+                      )}
+                    </View>
+                    </ScrollView>
 
                     <TouchableOpacity 
                       style={styles.submitButton}
@@ -2236,88 +3103,7 @@ export default function Planning() {
                 </View>
               </Modal>
               
-              {/* Modal para adicionar depósito */}
-              <Modal
-                visible={showAddDepositModal}
-                transparent={true}
-                animationType="slide"
-              >
-                <View style={styles.modalContainer}>
-                  <View style={styles.modalContent}>
-                    <View style={styles.modalHeader}>
-                      <Text style={styles.modalTitle}>Adicionar Depósito</Text>
-                      <TouchableOpacity 
-                        style={styles.closeButton}
-                        onPress={() => setShowAddDepositModal(false)}
-                      >
-                        <X size={24} color="#333" />
-                      </TouchableOpacity>
-                    </View>
-                    
-                    {currentGoal && (
-                      <>
-                        <View style={styles.goalSummary}>
-                          <Text style={styles.goalSummaryTitle}>{currentGoal.title}</Text>
-                          <Text style={styles.goalSummaryAmount}>
-                            R$ {currentGoal.current.toFixed(2).replace('.', ',')} / R$ {currentGoal.target.toFixed(2).replace('.', ',')}
-                          </Text>
-                        </View>
-                      
-                        <View style={styles.inputGroup}>
-                          <Text style={styles.inputLabel}>Quem está depositando</Text>
-                          <View style={styles.userSelectorContainer}>
-                            <TouchableOpacity 
-                              style={[
-                                styles.userSelectorButton,
-                                selectedUser === 'Maria' && styles.userSelectorButtonActive
-                              ]}
-                              onPress={() => setSelectedUser('Maria')}
-                            >
-                              <User size={16} color={selectedUser === 'Maria' ? '#FFF' : '#666'} />
-                              <Text style={[
-                                styles.userSelectorButtonText,
-                                selectedUser === 'Maria' && styles.userSelectorButtonTextActive
-                              ]}>Maria</Text>
-                            </TouchableOpacity>
-                            
-                            <TouchableOpacity 
-                              style={[
-                                styles.userSelectorButton,
-                                selectedUser === 'João' && styles.userSelectorButtonActive
-                              ]}
-                              onPress={() => setSelectedUser('João')}
-                            >
-                              <User size={16} color={selectedUser === 'João' ? '#FFF' : '#666'} />
-                              <Text style={[
-                                styles.userSelectorButtonText,
-                                selectedUser === 'João' && styles.userSelectorButtonTextActive
-                              ]}>João</Text>
-                            </TouchableOpacity>
-                          </View>
-                        </View>
-                        
-                        <View style={styles.inputGroup}>
-                          <Text style={styles.inputLabel}>Valor do Depósito (R$)</Text>
-                          <TextInput
-                            style={styles.textInput}
-                            value={newDepositAmount}
-                            onChangeText={setNewDepositAmount}
-                            placeholder="500,00"
-                            keyboardType="decimal-pad"
-                          />
-                        </View>
 
-                        <TouchableOpacity 
-                          style={styles.submitButton}
-                          onPress={handleAddDeposit}
-                        >
-                          <Text style={styles.submitButtonText}>Adicionar Depósito</Text>
-                        </TouchableOpacity>
-                      </>
-                    )}
-                  </View>
-                </View>
-              </Modal>
             </View>
           )}
         </ScrollView>

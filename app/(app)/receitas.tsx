@@ -50,6 +50,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import themes from '@/constants/themes';
+import { supabase } from '@/lib/supabase';
 
 // Tema padrão para garantir a consistência das cores
 const defaultTheme = {
@@ -70,18 +71,13 @@ interface Income {
   isRecurring: boolean;
   createdAt: Date;
   category?: string;
+  account?: string;
 }
 
 export default function ReceitasScreen() {
   // Verificar se deve abrir o histórico automaticamente
   useEffect(() => {
-    // Verificar se há parâmetros na rota
-    if (router.canGoBack() && router?.state?.routes) {
-      const currentRoute = router.state.routes[router.state.routes.length - 1];
-      if (currentRoute?.params?.showHistory === true) {
-        setHistoryModalVisible(true);
-      }
-    }
+    // TODO: Implementar verificação de parâmetros da rota se necessário
   }, []);
   const router = useRouter();
   const [theme, setTheme] = useState(themes.masculine);
@@ -119,6 +115,26 @@ export default function ReceitasScreen() {
     isRecurring: false,
   });
 
+  // Estado separado para o texto da data
+  const [dateText, setDateText] = useState(new Date().toLocaleDateString('pt-BR'));
+  
+  // Estados para contas
+  const [userAccounts, setUserAccounts] = useState<any[]>([]);
+  const [selectedAccount, setSelectedAccount] = useState<any>(null);
+  const [accountsVisible, setAccountsVisible] = useState(false);
+
+  // Estados para o calendário
+  const [calendarVisible, setCalendarVisible] = useState(false);
+  const [pickerMonth, setPickerMonth] = useState(new Date().getMonth());
+  const [pickerYear, setPickerYear] = useState(new Date().getFullYear());
+  const [pickerDay, setPickerDay] = useState(new Date().getDate());
+  const [selectedDate, setSelectedDate] = useState(
+    `${String(new Date().getDate()).padStart(2, '0')}/${String(new Date().getMonth() + 1).padStart(2, '0')}/${new Date().getFullYear()}`
+  );
+
+  // Constantes para o calendário
+  const weekDays = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
+
   // Carregar tema
   useEffect(() => {
     const loadTheme = async () => {
@@ -135,19 +151,52 @@ export default function ReceitasScreen() {
     loadTheme();
   }, []);
 
-  // Carregar receitas
+  // Carregar receitas do Supabase
   useEffect(() => {
     const loadIncomes = async () => {
       try {
         setLoading(true);
-        const storedIncomes = await AsyncStorage.getItem('@MyFinlove:incomes');
-        if (storedIncomes) {
-          const parsedIncomes = JSON.parse(storedIncomes).map((income: any) => ({
-            ...income,
-            receiptDate: new Date(income.receiptDate),
-            createdAt: new Date(income.createdAt)
+        
+        // Obter a sessão atual para o ID do usuário
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        
+        if (sessionError) {
+          console.error('Erro ao obter sessão:', sessionError);
+          return;
+        }
+        
+        if (!session?.user) {
+          console.log('Nenhuma sessão de usuário encontrada');
+          return;
+        }
+        
+        // Buscar receitas do usuário
+        const { data: incomesData, error: incomesError } = await supabase
+          .from('incomes')
+          .select('*')
+          .order('receipt_date', { ascending: false });
+          
+        if (incomesError) {
+          console.error('Erro ao buscar receitas:', incomesError);
+          return;
+        }
+        
+        if (incomesData) {
+          // Converter dados do banco para o formato esperado
+          const formattedIncomes = incomesData.map((income: any) => ({
+            id: income.id,
+            description: income.description,
+            amount: parseFloat(income.amount),
+            receiptDate: new Date(income.receipt_date),
+            isReceived: income.is_received,
+            isShared: income.is_shared,
+            isRecurring: income.is_recurring,
+            createdAt: new Date(income.created_at),
+            category: income.category,
+            account: income.account_name || 'Minha Carteira'
           }));
-          setIncomes(parsedIncomes);
+          
+          setIncomes(formattedIncomes);
         }
       } catch (error) {
         console.error('Erro ao carregar receitas:', error);
@@ -157,63 +206,372 @@ export default function ReceitasScreen() {
     };
     
     loadIncomes();
+    loadUserAccounts();
   }, []);
 
-  // Salvar receitas
-  const saveIncomes = async (updatedIncomes: Income[]) => {
+  // Carregar contas do usuário
+  const loadUserAccounts = async () => {
     try {
-      await AsyncStorage.setItem('@MyFinlove:incomes', JSON.stringify(updatedIncomes));
+      // Obter a sessão atual para o ID do usuário
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError) {
+        console.error('Erro ao obter sessão:', sessionError);
+        return;
+      }
+      
+      if (!session?.user) {
+        console.log('Nenhuma sessão de usuário encontrada');
+        return;
+      }
+      
+      const userId = session.user.id;
+      
+      // Buscar as contas do usuário (próprias ou compartilhadas)
+      const { data: accounts, error: accountsError } = await supabase
+        .from('accounts')
+        .select('*')
+        .or(`owner_id.eq.${userId},partner_id.eq.${userId}`);
+        
+      if (accountsError) {
+        console.error('Erro ao buscar contas do usuário:', accountsError);
+        return;
+      }
+      
+      if (accounts && accounts.length > 0) {
+        // Formatar as contas para o formato esperado
+        const formattedAccounts = accounts.map(account => ({
+          id: account.id,
+          name: account.name,
+          type: account.type,
+          bank: account.bank || '',
+          balance: parseFloat(account.balance) || 0
+        }));
+        
+        setUserAccounts(formattedAccounts);
+        
+        // Define a primeira conta como padrão se não houver selecionada
+        if (formattedAccounts.length > 0 && !selectedAccount) {
+          setSelectedAccount(formattedAccounts[0]);
+        }
+      } else {
+        console.log('Nenhuma conta encontrada para o usuário');
+        // Se não houver contas, cria uma conta padrão
+        const defaultAccount = {
+          id: 'default',
+          name: 'Minha Carteira',
+          type: 'Dinheiro Físico',
+          bank: '',
+          balance: 0
+        };
+        setUserAccounts([defaultAccount]);
+        setSelectedAccount(defaultAccount);
+      }
     } catch (error) {
-      console.error('Erro ao salvar receitas:', error);
+      console.error('Erro ao carregar contas:', error);
+      // Em caso de erro, define conta padrão
+      const defaultAccount = {
+        id: 'default',
+        name: 'Minha Carteira',
+        type: 'Dinheiro Físico',
+        bank: '',
+        balance: 0
+      };
+      setUserAccounts([defaultAccount]);
+      setSelectedAccount(defaultAccount);
     }
+  };
+
+  // Funções para o calendário do modal de receita
+  const toggleCalendar = () => {
+    setCalendarVisible(!calendarVisible);
+  };
+
+  const goToPreviousPickerMonth = () => {
+    if (pickerMonth === 0) {
+      setPickerMonth(11);
+      setPickerYear(pickerYear - 1);
+    } else {
+      setPickerMonth(pickerMonth - 1);
+    }
+  };
+
+  const goToNextPickerMonth = () => {
+    if (pickerMonth === 11) {
+      setPickerMonth(0);
+      setPickerYear(pickerYear + 1);
+    } else {
+      setPickerMonth(pickerMonth + 1);
+    }
+  };
+
+  const selectDateFromPicker = (day: number) => {
+    setPickerDay(day);
+    const newDate = `${String(day).padStart(2, '0')}/${String(pickerMonth + 1).padStart(2, '0')}/${pickerYear}`;
+    setSelectedDate(newDate);
+    setDateText(newDate);
+    
+    // Atualizar a data da receita
+    const receiptDate = new Date(pickerYear, pickerMonth, day);
+    setNewIncome(prev => ({ ...prev, receiptDate }));
+    
+    setCalendarVisible(false);
+  };
+
+  // Função para gerar os dias do mês para o calendário do modal
+  const generatePickerCalendarDays = () => {
+    const daysInMonth = new Date(pickerYear, pickerMonth + 1, 0).getDate();
+    const firstDayOfMonth = new Date(pickerYear, pickerMonth, 1).getDay();
+    const adjustedFirstDay = firstDayOfMonth === 0 ? 6 : firstDayOfMonth - 1;
+    
+    // Dias do mês anterior para completar a primeira semana
+    const daysFromPreviousMonth = adjustedFirstDay;
+    const previousMonthDays = [];
+    if (daysFromPreviousMonth > 0) {
+      const daysInPreviousMonth = new Date(pickerYear, pickerMonth, 0).getDate();
+      for (let i = daysInPreviousMonth - daysFromPreviousMonth + 1; i <= daysInPreviousMonth; i++) {
+        previousMonthDays.push({
+          day: i,
+          currentMonth: false,
+          date: new Date(pickerYear, pickerMonth - 1, i)
+        });
+      }
+    }
+    
+    // Dias do mês atual
+    const currentMonthDays = [];
+    for (let i = 1; i <= daysInMonth; i++) {
+      currentMonthDays.push({
+        day: i,
+        currentMonth: true,
+        date: new Date(pickerYear, pickerMonth, i)
+      });
+    }
+    
+    // Dias do próximo mês para completar a última semana
+    const remainingDays = (7 - ((adjustedFirstDay + daysInMonth) % 7)) % 7;
+    const nextMonthDays = [];
+    for (let i = 1; i <= remainingDays; i++) {
+      nextMonthDays.push({
+        day: i,
+        currentMonth: false,
+        date: new Date(pickerYear, pickerMonth + 1, i)
+      });
+    }
+    
+    return [...previousMonthDays, ...currentMonthDays, ...nextMonthDays];
+  };
+
+  // Renderizar os dias do calendário em formato de grade para o modal
+  const renderPickerCalendarGrid = () => {
+    const days = generatePickerCalendarDays();
+    const rows: JSX.Element[] = [];
+    let cells: JSX.Element[] = [];
+
+    // Adicionar cabeçalho dos dias da semana
+    const headerCells = weekDays.map((day, index) => (
+      <View key={`picker-header-${index}`} style={styles.pickerCalendarHeaderCell}>
+        <Text style={styles.pickerCalendarHeaderText}>{day}</Text>
+      </View>
+    ));
+    rows.push(
+      <View key="picker-header" style={styles.pickerCalendarRow}>
+        {headerCells}
+      </View>
+    );
+
+    // Agrupar os dias em semanas
+    days.forEach((day, index) => {
+      const isSelected = pickerDay === day.day && day.currentMonth;
+      
+      cells.push(
+        <TouchableOpacity
+          key={`picker-day-${index}`}
+          style={[
+            styles.pickerCalendarCell,
+            day.currentMonth ? styles.pickerCurrentMonthCell : styles.pickerOtherMonthCell,
+            isSelected ? styles.pickerSelectedCell : null
+          ]}
+          onPress={() => day.currentMonth && selectDateFromPicker(day.day)}
+        >
+          <View
+            style={[
+              styles.pickerDayCircle,
+              isSelected ? styles.pickerSelectedDayCircle : null
+            ]}
+          >
+            <Text
+              style={[
+                styles.pickerCalendarDay,
+                day.currentMonth ? styles.pickerCurrentMonthDay : styles.pickerOtherMonthDay,
+                isSelected ? [styles.pickerSelectedDayText, { color: theme.primary }] : null
+              ]}
+            >
+              {day.day}
+            </Text>
+          </View>
+        </TouchableOpacity>
+      );
+
+      // Completar uma semana
+      if ((index + 1) % 7 === 0 || index === days.length - 1) {
+        rows.push(
+          <View key={`picker-row-${Math.floor(index / 7)}`} style={styles.pickerCalendarRow}>
+            {cells}
+          </View>
+        );
+        cells = [];
+      }
+    });
+
+    return rows;
   };
 
   // Adicionar nova receita
-  const addIncome = () => {
+  const addIncome = async () => {
     if (!newIncome.description || newIncome.amount <= 0) {
+      Alert.alert('Erro', 'Por favor, preencha a descrição e um valor válido.');
       return;
     }
     
-    const newIncomeItem: Income = {
-      ...newIncome,
-      id: Date.now().toString(),
-      createdAt: new Date()
-    };
-    
-    const updatedIncomes = [...incomes, newIncomeItem];
-    setIncomes(updatedIncomes);
-    saveIncomes(updatedIncomes);
-    setModalVisible(false);
-    
-    // Resetar form
-    setNewIncome({
-      description: '',
-      amount: 0,
-      receiptDate: new Date(),
-      isReceived: false,
-      isShared: false,
-      isRecurring: false,
-    });
+    try {
+      // Obter a sessão atual para o ID do usuário
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session?.user) {
+        Alert.alert('Erro', 'Usuário não autenticado.');
+        return;
+      }
+      
+      // Converter a data do texto para Date
+      const dateParts = dateText.split('/');
+      let receiptDate = newIncome.receiptDate;
+      
+      if (dateParts.length === 3) {
+        const day = parseInt(dateParts[0]);
+        const month = parseInt(dateParts[1]) - 1; // Mês é 0-indexado
+        const year = parseInt(dateParts[2]);
+        
+        if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
+          receiptDate = new Date(year, month, day);
+        }
+      }
+      
+      // Preparar dados para inserção no Supabase
+      const incomeData = {
+        description: newIncome.description,
+        amount: newIncome.amount,
+        receipt_date: receiptDate.toISOString(),
+        is_received: newIncome.isReceived,
+        is_shared: newIncome.isShared,
+        is_recurring: newIncome.isRecurring,
+        category: newIncome.category || null,
+        account_id: selectedAccount?.id || null,
+        account_name: selectedAccount?.name || 'Minha Carteira',
+        owner_id: session.user.id,
+        partner_id: newIncome.isShared ? null : null // TODO: Implementar lógica de parceiro
+      };
+      
+      // Inserir no Supabase
+      const { data, error } = await supabase
+        .from('incomes')
+        .insert([incomeData])
+        .select()
+        .single();
+        
+      if (error) {
+        console.error('Erro ao salvar receita:', error);
+        Alert.alert('Erro', 'Não foi possível salvar a receita. Tente novamente.');
+        return;
+      }
+      
+      if (data) {
+        // Converter dados do banco para o formato esperado e adicionar à lista local
+        const newIncomeItem: Income = {
+          id: data.id,
+          description: data.description,
+          amount: parseFloat(data.amount),
+          receiptDate: new Date(data.receipt_date),
+          isReceived: data.is_received,
+          isShared: data.is_shared,
+          isRecurring: data.is_recurring,
+          createdAt: new Date(data.created_at),
+          category: data.category,
+          account: data.account_name || 'Minha Carteira'
+        };
+        
+        // Atualizar lista local
+        const updatedIncomes = [newIncomeItem, ...incomes];
+        setIncomes(updatedIncomes);
+        
+        setModalVisible(false);
+        Alert.alert('Sucesso', 'Receita cadastrada com sucesso!');
+        
+        // Resetar form
+        setNewIncome({
+          description: '',
+          amount: 0,
+          receiptDate: new Date(),
+          isReceived: false,
+          isShared: false,
+          isRecurring: false,
+        });
+        setDateText(new Date().toLocaleDateString('pt-BR'));
+        setAccountsVisible(false);
+        setCalendarVisible(false);
+        
+        // Resetar estados do calendário
+        const today = new Date();
+        setPickerMonth(today.getMonth());
+        setPickerYear(today.getFullYear());
+        setPickerDay(today.getDate());
+        setSelectedDate(`${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`);
+        
+        // Manter a conta selecionada para facilitar próximos lançamentos
+      }
+    } catch (error) {
+      console.error('Erro inesperado ao salvar receita:', error);
+      Alert.alert('Erro', 'Ocorreu um erro inesperado. Tente novamente.');
+    }
   };
 
   // Marcar como recebida/não recebida
-  const toggleReceived = (id: string) => {
-    const updatedIncomes = incomes.map(income => 
-      income.id === id ? { ...income, isReceived: !income.isReceived } : income
-    );
-    setIncomes(updatedIncomes);
-    saveIncomes(updatedIncomes);
-    
-    // Feedback visual para o usuário
+  const toggleReceived = async (id: string) => {
     const income = incomes.find(inc => inc.id === id);
-    if (income) {
-      const status = !income.isReceived ? 'recebida' : 'pendente';
+    if (!income) return;
+    
+    try {
+      const newStatus = !income.isReceived;
+      
+      // Atualizar no Supabase
+      const { error } = await supabase
+        .from('incomes')
+        .update({ is_received: newStatus })
+        .eq('id', id);
+        
+      if (error) {
+        console.error('Erro ao atualizar receita:', error);
+        Alert.alert('Erro', 'Não foi possível atualizar a receita. Tente novamente.');
+        return;
+      }
+      
+      // Atualizar lista local
+      const updatedIncomes = incomes.map(income => 
+        income.id === id ? { ...income, isReceived: newStatus } : income
+      );
+      setIncomes(updatedIncomes);
+      
+      // Feedback visual para o usuário
+      const status = newStatus ? 'recebida' : 'pendente';
       Alert.alert(
         `Receita ${status}`,
         `A receita "${income.description}" foi marcada como ${status}.`,
         [{ text: 'OK' }],
         { cancelable: true }
       );
+    } catch (error) {
+      console.error('Erro inesperado ao atualizar receita:', error);
+      Alert.alert('Erro', 'Ocorreu um erro inesperado. Tente novamente.');
     }
   };
 
@@ -229,46 +587,90 @@ export default function ReceitasScreen() {
   };
 
   // Excluir apenas este mês
-  const deleteThisMonth = () => {
+  const deleteThisMonth = async () => {
     if (!selectedIncomeId) return;
     
-    const updatedIncomes = incomes.filter(income => income.id !== selectedIncomeId);
-    setIncomes(updatedIncomes);
-    saveIncomes(updatedIncomes);
-    setDeleteOptionsVisible(false);
-    
-    Alert.alert('Sucesso', 'Receita excluída deste mês com sucesso!');
+    try {
+      // Excluir do Supabase
+      const { error } = await supabase
+        .from('incomes')
+        .delete()
+        .eq('id', selectedIncomeId);
+        
+      if (error) {
+        console.error('Erro ao excluir receita:', error);
+        Alert.alert('Erro', 'Não foi possível excluir a receita. Tente novamente.');
+        return;
+      }
+      
+      // Atualizar lista local
+      const updatedIncomes = incomes.filter(income => income.id !== selectedIncomeId);
+      setIncomes(updatedIncomes);
+      setDeleteOptionsVisible(false);
+      
+      Alert.alert('Sucesso', 'Receita excluída com sucesso!');
+    } catch (error) {
+      console.error('Erro inesperado ao excluir receita:', error);
+      Alert.alert('Erro', 'Ocorreu um erro inesperado. Tente novamente.');
+    }
   };
 
   // Excluir a partir deste mês
-  const deleteFromThisMonth = () => {
+  const deleteFromThisMonth = async () => {
     if (!selectedIncomeId) return;
     
-    const currentDate = new Date();
-    const updatedIncomes = incomes.filter(income => {
-      // Manter receitas com data anterior ao mês atual
-      return income.id !== selectedIncomeId || 
-             (income.receiptDate.getMonth() < currentDate.getMonth() && 
-              income.receiptDate.getFullYear() <= currentDate.getFullYear());
-    });
-    
-    setIncomes(updatedIncomes);
-    saveIncomes(updatedIncomes);
-    setDeleteOptionsVisible(false);
-    
-    Alert.alert('Sucesso', 'Receita excluída a partir deste mês com sucesso!');
+    try {
+      // Excluir do Supabase
+      const { error } = await supabase
+        .from('incomes')
+        .delete()
+        .eq('id', selectedIncomeId);
+        
+      if (error) {
+        console.error('Erro ao excluir receita:', error);
+        Alert.alert('Erro', 'Não foi possível excluir a receita. Tente novamente.');
+        return;
+      }
+      
+      // Atualizar lista local
+      const updatedIncomes = incomes.filter(income => income.id !== selectedIncomeId);
+      setIncomes(updatedIncomes);
+      setDeleteOptionsVisible(false);
+      
+      Alert.alert('Sucesso', 'Receita excluída a partir deste mês com sucesso!');
+    } catch (error) {
+      console.error('Erro inesperado ao excluir receita:', error);
+      Alert.alert('Erro', 'Ocorreu um erro inesperado. Tente novamente.');
+    }
   };
 
   // Excluir definitivamente
-  const deleteDefinitively = () => {
+  const deleteDefinitively = async () => {
     if (!selectedIncomeId) return;
     
-    const updatedIncomes = incomes.filter(income => income.id !== selectedIncomeId);
-    setIncomes(updatedIncomes);
-    saveIncomes(updatedIncomes);
-    setDeleteOptionsVisible(false);
-    
-    Alert.alert('Sucesso', 'Receita excluída definitivamente com sucesso!');
+    try {
+      // Excluir do Supabase
+      const { error } = await supabase
+        .from('incomes')
+        .delete()
+        .eq('id', selectedIncomeId);
+        
+      if (error) {
+        console.error('Erro ao excluir receita:', error);
+        Alert.alert('Erro', 'Não foi possível excluir a receita. Tente novamente.');
+        return;
+      }
+      
+      // Atualizar lista local
+      const updatedIncomes = incomes.filter(income => income.id !== selectedIncomeId);
+      setIncomes(updatedIncomes);
+      setDeleteOptionsVisible(false);
+      
+      Alert.alert('Sucesso', 'Receita excluída definitivamente com sucesso!');
+    } catch (error) {
+      console.error('Erro inesperado ao excluir receita:', error);
+      Alert.alert('Erro', 'Ocorreu um erro inesperado. Tente novamente.');
+    }
   };
 
   // Formatação de data
@@ -290,6 +692,16 @@ export default function ReceitasScreen() {
     return `${formattedInteger},${decimalPart}`;
   };
 
+  // Formatação de valor para input (sem separadores de milhares)
+  const formatCurrencyInput = (value: number) => {
+    const valueStr = value.toString();
+    const parts = valueStr.split('.');
+    const integerPart = parts[0];
+    const decimalPart = parts.length > 1 ? parts[1].padEnd(2, '0').substring(0, 2) : '00';
+    
+    return `${integerPart},${decimalPart}`;
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar style="light" />
@@ -301,7 +713,7 @@ export default function ReceitasScreen() {
       >
         <View style={styles.header}>
           <TouchableOpacity 
-            onPress={() => router.back()} 
+            onPress={() => router.push('/(app)/dashboard')} 
             style={styles.iconButton}
             accessibilityLabel="Voltar"
           >
@@ -815,101 +1227,176 @@ export default function ReceitasScreen() {
         visible={modalVisible}
         onRequestClose={() => setModalVisible(false)}
       >
-        <View style={styles.modalContainer}>
+        <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Efetivar Receita</Text>
-            
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Receita</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Ex: Salário, Freelance, etc."
-                placeholderTextColor="#666"
-                value={newIncome.description}
-                onChangeText={(text) => setNewIncome({...newIncome, description: text})}
-              />
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Efetivar Receita</Text>
+              <TouchableOpacity style={styles.closeButton} onPress={() => setModalVisible(false)}>
+                <X size={20} color="#333" />
+              </TouchableOpacity>
             </View>
             
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Valor</Text>
-              <View style={styles.currencyInputContainer}>
+            <ScrollView
+              showsVerticalScrollIndicator={true}
+              contentContainerStyle={{ paddingBottom: 20 }}
+            >
+            
+              {/* Campo de Descrição */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Receita</Text>
                 <TextInput
-                  style={styles.currencyInput}
-                  placeholder="0,00"
-                  placeholderTextColor="#666"
-                  keyboardType="decimal-pad"
-                  value={newIncome.amount > 0 ? newIncome.amount.toString().replace('.', ',') : ''}
-                  onChangeText={(text) => {
-                    // Remove caracteres não numéricos, exceto vírgula
-                    const cleanedText = text.replace(/[^0-9,]/g, '');
-                    // Substitui vírgula por ponto para conversão
-                    const numericText = cleanedText.replace(',', '.');
-                    // Converte para número ou usa 0 se inválido
-                    const numericValue = numericText ? parseFloat(numericText) : 0;
-                    setNewIncome({...newIncome, amount: numericValue});
-                  }}
+                  style={styles.textInput}
+                  value={newIncome.description}
+                  onChangeText={(text) => setNewIncome({...newIncome, description: text})}
+                  placeholder="Ex: Salário, Freelance, Venda"
+                  placeholderTextColor="#999"
                 />
-                <TouchableOpacity style={styles.calculatorButton}>
-                  <Text style={styles.calculatorIcon}>⌨️</Text>
-                </TouchableOpacity>
               </View>
-            </View>
-            
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Data recebimento</Text>
-              <TouchableOpacity 
-                style={styles.datePickerButton}
-                onPress={() => setDatePickerVisible(true)}
-              >
-                <Text style={styles.datePickerButtonText}>Hoje</Text>
-                <View style={styles.linkIcon}>
-                  <Text style={styles.linkIconText}>⤵</Text>
-                </View>
-              </TouchableOpacity>
-              
-              {datePickerVisible && (
-                <DateTimePicker
-                  value={newIncome.receiptDate}
-                  mode="date"
-                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                  onChange={(event, selectedDate) => {
-                    setDatePickerVisible(Platform.OS === 'ios');
-                    if (selectedDate) {
-                      setNewIncome({...newIncome, receiptDate: selectedDate});
-                    }
-                  }}
-                />
-              )}
-            </View>
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Conta</Text>
-              <TouchableOpacity style={styles.accountSelector}>
-                <View style={styles.accountIconContainer}>
-                  <View style={styles.accountIcon}></View>
+              {/* Campo de Valor */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Valor</Text>
+                <View style={styles.amountInputContainer}>
+                  <Text style={styles.currencySymbol}>R$</Text>
+                  <TextInput
+                    style={styles.amountInput}
+                    value={newIncome.amount > 0 ? newIncome.amount.toLocaleString('pt-BR', {
+                      style: 'currency',
+                      currency: 'BRL'
+                    }).replace('R$', '').trim() : ''}
+                    onChangeText={(text) => {
+                      // Remove tudo que não é número
+                      const numericValue = text.replace(/[^0-9]/g, '');
+                      // Formata como moeda brasileira
+                      if (numericValue) {
+                        const formattedValue = (parseInt(numericValue) / 100);
+                        setNewIncome({...newIncome, amount: formattedValue});
+                      } else {
+                        setNewIncome({...newIncome, amount: 0});
+                      }
+                    }}
+                    placeholder="0,00"
+                    keyboardType="numeric"
+                    placeholderTextColor="#999"
+                  />
                 </View>
-                <Text style={styles.accountText}>Minha Carteira</Text>
-                <View style={styles.accountDropdownIcon}>
-                  <Text style={{color: '#999'}}>▼</Text>
-                </View>
-              </TouchableOpacity>
-            </View>
-            
-            <View style={styles.modalActions}>
+              </View>
+
+              {/* Campo de Data */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Data recebimento</Text>
+                <TouchableOpacity style={styles.dateInput} onPress={toggleCalendar}>
+                  <Calendar size={20} color="#666" style={styles.inputIcon} />
+                  <Text style={styles.dateText}>{selectedDate}</Text>
+                  <TouchableOpacity style={styles.calendarButton} onPress={toggleCalendar}>
+                    <Calendar size={20} color="#666" />
+                  </TouchableOpacity>
+                </TouchableOpacity>
+                
+                {calendarVisible && (
+                  <View style={styles.calendarPickerContainer}>
+                    <View
+                      style={[styles.calendarPickerHeader, { backgroundColor: theme.primary }]}
+                    >
+                      <View style={styles.calendarPickerMonthSelector}>
+                        <TouchableOpacity onPress={goToPreviousPickerMonth} style={styles.calendarPickerArrow}>
+                          <ChevronLeft size={24} color="#FFF" />
+                        </TouchableOpacity>
+                        
+                        <Text style={styles.calendarPickerMonthText}>
+                          {months[pickerMonth]} {pickerYear}
+                        </Text>
+                        
+                        <TouchableOpacity onPress={goToNextPickerMonth} style={styles.calendarPickerArrow}>
+                          <ChevronRight size={24} color="#FFF" />
+                        </TouchableOpacity>
+                      </View>
+
+                      <View style={styles.pickerCalendarContainer}>
+                        {renderPickerCalendarGrid()}
+                      </View>
+                    </View>
+                  </View>
+                )}
+              </View>
+
+              {/* Campo de Conta */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Conta</Text>
+                <TouchableOpacity 
+                  style={[
+                    styles.selectInput,
+                    selectedAccount ? { borderColor: theme.primary, borderWidth: 1.5 } : null
+                  ]}
+                  onPress={() => setAccountsVisible(!accountsVisible)}
+                >
+                  {selectedAccount ? (
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      <Text style={{ fontSize: 20, marginRight: 10 }}>
+                        {selectedAccount?.type === 'Conta Corrente' ? '🏦' : 
+                         selectedAccount?.type === 'Poupança' ? '💰' : 
+                         selectedAccount?.type === 'Investimento' ? '📈' : 
+                         selectedAccount?.type === 'Dinheiro Físico' ? '💵' : '💳'}
+                      </Text>
+                      <Text style={[styles.selectPlaceholder, { color: theme.primary, fontWeight: '500' }]}>
+                        {selectedAccount.name}
+                      </Text>
+                    </View>
+                  ) : (
+                    <Text style={styles.selectPlaceholder}>Selecionar conta</Text>
+                  )}
+                  <ChevronRight size={18} color="#666" style={{ transform: [{ rotate: '90deg' }] as any }} />
+                </TouchableOpacity>
+                
+                {accountsVisible && (
+                  <View style={styles.accountsDropdown}>
+                    {userAccounts.map((account, index) => (
+                      <TouchableOpacity 
+                        key={account.id}
+                        style={[
+                          styles.accountOption,
+                          selectedAccount?.id === account.id && styles.accountOptionSelected,
+                          index === userAccounts.length - 1 && { borderBottomWidth: 0 }
+                        ]}
+                        onPress={() => {
+                          setSelectedAccount(account);
+                          setAccountsVisible(false);
+                        }}
+                      >
+                        <Text style={{ fontSize: 18, marginRight: 10 }}>
+                          {account.type === 'Conta Corrente' ? '🏦' : 
+                           account.type === 'Poupança' ? '💰' : 
+                           account.type === 'Investimento' ? '📈' : 
+                           account.type === 'Dinheiro Físico' ? '💵' : '💳'}
+                        </Text>
+                        <View style={{ flex: 1 }}>
+                          <Text style={[
+                            styles.accountOptionText,
+                            selectedAccount?.id === account.id && styles.accountOptionTextSelected
+                          ]}>
+                            {account.name}
+                          </Text>
+                          <Text style={styles.accountOptionType}>
+                            {account.type}{account.bank ? ` • ${account.bank}` : ''}
+                          </Text>
+                        </View>
+                        {selectedAccount?.id === account.id && (
+                          <Text style={{ color: theme.primary, fontSize: 16 }}>✓</Text>
+                        )}
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+              </View>
+
+              {/* Botão de Salvar */}
               <TouchableOpacity 
-                style={styles.cancelButton}
-                onPress={() => setModalVisible(false)}
-              >
-                <Text style={styles.cancelButtonText}>Cancelar</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={styles.confirmButton}
+                style={[styles.saveButton, { backgroundColor: theme.primary }]}
                 onPress={addIncome}
               >
-                <Text style={styles.confirmButtonText}>Efetivar</Text>
+                <Text style={styles.saveButtonText}>Efetivar Receita</Text>
               </TouchableOpacity>
-            </View>
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -1190,25 +1677,7 @@ const createStyles = (theme: any) => StyleSheet.create({
     height: 80,
   },
   // Modals styles - keeping the existing modal styles
-  modalContainer: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-  },
-  modalContent: {
-    backgroundColor: '#f5f5f5',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 20,
-    maxHeight: '80%',
-  },
-  modalTitle: {
-    fontSize: 24,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 20,
-    textAlign: 'left',
-  },
+
   inputGroup: {
     marginBottom: 24,
   },
@@ -1226,27 +1695,28 @@ const createStyles = (theme: any) => StyleSheet.create({
     fontSize: 18,
     color: '#333',
   },
-  currencyInputContainer: {
+  valueInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: 'transparent',
-    borderBottomWidth: 1,
-    borderBottomColor: '#ddd',
-    paddingVertical: 8,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: '#e9ecef',
   },
-  calculatorButton: {
-    padding: 4,
+  currencyPrefix: {
+    fontSize: 18,
+    color: '#6c757d',
+    fontWeight: '600',
+    marginRight: 8,
   },
-  calculatorIcon: {
-    fontSize: 20,
-  },
-  currencyInput: {
+  valueInput: {
     flex: 1,
-    paddingVertical: 0,
-    fontSize: 24,
-    color: '#333',
-    textAlign: 'right',
+    fontSize: 18,
+    color: '#212529',
+    fontWeight: '500',
+    textAlign: 'left',
   },
   datePickerButton: {
     flexDirection: 'row',
@@ -1318,8 +1788,86 @@ const createStyles = (theme: any) => StyleSheet.create({
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    padding: 20,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    width: '100%',
+    maxHeight: '90%',
+    zIndex: 1,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: 20,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+        borderBottomColor: '#f0f0f0',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#333333',
+  },
+  closeButton: {
+    padding: 10,
+    borderRadius: 20,
+  },
+  textInput: {
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    color: '#333333',
+  },
+  amountInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    borderRadius: 8,
+    padding: 12,
+  },
+  currencySymbol: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333333',
+    marginRight: 5,
+  },
+  amountInput: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#333333',
+  },
+  selectInput: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    borderRadius: 8,
+    padding: 12,
+  },
+  selectPlaceholder: {
+    flex: 1,
+    fontSize: 16,
+    color: '#666',
+  },
+  saveButton: {
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 24,
+  },
+  saveButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
   },
   optionsModalContent: {
     width: '80%',
@@ -1556,5 +2104,146 @@ const createStyles = (theme: any) => StyleSheet.create({
     fontFamily: fontFallbacks.Poppins_600SemiBold,
     textDecorationLine: 'underline',
     marginHorizontal: 10,
+  },
+  accountsDropdown: {
+    backgroundColor: 'white',
+    borderRadius: 8,
+    marginTop: 8,
+    maxHeight: 200,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  accountOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  accountOptionSelected: {
+    backgroundColor: '#f8f9ff',
+  },
+  accountOptionText: {
+    fontSize: 16,
+    color: '#333',
+    fontWeight: '500',
+  },
+  accountOptionTextSelected: {
+    color: '#4CD964',
+    fontWeight: '600',
+  },
+  accountOptionType: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 2,
+  },
+  // Estilos do calendário
+  calendarPickerContainer: {
+    marginTop: 10,
+    marginBottom: 16,
+    borderRadius: 12,
+    overflow: 'hidden',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+  },
+  calendarPickerHeader: {
+    padding: 16,
+    width: '100%',
+    backgroundColor: theme.primary,
+  },
+  calendarPickerMonthSelector: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  calendarPickerArrow: {
+    padding: 5,
+  },
+  calendarPickerMonthText: {
+    fontSize: 16,
+    fontFamily: fontFallbacks.Poppins_500Medium,
+    color: '#FFF',
+  },
+  pickerCalendarContainer: {
+    marginHorizontal: 4,
+  },
+  pickerCalendarHeaderCell: {
+    width: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pickerCalendarHeaderText: {
+    color: '#FFF',
+    fontSize: 12,
+    fontFamily: fontFallbacks.Poppins_400Regular,
+    opacity: 0.9,
+  },
+  pickerCalendarRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: 8,
+  },
+  pickerCalendarCell: {
+    width: 40,
+    height: 38,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pickerDayCircle: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pickerSelectedDayCircle: {
+    backgroundColor: '#FFF',
+  },
+  pickerCalendarDay: {
+    fontSize: 16,
+    fontFamily: fontFallbacks.Poppins_400Regular,
+  },
+  pickerCurrentMonthCell: {},
+  pickerOtherMonthCell: {
+    opacity: 0.6,
+  },
+  pickerSelectedCell: {},
+  pickerCurrentMonthDay: {
+    color: '#FFF',
+  },
+  pickerOtherMonthDay: {
+    color: 'rgba(255, 255, 255, 0.4)',
+  },
+  pickerSelectedDayText: {
+    fontFamily: fontFallbacks.Poppins_600SemiBold,
+  },
+  dateInput: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    backgroundColor: '#fff',
+  },
+  inputIcon: {
+    marginRight: 10,
+  },
+  dateText: {
+    flex: 1,
+    fontSize: 16,
+    color: '#333',
+    fontFamily: fontFallbacks.Poppins_400Regular,
+  },
+  calendarButton: {
+    padding: 4,
   },
 });

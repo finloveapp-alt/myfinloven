@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Image, TouchableOpacity, ScrollView, Platform, 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StatusBar } from 'expo-status-bar';
 import { BarChart, ArrowLeft, ArrowRight, LogOut, Calendar, DollarSign, Check, Clock, ArrowDownCircle, ArrowUpCircle, ChevronRight, Info, ChevronDown, BookUser, Users, X, FileText, Settings, CreditCard, BarChart3, Bell, Menu, PlusCircle, Wallet, ExternalLink, Target, Receipt, Camera, Upload, ImageIcon, Home } from 'lucide-react-native';
+import { LineChart } from 'react-native-chart-kit';
 import { useRouter } from 'expo-router';
 import { Dimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -100,6 +101,8 @@ export default function Dashboard() {
   const [calendarEvents, setCalendarEvents] = useState<{[key: string]: {income: boolean, expense: boolean, transfer: boolean}}>({});
   const [loadingCalendar, setLoadingCalendar] = useState(true);
   const [calendarCurrentDate, setCalendarCurrentDate] = useState(new Date());
+  const [dailyTransactionsChart, setDailyTransactionsChart] = useState<any>(null);
+  const [loadingDailyChart, setLoadingDailyChart] = useState(true);
   
   // Salvar o tema no AsyncStorage quando ele for alterado
   const saveThemeToStorage = async (themeValue: string) => {
@@ -180,6 +183,8 @@ export default function Dashboard() {
     fetchChartData();
     // Buscar eventos do calendário
     fetchCalendarEvents();
+    // Buscar dados do gráfico diário
+    fetchDailyTransactionsChart();
   }, []);
   
   // Função para buscar o usuário atual e seus parceiros
@@ -1608,11 +1613,94 @@ export default function Dashboard() {
     }
   };
 
+  // Função para buscar dados do gráfico de transações diárias
+  const fetchDailyTransactionsChart = async () => {
+    try {
+      setLoadingDailyChart(true);
+      
+      // Obter a sessão atual
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session?.user) {
+        console.error('Erro ao obter sessão:', sessionError);
+        return;
+      }
+      
+      const userId = session.user.id;
+      const currentDate = new Date();
+      const startDate = new Date(currentDate);
+      startDate.setDate(currentDate.getDate() - 3); // 3 dias atrás
+      startDate.setHours(0, 0, 0, 0);
+      const endDate = new Date(currentDate);
+      endDate.setDate(currentDate.getDate() + 3); // 3 dias à frente
+      endDate.setHours(23, 59, 59, 999);
+      
+      // Buscar todas as transações dos últimos 3 dias até os próximos 3 dias
+      const { data: transactions, error: transactionsError } = await supabase
+        .from('transactions')
+        .select('amount, transaction_date, transaction_type')
+        .or(`owner_id.eq.${userId},partner_id.eq.${userId}`)
+        .gte('transaction_date', startDate.toISOString())
+        .lte('transaction_date', endDate.toISOString())
+        .order('transaction_date', { ascending: true });
+      
+      if (transactionsError) {
+        console.error('Erro ao buscar transações para gráfico:', transactionsError);
+        return;
+      }
+      
+      // Processar dados para o gráfico
+      const dailyTotals: { [key: string]: number } = {};
+      const labels: string[] = [];
+      
+      // Inicializar todos os dias com 0 (3 passados + hoje + 3 futuros = 7 dias)
+      for (let i = 0; i < 7; i++) {
+        const date = new Date(startDate);
+        date.setDate(startDate.getDate() + i);
+        const dateKey = date.toISOString().split('T')[0];
+        const dayMonth = `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+        dailyTotals[dateKey] = 0;
+        labels.push(dayMonth);
+      }
+      
+      // Somar transações por dia baseado na transaction_date (valor absoluto)
+      transactions?.forEach(transaction => {
+        const transactionDate = new Date(transaction.transaction_date);
+        const dateKey = transactionDate.toISOString().split('T')[0];
+        if (dailyTotals.hasOwnProperty(dateKey)) {
+          dailyTotals[dateKey] += Math.abs(Number(transaction.amount));
+        }
+      });
+      
+      const data = Object.values(dailyTotals);
+      
+      const chartData = {
+        labels,
+        datasets: [
+          {
+            data,
+            color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
+            strokeWidth: 3
+          }
+        ]
+      };
+      
+      setDailyTransactionsChart(chartData);
+      
+    } catch (error) {
+      console.error('Erro ao buscar dados do gráfico diário:', error);
+    } finally {
+      setLoadingDailyChart(false);
+    }
+  };
+
   // Funções para navegar entre meses
   const goToPreviousMonth = () => {
     setCurrentMonth(prevMonth => {
       const newMonth = new Date(prevMonth);
       newMonth.setMonth(newMonth.getMonth() - 1);
+      // Recarregar gráfico quando mudar o mês
+      fetchDailyTransactionsChart();
       return newMonth;
     });
   };
@@ -1621,6 +1709,8 @@ export default function Dashboard() {
     setCurrentMonth(prevMonth => {
       const newMonth = new Date(prevMonth);
       newMonth.setMonth(newMonth.getMonth() + 1);
+      // Recarregar gráfico quando mudar o mês
+      fetchDailyTransactionsChart();
       return newMonth;
     });
   };
@@ -1706,17 +1796,17 @@ export default function Dashboard() {
   // Funções para navegar entre transações
   const goToPreviousTransaction = () => {
     if (recentTransactions.length > 0) {
-      setCurrentTransactionIndex(prev => 
+    setCurrentTransactionIndex(prev => 
         prev === 0 ? recentTransactions.length - 1 : prev - 1
-      );
+    );
     }
   };
   
   const goToNextTransaction = () => {
     if (recentTransactions.length > 0) {
-      setCurrentTransactionIndex(prev => 
+    setCurrentTransactionIndex(prev => 
         prev === recentTransactions.length - 1 ? 0 : prev + 1
-      );
+    );
     }
   };
 
@@ -2210,7 +2300,70 @@ export default function Dashboard() {
                   <Text style={styles.balanceAmountSmall}>{formatCurrency(predictedBalance)}</Text>
                 </View>
               </View>
-              
+
+              {/* Gráfico de Transações Diárias */}
+              <View style={styles.chartContainer}>
+                {loadingDailyChart ? (
+                  <View style={styles.chartLoadingContainer}>
+                    <ActivityIndicator size="small" color="#fff" />
+                    <Text style={styles.chartLoadingText}>Carregando gráfico...</Text>
+                  </View>
+                ) : dailyTransactionsChart ? (
+                  <LineChart
+                    data={dailyTransactionsChart}
+                    width={Dimensions.get('window').width - 40}
+                    height={160}
+                    chartConfig={{
+                      backgroundColor: 'transparent',
+                      backgroundGradientFrom: 'transparent',
+                      backgroundGradientTo: 'transparent',
+                      decimalPlaces: 0,
+                      color: (opacity = 1) => `rgba(255, 193, 7, ${opacity})`, // Cor amarela/dourada
+                      labelColor: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
+                      style: {
+                        borderRadius: 0,
+                      },
+                      propsForDots: {
+                        r: '5',
+                        strokeWidth: '0',
+                        stroke: '#FFC107',
+                        fill: '#FFC107' // Pontos amarelos
+                      },
+                      propsForBackgroundLines: {
+                        strokeDasharray: '',
+                        stroke: 'transparent', // Remove linhas de grade
+                        strokeWidth: 0
+                      },
+                      propsForLabels: {
+                        fontSize: 12,
+                        fontFamily: 'Poppins_400Regular'
+                      },
+                      formatYLabel: () => '', // Remove labels do eixo Y
+                      yLabelsOffset: 0
+                    }}
+                    bezier
+                    style={{
+                      marginVertical: 8,
+                      borderRadius: 0,
+                    }}
+                    withInnerLines={false}
+                    withOuterLines={false}
+                    withVerticalLines={false}
+                    withHorizontalLines={false}
+                    withDots={true}
+                    withShadow={false}
+                    withVerticalLabels={true}
+                    withHorizontalLabels={false}
+                    yAxisLabel=""
+                    yAxisSuffix=""
+                    hidePointsAtIndex={[]}
+                  />
+                ) : (
+                  <View style={styles.chartEmptyContainer}>
+                    <Text style={styles.chartEmptyText}>Nenhuma transação encontrada</Text>
+                  </View>
+                )}
+              </View>
 
             </View>
 
@@ -2397,7 +2550,7 @@ export default function Dashboard() {
             <View style={styles.loadingContainer}>
               <ActivityIndicator size="small" color={theme.primary} />
               <Text style={styles.loadingText}>Carregando transações...</Text>
-            </View>
+              </View>
           ) : recentTransactions.length === 0 ? (
             <View style={styles.emptyContainer}>
               <Text style={styles.emptyText}>Nenhuma transação encontrada</Text>
@@ -2407,7 +2560,7 @@ export default function Dashboard() {
               <TouchableOpacity onPress={goToNextTransaction} style={styles.transactionRow}>
                 <View style={[styles.iconContainer, {backgroundColor: recentTransactions[currentTransactionIndex]?.backgroundColor || '#E3F5FF'}]}>
                   <Text style={styles.iconText}>{recentTransactions[currentTransactionIndex]?.icon || '💰'}</Text>
-                </View>
+              </View>
                 
                 <View style={styles.textContainer}>
                   <Text style={styles.titleText} numberOfLines={1}>
@@ -2416,7 +2569,7 @@ export default function Dashboard() {
                   <Text style={styles.subtitleText} numberOfLines={1}>
                     {recentTransactions[currentTransactionIndex]?.subtitle || 'Detalhes'}
                   </Text>
-                </View>
+              </View>
                 
                 <View style={styles.amountContainer}>
                   <Text style={[
@@ -2428,23 +2581,23 @@ export default function Dashboard() {
                   <Text style={styles.methodText} numberOfLines={1}>
                     {recentTransactions[currentTransactionIndex]?.paymentMethod || 'N/A'}
                   </Text>
-                </View>
-                
+            </View>
+            
                 <ChevronRight size={16} color="#999" />
-              </TouchableOpacity>
-              
-              <View style={styles.paginationDots}>
+            </TouchableOpacity>
+          
+          <View style={styles.paginationDots}>
                 {recentTransactions.map((_, index) => (
-                  <View 
-                    key={index}
-                    style={[styles.paginationDot, 
-                      index === currentTransactionIndex ? 
-                      { backgroundColor: theme.secondary, width: 20 } : 
-                      { backgroundColor: '#e0e0e0' }
-                    ]} 
-                  />
-                ))}
-              </View>
+              <View 
+                key={index}
+                style={[styles.paginationDot, 
+                  index === currentTransactionIndex ? 
+                  { backgroundColor: theme.secondary, width: 20 } : 
+                  { backgroundColor: '#e0e0e0' }
+                ]} 
+              />
+            ))}
+          </View>
             </>
           )}
         </View>
@@ -2462,28 +2615,28 @@ export default function Dashboard() {
             </View>
           ) : (
             <>
-              <View style={styles.summaryItem}>
-                <DollarSign size={18} color={theme.primary} />
-                <Text style={styles.summaryLabel}>Saldo total atual:</Text>
+          <View style={styles.summaryItem}>
+            <DollarSign size={18} color={theme.primary} />
+            <Text style={styles.summaryLabel}>Saldo total atual:</Text>
                 <Text style={styles.summaryValue}>{formatCurrency(summaryData.saldoTotal)}</Text>
-              </View>
+          </View>
 
-              <TouchableOpacity 
-                style={[styles.summaryItem, styles.clickableItem]}
-                onPress={() => router.push('/historico-receitas')}
-                activeOpacity={0.7}
-              >
-                <ArrowDownCircle size={18} color={theme.income} />
-                <Text style={styles.summaryLabel}>Receitas totais do mês:</Text>
+          <TouchableOpacity 
+            style={[styles.summaryItem, styles.clickableItem]}
+            onPress={() => router.push('/historico-receitas')}
+            activeOpacity={0.7}
+          >
+            <ArrowDownCircle size={18} color={theme.income} />
+            <Text style={styles.summaryLabel}>Receitas totais do mês:</Text>
                 <Text style={[styles.summaryValue, {color: theme.income}]}>{formatCurrency(summaryData.receitasMes)}</Text>
-                <ChevronRight size={16} color="#999" style={styles.chevronIcon} />
-              </TouchableOpacity>
+            <ChevronRight size={16} color="#999" style={styles.chevronIcon} />
+          </TouchableOpacity>
 
-              <View style={styles.summaryItem}>
-                <ArrowUpCircle size={18} color={theme.expense} />
-                <Text style={styles.summaryLabel}>Despesas totais do mês:</Text>
+          <View style={styles.summaryItem}>
+            <ArrowUpCircle size={18} color={theme.expense} />
+            <Text style={styles.summaryLabel}>Despesas totais do mês:</Text>
                 <Text style={[styles.summaryValue, {color: theme.expense}]}>{formatCurrency(summaryData.despesasMes)}</Text>
-              </View>
+          </View>
             </>
           )}
         </View>
@@ -2501,47 +2654,47 @@ export default function Dashboard() {
             </View>
           ) : (
             <>
-              <View style={styles.personExpense}>
-                <View style={styles.personExpenseHeader}>
+          <View style={styles.personExpense}>
+            <View style={styles.personExpenseHeader}>
                   <Text style={styles.personName}>{expensesByPerson.currentUser.name}:</Text>
                   <Text style={styles.personAmount}>{formatCurrency(expensesByPerson.currentUser.amount)}</Text>
-                </View>
-                <View style={styles.progressBar}>
+            </View>
+            <View style={styles.progressBar}>
                   <View style={[styles.progressFill, { 
                     backgroundColor: theme.primary, 
                     width: `${expensesByPerson.currentUser.percentage}%` 
                   }]} />
-                </View>
-              </View>
+            </View>
+          </View>
 
               {expensesByPerson.partner.name !== 'Parceiro' && expensesByPerson.partner.amount > 0 && (
-                <View style={styles.personExpense}>
-                  <View style={styles.personExpenseHeader}>
+          <View style={styles.personExpense}>
+            <View style={styles.personExpenseHeader}>
                     <Text style={styles.personName}>{expensesByPerson.partner.name}:</Text>
                     <Text style={styles.personAmount}>{formatCurrency(expensesByPerson.partner.amount)}</Text>
-                  </View>
-                  <View style={styles.progressBar}>
+            </View>
+            <View style={styles.progressBar}>
                     <View style={[styles.progressFill, { 
                       backgroundColor: theme === themes.masculine ? theme.shared : theme.primary, 
                       width: `${expensesByPerson.partner.percentage}%` 
                     }]} />
-                  </View>
-                </View>
+            </View>
+          </View>
               )}
 
               {expensesByPerson.shared.amount > 0 && (
-                <View style={styles.personExpense}>
-                  <View style={styles.personExpenseHeader}>
-                    <Text style={styles.personName}>Compartilhado:</Text>
+          <View style={styles.personExpense}>
+            <View style={styles.personExpenseHeader}>
+              <Text style={styles.personName}>Compartilhado:</Text>
                     <Text style={styles.personAmount}>{formatCurrency(expensesByPerson.shared.amount)}</Text>
-                  </View>
-                  <View style={styles.progressBar}>
+            </View>
+            <View style={styles.progressBar}>
                     <View style={[styles.progressFill, { 
                       backgroundColor: theme.shared, 
                       width: `${expensesByPerson.shared.percentage}%` 
                     }]} />
-                  </View>
-                </View>
+            </View>
+          </View>
               )}
 
               {expensesByPerson.currentUser.amount === 0 && 
@@ -2577,13 +2730,13 @@ export default function Dashboard() {
                 <View key={item.id || index} style={styles.billItem}>
                   <View style={[styles.billIconContainer, {backgroundColor: item.backgroundColor}]}>
                     <item.icon size={20} color={item.iconColor} />
-                  </View>
-                  <View style={styles.billDetails}>
+              </View>
+              <View style={styles.billDetails}>
                     <Text style={styles.billTitle}>{item.title}</Text>
                     <Text style={styles.billDate}>{item.subtitle}</Text>
-                  </View>
+              </View>
                   <Text style={styles.billAmount}>{formatCurrency(Number(item.amount))}</Text>
-                </View>
+            </View>
               ))
             )}
           </View>
@@ -2611,13 +2764,13 @@ export default function Dashboard() {
                 <View key={item.id || index} style={styles.billItem}>
                   <View style={[styles.billIconContainer, {backgroundColor: item.backgroundColor}]}>
                     <item.icon size={20} color={item.iconColor} />
-                  </View>
-                  <View style={styles.billDetails}>
+              </View>
+              <View style={styles.billDetails}>
                     <Text style={styles.billTitle}>{item.title}</Text>
                     <Text style={styles.billDate}>{item.subtitle}</Text>
-                  </View>
+              </View>
                   <Text style={styles.billAmount}>{formatCurrency(Number(item.amount))}</Text>
-                </View>
+            </View>
               ))
             )}
           </View>
@@ -2636,7 +2789,7 @@ export default function Dashboard() {
             <View style={styles.loadingContainer}>
               <ActivityIndicator size="small" color={theme.primary} />
               <Text style={styles.loadingText}>Carregando metas...</Text>
-            </View>
+              </View>
           ) : financialGoals.length === 0 ? (
             <View style={styles.emptyContainer}>
               <Text style={styles.emptyText}>Nenhuma meta cadastrada</Text>
@@ -2644,11 +2797,11 @@ export default function Dashboard() {
           ) : (
             financialGoals.map((goal, index) => (
               <View key={goal.id || index} style={styles.goalItem}>
-                <View style={styles.goalHeader}>
-                  <View style={styles.goalTitleContainer}>
+            <View style={styles.goalHeader}>
+              <View style={styles.goalTitleContainer}>
                     <Target size={18} color={goal.color} />
                     <Text style={styles.goalTitle}>{goal.title}</Text>
-                  </View>
+              </View>
                   {goal.percentage <= 100 ? (
                     <Text style={styles.goalPercentage}>{goal.percentage}%</Text>
                   ) : (
@@ -2656,11 +2809,11 @@ export default function Dashboard() {
                       {formatCurrency(goal.currentAmount)} <Text style={styles.goalTarget}>/ {formatCurrency(goal.targetAmount)}</Text>
                     </Text>
                   )}
-                </View>
-                <View style={styles.progressBar}>
+            </View>
+            <View style={styles.progressBar}>
                   <View style={[styles.progressFill, { backgroundColor: goal.color, width: `${Math.min(goal.percentage, 100)}%` }]} />
-                </View>
-              </View>
+            </View>
+          </View>
             ))
           )}
         </View>
@@ -2680,8 +2833,8 @@ export default function Dashboard() {
               <Text style={styles.calendarLoadingText}>Carregando eventos...</Text>
             </View>
           ) : (
-            <View style={styles.calendarPreview}>
-              <View style={styles.calendarRow}>
+          <View style={styles.calendarPreview}>
+            <View style={styles.calendarRow}>
                 {generateCalendarDays().map((day, index) => {
                   const today = new Date().getDate();
                   const isToday = day === today;
@@ -2728,28 +2881,28 @@ export default function Dashboard() {
                           {dayTransactions.transfer && (
                             <View style={[styles.calendarTransactionDot, { backgroundColor: '#FFCC02' }]} />
                           )}
-                        </View>
+              </View>
                       )}
                     </TouchableOpacity>
                   );
                 })}
-              </View>
+            </View>
 
-              <View style={styles.calendarLegend}>
-                <View style={styles.legendItem}>
+            <View style={styles.calendarLegend}>
+              <View style={styles.legendItem}>
                   <View style={[styles.legendDot, {backgroundColor: '#4CD964'}]} />
                   <Text style={styles.legendText}>Receitas</Text>
-                </View>
-                <View style={styles.legendItem}>
+              </View>
+              <View style={styles.legendItem}>
                   <View style={[styles.legendDot, {backgroundColor: '#FF3A30'}]} />
                   <Text style={styles.legendText}>Despesas</Text>
-                </View>
-                <View style={styles.legendItem}>
+              </View>
+              <View style={styles.legendItem}>
                   <View style={[styles.legendDot, {backgroundColor: '#FFCC02'}]} />
                   <Text style={styles.legendText}>Transferências</Text>
-                </View>
               </View>
             </View>
+          </View>
           )}
         </View>
       </ScrollView>
@@ -4771,5 +4924,34 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 16,
     fontFamily: fontFallbacks.Poppins_600SemiBold,
+  },
+  // Estilos do gráfico
+  chartContainer: {
+    marginTop: 20,
+    paddingHorizontal: 20,
+    alignItems: 'flex-start',
+    marginLeft: -40,
+  },
+  chartLoadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 160,
+    gap: 10,
+  },
+  chartLoadingText: {
+    color: '#fff',
+    fontSize: 14,
+    fontFamily: fontFallbacks.Poppins_400Regular,
+  },
+  chartEmptyContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    height: 160,
+  },
+  chartEmptyText: {
+    color: 'rgba(255, 255, 255, 0.7)',
+    fontSize: 14,
+    fontFamily: fontFallbacks.Poppins_400Regular,
   },
 }); 

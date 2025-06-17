@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Image, TouchableOpacity, ScrollView, Platform, 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StatusBar } from 'expo-status-bar';
 import { BarChart, ArrowLeft, ArrowRight, LogOut, Calendar, DollarSign, Check, Clock, ArrowDownCircle, ArrowUpCircle, ChevronRight, Info, ChevronDown, BookUser, Users, X, FileText, Settings, CreditCard, BarChart3, Bell, Menu, PlusCircle, Wallet, ExternalLink, Target, Receipt, Camera, Upload, ImageIcon, Home } from 'lucide-react-native';
-import { LineChart } from 'react-native-chart-kit';
+import { LineChart, Line, XAxis, ResponsiveContainer } from 'recharts';
 import { useRouter } from 'expo-router';
 import { Dimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -1655,8 +1655,8 @@ export default function Dashboard() {
       
       // Inicializar todos os dias com 0 (3 passados + hoje + 3 futuros = 7 dias)
       for (let i = 0; i < 7; i++) {
-        const date = new Date(startDate);
-        date.setDate(startDate.getDate() + i);
+        const date = new Date(startDate.getTime());
+        date.setDate(date.getDate() + i);
         const dateKey = date.toISOString().split('T')[0];
         const dayMonth = `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}`;
         dailyTotals[dateKey] = 0;
@@ -1672,18 +1672,11 @@ export default function Dashboard() {
         }
       });
       
-      const data = Object.values(dailyTotals);
-      
-      const chartData = {
-        labels,
-        datasets: [
-          {
-            data,
-            color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
-            strokeWidth: 3
-          }
-        ]
-      };
+      // Formatar dados para recharts
+      const chartData = labels.map((label, index) => ({
+        date: label,
+        value: Object.values(dailyTotals)[index]
+      }));
       
       setDailyTransactionsChart(chartData);
       
@@ -2308,56 +2301,32 @@ export default function Dashboard() {
                     <ActivityIndicator size="small" color="#fff" />
                     <Text style={styles.chartLoadingText}>Carregando gráfico...</Text>
                   </View>
-                ) : dailyTransactionsChart ? (
-                  <LineChart
-                    data={dailyTransactionsChart}
-                    width={Dimensions.get('window').width - 40}
-                    height={160}
-                    chartConfig={{
-                      backgroundColor: 'transparent',
-                      backgroundGradientFrom: 'transparent',
-                      backgroundGradientTo: 'transparent',
-                      decimalPlaces: 0,
-                      color: (opacity = 1) => `rgba(255, 193, 7, ${opacity})`, // Cor amarela/dourada
-                      labelColor: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
-                      style: {
-                        borderRadius: 0,
-                      },
-                      propsForDots: {
-                        r: '5',
-                        strokeWidth: '0',
-                        stroke: '#FFC107',
-                        fill: '#FFC107' // Pontos amarelos
-                      },
-                      propsForBackgroundLines: {
-                        strokeDasharray: '',
-                        stroke: 'transparent', // Remove linhas de grade
-                        strokeWidth: 0
-                      },
-                      propsForLabels: {
-                        fontSize: 12,
-                        fontFamily: 'Poppins_400Regular'
-                      },
-                      formatYLabel: () => '', // Remove labels do eixo Y
-                      yLabelsOffset: 0
-                    }}
-                    bezier
-                    style={{
-                      marginVertical: 8,
-                      borderRadius: 0,
-                    }}
-                    withInnerLines={false}
-                    withOuterLines={false}
-                    withVerticalLines={false}
-                    withHorizontalLines={false}
-                    withDots={true}
-                    withShadow={false}
-                    withVerticalLabels={true}
-                    withHorizontalLabels={false}
-                    yAxisLabel=""
-                    yAxisSuffix=""
-                    hidePointsAtIndex={[]}
-                  />
+                ) : dailyTransactionsChart && dailyTransactionsChart.length > 0 ? (
+                  <View style={{ width: Dimensions.get('window').width - 80, height: 140 }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart 
+                        data={dailyTransactionsChart}
+                        margin={{ top: 5, right: 20, left: 20, bottom: 5 }}
+                      >
+                        <XAxis 
+                          dataKey="date" 
+                          axisLine={false}
+                          tickLine={false}
+                          tick={{ fontSize: 12, fill: '#ffffff', fontFamily: 'Poppins_400Regular' }}
+                          interval={0}
+                          tickCount={7}
+                        />
+                        <Line 
+                          type="monotone" 
+                          dataKey="value" 
+                          stroke="#FFC107" 
+                          strokeWidth={3}
+                          dot={{ fill: '#FFC107', strokeWidth: 0, r: 5 }}
+                          activeDot={{ r: 6, fill: '#FFC107' }}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </View>
                 ) : (
                   <View style={styles.chartEmptyContainer}>
                     <Text style={styles.chartEmptyText}>Nenhuma transação encontrada</Text>
@@ -4930,13 +4899,13 @@ const styles = StyleSheet.create({
     marginTop: 20,
     paddingHorizontal: 20,
     alignItems: 'flex-start',
-    marginLeft: -40,
+    marginLeft: -10,
   },
   chartLoadingContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    height: 160,
+    height: 140,
     gap: 10,
   },
   chartLoadingText: {
@@ -4947,7 +4916,7 @@ const styles = StyleSheet.create({
   chartEmptyContainer: {
     justifyContent: 'center',
     alignItems: 'center',
-    height: 160,
+    height: 140,
   },
   chartEmptyText: {
     color: 'rgba(255, 255, 255, 0.7)',

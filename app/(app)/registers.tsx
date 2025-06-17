@@ -2623,7 +2623,7 @@ export default function Registers() {
         return;
       }
       
-            console.log('Transação salva com sucesso:', data);
+      console.log('Transação salva com sucesso:', data);
       
       // Vincular transação ao orçamento se selecionado (apenas para despesas)
       if (transactionType === 'expense' && data && data[0] && allocationType === 'budget' && selectedBudgetId) {

@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Dimensions, Platform, TextInput, Modal, Alert, SafeAreaView, KeyboardAvoidingView, AppState } from 'react-native';
-import { ArrowLeft, MoreVertical, Plus, BarChart2, Target, Repeat, DollarSign, User, Clock, X, Edit2, AlertCircle, BarChart, Menu, Receipt, CreditCard, PlusCircle, Home, Bell, Wallet, Info, ExternalLink, Calendar } from 'lucide-react-native';
+import { ArrowLeft, MoreVertical, Plus, BarChart2, Target, Repeat, DollarSign, User, Clock, X, Edit2, AlertCircle, BarChart, Menu, Receipt, CreditCard, PlusCircle, Home, Bell, Wallet, Info, ExternalLink, Calendar, ChevronDown, Check } from 'lucide-react-native';
 import { StatusBar } from 'expo-status-bar';
 import { router, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -181,6 +181,12 @@ export default function Planning() {
   const [goalsData, setGoalsData] = useState(goals);
   const [loading, setLoading] = useState(true);
   const [historyTransactions, setHistoryTransactions] = useState<any[]>([]);
+  const [saldoAtual, setSaldoAtual] = useState(0);
+  const [chartData, setChartData] = useState({
+    income: { amount: 0, percentage: 0 },
+    expense: { amount: 0, percentage: 0 },
+    transfer: { amount: 0, percentage: 0 }
+  });
   
   // Estados para modais
   const [showNewBudgetModal, setShowNewBudgetModal] = useState(false);
@@ -204,6 +210,9 @@ export default function Planning() {
   const [newGoalDeadline, setNewGoalDeadline] = useState('');
   const [newGoalIcon, setNewGoalIcon] = useState('🎯');
   const [newGoalIconsVisible, setNewGoalIconsVisible] = useState(false);
+  const [deadlineType, setDeadlineType] = useState('semestral');
+  const [deadlineDropdownVisible, setDeadlineDropdownVisible] = useState(false);
+  const [customDeadlineVisible, setCustomDeadlineVisible] = useState(false);
 
 
   // Estados para o calendário do modal de meta
@@ -411,6 +420,267 @@ export default function Planning() {
     } catch (error) {
       console.error('Erro ao buscar metas financeiras:', error);
     }
+  };
+
+  // Função para buscar saldo atual (mesma lógica da dashboard)
+  const fetchSaldoAtual = async () => {
+    try {
+      // Obter a sessão atual
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session?.user) {
+        console.error('Erro ao obter sessão:', sessionError);
+        return;
+      }
+      
+      const userId = session.user.id;
+      const currentDate = new Date();
+      const currentMonth = currentDate.getMonth() + 1;
+      const currentYear = currentDate.getFullYear();
+      
+      // Buscar receitas do mês atual da tabela incomes
+      const { data: monthlyIncomes, error: monthlyIncomesError } = await supabase
+        .from('incomes')
+        .select('amount')
+        .eq('owner_id', userId)
+        .gte('receipt_date', `${currentYear}-${currentMonth.toString().padStart(2, '0')}-01`)
+        .lt('receipt_date', `${currentYear}-${(currentMonth + 1).toString().padStart(2, '0')}-01`);
+      
+      // Buscar transações de receita do mês atual
+      const { data: monthlyTransactionIncomes, error: monthlyTransactionIncomesError } = await supabase
+        .from('transactions')
+        .select('amount')
+        .eq('owner_id', userId)
+        .eq('transaction_type', 'income')
+        .gte('transaction_date', `${currentYear}-${currentMonth.toString().padStart(2, '0')}-01`)
+        .lt('transaction_date', `${currentYear}-${(currentMonth + 1).toString().padStart(2, '0')}-01`);
+      
+      // Buscar despesas do mês atual da tabela expenses
+      const { data: monthlyExpenses, error: monthlyExpensesError } = await supabase
+        .from('expenses')
+        .select('amount')
+        .eq('owner_id', userId)
+        .gte('due_date', `${currentYear}-${currentMonth.toString().padStart(2, '0')}-01`)
+        .lt('due_date', `${currentYear}-${(currentMonth + 1).toString().padStart(2, '0')}-01`);
+      
+      // Buscar transações de despesa do mês atual
+      const { data: monthlyExpenseTransactions, error: monthlyExpenseTransactionsError } = await supabase
+        .from('transactions')
+        .select('amount')
+        .eq('owner_id', userId)
+        .eq('transaction_type', 'expense')
+        .gte('transaction_date', `${currentYear}-${currentMonth.toString().padStart(2, '0')}-01`)
+        .lt('transaction_date', `${currentYear}-${(currentMonth + 1).toString().padStart(2, '0')}-01`);
+      
+      // Calcular totais
+      const receitasMesIncomes = monthlyIncomes?.reduce((sum, income) => sum + Number(income.amount), 0) || 0;
+      const receitasMesTransactions = monthlyTransactionIncomes?.reduce((sum, income) => sum + Number(income.amount), 0) || 0;
+      const receitasMes = receitasMesIncomes + receitasMesTransactions;
+      
+      const despesasMesExpenses = monthlyExpenses?.reduce((sum, expense) => sum + Number(expense.amount), 0) || 0;
+      const despesasMesTransactions = monthlyExpenseTransactions?.reduce((sum, expense) => sum + Math.abs(Number(expense.amount)), 0) || 0;
+      const despesasMes = despesasMesExpenses + despesasMesTransactions;
+      
+      // Calcular saldo como receitas - despesas (mesma lógica da dashboard)
+      const saldoTotal = receitasMes - despesasMes;
+      
+      setSaldoAtual(saldoTotal);
+      
+    } catch (error) {
+      console.error('Erro ao buscar saldo atual:', error);
+    }
+  };
+
+  // Função para buscar dados do gráfico
+  const fetchChartData = async () => {
+    try {
+      // Obter a sessão atual
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session?.user) {
+        console.error('Erro ao obter sessão:', sessionError);
+        return;
+      }
+      
+      const userId = session.user.id;
+      const currentDate = new Date();
+      const currentMonth = currentDate.getMonth() + 1;
+      const currentYear = currentDate.getFullYear();
+      
+      // Buscar receitas do mês atual
+      const { data: monthlyIncomes } = await supabase
+        .from('incomes')
+        .select('amount')
+        .eq('owner_id', userId)
+        .gte('receipt_date', `${currentYear}-${currentMonth.toString().padStart(2, '0')}-01`)
+        .lt('receipt_date', `${currentYear}-${(currentMonth + 1).toString().padStart(2, '0')}-01`);
+      
+      const { data: monthlyTransactionIncomes } = await supabase
+        .from('transactions')
+        .select('amount')
+        .eq('owner_id', userId)
+        .eq('transaction_type', 'income')
+        .gte('transaction_date', `${currentYear}-${currentMonth.toString().padStart(2, '0')}-01`)
+        .lt('transaction_date', `${currentYear}-${(currentMonth + 1).toString().padStart(2, '0')}-01`);
+      
+      // Buscar despesas do mês atual
+      const { data: monthlyExpenses } = await supabase
+        .from('expenses')
+        .select('amount')
+        .eq('owner_id', userId)
+        .gte('due_date', `${currentYear}-${currentMonth.toString().padStart(2, '0')}-01`)
+        .lt('due_date', `${currentYear}-${(currentMonth + 1).toString().padStart(2, '0')}-01`);
+      
+      const { data: monthlyExpenseTransactions } = await supabase
+        .from('transactions')
+        .select('amount')
+        .eq('owner_id', userId)
+        .eq('transaction_type', 'expense')
+        .gte('transaction_date', `${currentYear}-${currentMonth.toString().padStart(2, '0')}-01`)
+        .lt('transaction_date', `${currentYear}-${(currentMonth + 1).toString().padStart(2, '0')}-01`);
+      
+      // Buscar transferências do mês atual
+      const { data: monthlyTransfers } = await supabase
+        .from('transactions')
+        .select('amount')
+        .eq('owner_id', userId)
+        .eq('transaction_type', 'transfer')
+        .gte('transaction_date', `${currentYear}-${currentMonth.toString().padStart(2, '0')}-01`)
+        .lt('transaction_date', `${currentYear}-${(currentMonth + 1).toString().padStart(2, '0')}-01`);
+      
+      // Calcular totais
+      const incomeTotal = (monthlyIncomes?.reduce((sum, income) => sum + Number(income.amount), 0) || 0) +
+                         (monthlyTransactionIncomes?.reduce((sum, income) => sum + Number(income.amount), 0) || 0);
+      
+      const expenseTotal = (monthlyExpenses?.reduce((sum, expense) => sum + Number(expense.amount), 0) || 0) +
+                          (monthlyExpenseTransactions?.reduce((sum, expense) => sum + Math.abs(Number(expense.amount)), 0) || 0);
+      
+      const transferTotal = monthlyTransfers?.reduce((sum, transfer) => sum + Math.abs(Number(transfer.amount)), 0) || 0;
+      
+      const total = incomeTotal + expenseTotal + transferTotal;
+      
+      // Calcular percentuais
+      const incomePercentage = total > 0 ? Math.round((incomeTotal / total) * 100) : 0;
+      const expensePercentage = total > 0 ? Math.round((expenseTotal / total) * 100) : 0;
+      const transferPercentage = total > 0 ? Math.round((transferTotal / total) * 100) : 0;
+      
+      setChartData({
+        income: { amount: incomeTotal, percentage: incomePercentage },
+        expense: { amount: expenseTotal, percentage: expensePercentage },
+        transfer: { amount: transferTotal, percentage: transferPercentage }
+      });
+      
+    } catch (error) {
+      console.error('Erro ao buscar dados do gráfico:', error);
+    }
+  };
+
+  // Função para renderizar o gráfico donut
+  const renderDonutChart = () => {
+    const size = width < 360 ? 140 : 160;
+    const strokeWidth = 15;
+    const radius = (size - strokeWidth) / 2;
+    const circumference = radius * 2 * Math.PI;
+    
+    const { income, expense, transfer } = chartData;
+    const total = income.amount + expense.amount + transfer.amount;
+    
+    if (total === 0) {
+      return (
+        <View style={[styles.donutChart, { width: size, height: size }]}>
+          <View style={styles.donutChartInner}>
+            <Text style={{ fontSize: 12, color: '#999', textAlign: 'center' }}>
+              Sem dados
+            </Text>
+          </View>
+        </View>
+      );
+    }
+    
+    // Calcular os offsets para cada segmento
+    const incomeOffset = circumference * (1 - income.percentage / 100);
+    const expenseOffset = circumference * (1 - (income.percentage + expense.percentage) / 100);
+    const transferOffset = circumference * (1 - (income.percentage + expense.percentage + transfer.percentage) / 100);
+    
+    return (
+      <View style={[styles.donutChart, { width: size, height: size, borderWidth: 0 }]}>
+        <Svg width={size} height={size}>
+          {/* Círculo de fundo */}
+          <Circle
+            cx={size / 2}
+            cy={size / 2}
+            r={radius}
+            stroke="#f0f0f0"
+            strokeWidth={strokeWidth}
+            fill="transparent"
+          />
+          
+          {/* Segmento de receita */}
+          {income.percentage > 0 && (
+            <Circle
+              cx={size / 2}
+              cy={size / 2}
+              r={radius}
+              stroke="#4CD964"
+              strokeWidth={strokeWidth}
+              fill="transparent"
+              strokeDasharray={`${circumference * income.percentage / 100} ${circumference}`}
+              strokeDashoffset={incomeOffset}
+              strokeLinecap="round"
+              transform={`rotate(-90 ${size / 2} ${size / 2})`}
+            />
+          )}
+          
+          {/* Segmento de despesa */}
+          {expense.percentage > 0 && (
+            <Circle
+              cx={size / 2}
+              cy={size / 2}
+              r={radius}
+              stroke="#FF3B30"
+              strokeWidth={strokeWidth}
+              fill="transparent"
+              strokeDasharray={`${circumference * expense.percentage / 100} ${circumference}`}
+              strokeDashoffset={expenseOffset}
+              strokeLinecap="round"
+              transform={`rotate(${-90 + (income.percentage * 3.6)} ${size / 2} ${size / 2})`}
+            />
+          )}
+          
+          {/* Segmento de transferência */}
+          {transfer.percentage > 0 && (
+            <Circle
+              cx={size / 2}
+              cy={size / 2}
+              r={radius}
+              stroke="#5856D6"
+              strokeWidth={strokeWidth}
+              fill="transparent"
+              strokeDasharray={`${circumference * transfer.percentage / 100} ${circumference}`}
+              strokeDashoffset={transferOffset}
+              strokeLinecap="round"
+              transform={`rotate(${-90 + ((income.percentage + expense.percentage) * 3.6)} ${size / 2} ${size / 2})`}
+            />
+          )}
+        </Svg>
+        
+        <View style={[styles.donutChartInner, { 
+          position: 'absolute',
+          top: strokeWidth / 2,
+          left: strokeWidth / 2,
+          width: size - strokeWidth,
+          height: size - strokeWidth,
+          borderRadius: (size - strokeWidth) / 2
+        }]}>
+          <Text style={{ fontSize: 12, color: '#666', textAlign: 'center' }}>
+            Total
+          </Text>
+          <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#333', textAlign: 'center' }}>
+            R$ {total.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ".")}
+          </Text>
+        </View>
+      </View>
+    );
   };
 
   // Função para salvar nova meta financeira
@@ -809,6 +1079,8 @@ export default function Planning() {
     fetchBudgetCategories();
     fetchFinancialGoals();
     fetchHistoryTransactions();
+    fetchSaldoAtual();
+    fetchChartData();
   }, []);
 
   const toggleBudgetExpanded = (id: string) => {
@@ -894,6 +1166,9 @@ export default function Planning() {
         setNewGoalIcon('🎯');
         setNewGoalIconsVisible(false);
         setGoalCalendarVisible(false);
+        setDeadlineType('semestral');
+        setDeadlineDropdownVisible(false);
+        setCustomDeadlineVisible(false);
         
         // Resetar estados do calendário
         const today = new Date();
@@ -944,13 +1219,22 @@ export default function Planning() {
     setNewGoalIcon('🎯');
     setNewGoalIconsVisible(false);
     setGoalCalendarVisible(false);
+    setDeadlineType('semestral');
+    setDeadlineDropdownVisible(false);
+    setCustomDeadlineVisible(false);
     
-    // Resetar estados do calendário
+    // Resetar estados do calendário e calcular data semestral por padrão
     const today = new Date();
+    const sixMonthsLater = new Date();
+    sixMonthsLater.setMonth(today.getMonth() + 6);
+    
     setGoalPickerMonth(today.getMonth());
     setGoalPickerYear(today.getFullYear());
     setGoalPickerDay(today.getDate());
-    setGoalSelectedDate(`${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`);
+    
+    const defaultDate = `${String(sixMonthsLater.getDate()).padStart(2, '0')}/${String(sixMonthsLater.getMonth() + 1).padStart(2, '0')}/${sixMonthsLater.getFullYear()}`;
+    setGoalSelectedDate(defaultDate);
+    setNewGoalDeadline(defaultDate);
     
     setShowNewGoalModal(true);
   };
@@ -959,6 +1243,275 @@ export default function Planning() {
     scrollToTop();
     setCurrentGoal(goal);
     setShowEditGoalModal(true);
+  };
+
+  // Função para deletar meta financeira
+  const handleDeleteGoal = (goalId: string) => {
+    console.log('handleDeleteGoal chamado com ID:', goalId);
+    
+    // Teste direto sem Alert primeiro
+    console.log('Chamando deleteFinancialGoal diretamente para teste');
+    deleteFinancialGoal(goalId);
+    
+    // Comentado temporariamente para debug
+    /*
+    Alert.alert(
+      'Confirmar exclusão',
+      'Tem certeza que deseja excluir esta meta financeira? Esta ação não pode ser desfeita.',
+      [
+        {
+          text: 'Cancelar',
+          style: 'cancel',
+          onPress: () => console.log('Exclusão cancelada')
+        },
+        {
+          text: 'Excluir',
+          style: 'destructive',
+          onPress: () => {
+            console.log('Confirmado exclusão, chamando deleteFinancialGoal');
+            deleteFinancialGoal(goalId);
+          }
+        }
+      ]
+    );
+    */
+  };
+
+  // Função para deletar meta do banco de dados
+  const deleteFinancialGoal = async (goalId: string) => {
+    console.log('deleteFinancialGoal iniciado para ID:', goalId);
+    
+    try {
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      console.log('Sessão obtida:', !!session?.user, 'Erro de sessão:', sessionError);
+      
+      if (sessionError || !session?.user) {
+        console.log('Usuário não autenticado');
+        Alert.alert('Erro', 'Usuário não autenticado');
+        return;
+      }
+
+      console.log('Tentando deletar meta do banco de dados...');
+      // Deletar a meta do banco de dados
+      const { error } = await supabase
+        .from('financial_goals')
+        .delete()
+        .eq('id', goalId)
+        .eq('user_id', session.user.id);
+
+      if (error) {
+        console.error('Erro ao deletar meta:', error);
+        Alert.alert('Erro', 'Não foi possível excluir a meta financeira');
+        return;
+      }
+
+      console.log('Meta deletada com sucesso do banco, atualizando estado local...');
+      // Atualizar estado local
+      setGoalsData(prevGoals => prevGoals.filter(goal => goal.id !== goalId));
+      Alert.alert('Sucesso', 'Meta financeira excluída com sucesso!');
+      
+    } catch (error) {
+      console.error('Erro ao deletar meta:', error);
+      Alert.alert('Erro', 'Ocorreu um erro inesperado');
+    }
+  };
+
+  // Função para atualizar meta financeira
+  const updateFinancialGoal = async (goalId: string, title: string, targetAmount: number, deadline: string, icon: string) => {
+    try {
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session?.user) {
+        Alert.alert('Erro', 'Usuário não autenticado');
+        return;
+      }
+
+      // Atualizar a meta no banco de dados
+      const { error } = await supabase
+        .from('financial_goals')
+        .update({
+          title,
+          target_amount: targetAmount,
+          deadline,
+          icon,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', goalId)
+        .eq('user_id', session.user.id);
+
+      if (error) {
+        console.error('Erro ao atualizar meta:', error);
+        Alert.alert('Erro', 'Não foi possível atualizar a meta financeira');
+        return;
+      }
+
+      // Recarregar metas para obter dados atualizados
+      await fetchFinancialGoals();
+      Alert.alert('Sucesso', 'Meta financeira atualizada com sucesso!');
+      
+    } catch (error) {
+      console.error('Erro ao atualizar meta:', error);
+      Alert.alert('Erro', 'Ocorreu um erro inesperado');
+    }
+  };
+
+  // Função para deletar orçamento
+  const handleDeleteBudget = (budgetId: string) => {
+    console.log('handleDeleteBudget chamado com ID:', budgetId);
+    
+    // Verificar se estamos no ambiente web
+    if (Platform.OS === 'web') {
+      const confirmed = window.confirm(
+        'Tem certeza que deseja excluir esta categoria de orçamento? Se houver transações vinculadas, elas serão desvinculadas. Esta ação não pode ser desfeita.'
+      );
+      
+      if (confirmed) {
+        console.log('Confirmado exclusão via web confirm, chamando deleteBudgetCategory');
+        deleteBudgetCategory(budgetId);
+      } else {
+        console.log('Exclusão cancelada via web confirm');
+      }
+    } else {
+      // Para mobile, usar Alert nativo
+      Alert.alert(
+        'Confirmar exclusão',
+        'Tem certeza que deseja excluir esta categoria de orçamento? Se houver transações vinculadas, elas serão desvinculadas. Esta ação não pode ser desfeita.',
+        [
+          {
+            text: 'Cancelar',
+            style: 'cancel',
+            onPress: () => console.log('Exclusão cancelada')
+          },
+          {
+            text: 'Excluir',
+            style: 'destructive',
+            onPress: () => {
+              console.log('Confirmado exclusão, chamando deleteBudgetCategory');
+              deleteBudgetCategory(budgetId);
+            }
+          }
+        ]
+      );
+    }
+  };
+
+  // Função para deletar categoria de orçamento do banco de dados
+  const deleteBudgetCategory = async (budgetId: string) => {
+    try {
+      console.log('deleteBudgetCategory iniciado para ID:', budgetId);
+      
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session?.user) {
+        console.log('Erro de autenticação:', sessionError);
+        Alert.alert('Erro', 'Usuário não autenticado');
+        return;
+      }
+
+      console.log('Usuário autenticado, verificando transações vinculadas...');
+
+      // Primeiro, verificar se existem transações vinculadas a esta categoria
+      const { data: linkedTransactions, error: checkError } = await supabase
+        .from('transactions')
+        .select('id')
+        .eq('budget_category_id', budgetId)
+        .eq('owner_id', session.user.id);
+
+      if (checkError) {
+        console.error('Erro ao verificar transações vinculadas:', checkError);
+        Alert.alert('Erro', 'Não foi possível verificar transações vinculadas');
+        return;
+      }
+
+      if (linkedTransactions && linkedTransactions.length > 0) {
+        console.log(`Encontradas ${linkedTransactions.length} transações vinculadas. Removendo vínculos...`);
+        
+        // Remover a referência da categoria das transações (definir como null)
+        const { error: updateError } = await supabase
+          .from('transactions')
+          .update({ budget_category_id: null })
+          .eq('budget_category_id', budgetId)
+          .eq('owner_id', session.user.id);
+
+        if (updateError) {
+          console.error('Erro ao remover vínculos das transações:', updateError);
+          Alert.alert('Erro', 'Não foi possível remover os vínculos das transações');
+          return;
+        }
+
+        console.log('Vínculos removidos com sucesso.');
+      } else {
+        console.log('Nenhuma transação vinculada encontrada.');
+      }
+
+      console.log('Deletando categoria de orçamento...');
+
+      // Agora deletar a categoria de orçamento
+      const { error } = await supabase
+        .from('budget_categories')
+        .delete()
+        .eq('id', budgetId)
+        .eq('user_id', session.user.id);
+
+      if (error) {
+        console.error('Erro ao deletar categoria de orçamento:', error);
+        Alert.alert('Erro', 'Não foi possível excluir a categoria de orçamento');
+        return;
+      }
+
+      console.log('Categoria deletada com sucesso, atualizando estado local...');
+
+      // Atualizar estado local
+      setBudgetData(prevBudgets => prevBudgets.filter(budget => budget.id !== budgetId));
+      
+      const message = linkedTransactions && linkedTransactions.length > 0 
+        ? `Categoria de orçamento excluída com sucesso! ${linkedTransactions.length} transação(ões) foram desvinculadas.`
+        : 'Categoria de orçamento excluída com sucesso!';
+      
+      Alert.alert('Sucesso', message);
+      
+    } catch (error) {
+      console.error('Erro geral ao deletar categoria:', error);
+      Alert.alert('Erro', 'Ocorreu um erro inesperado');
+    }
+  };
+
+  // Função para atualizar categoria de orçamento
+  const updateBudgetCategory = async (budgetId: string, category: string, allocated: number, icon: string) => {
+    try {
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session?.user) {
+        Alert.alert('Erro', 'Usuário não autenticado');
+        return;
+      }
+
+      // Atualizar a categoria no banco de dados
+      const { error } = await supabase
+        .from('budget_categories')
+        .update({
+          category,
+          allocated,
+          icon,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', budgetId)
+        .eq('user_id', session.user.id);
+
+      if (error) {
+        console.error('Erro ao atualizar categoria de orçamento:', error);
+        Alert.alert('Erro', 'Não foi possível atualizar a categoria de orçamento');
+        return;
+      }
+
+      // Recarregar orçamentos para obter dados atualizados
+      await fetchBudgetCategories();
+      Alert.alert('Sucesso', 'Categoria de orçamento atualizada com sucesso!');
+      
+    } catch (error) {
+      console.error('Erro geral ao atualizar categoria:', error);
+      Alert.alert('Erro', 'Ocorreu um erro inesperado');
+    }
   };
   
 
@@ -983,6 +1536,50 @@ export default function Planning() {
   const selectNewGoalIcon = (icon: string) => {
     setNewGoalIcon(icon);
     setNewGoalIconsVisible(false);
+  };
+
+  const toggleDeadlineDropdown = () => {
+    setDeadlineDropdownVisible(!deadlineDropdownVisible);
+  };
+
+  const selectDeadlineType = (type: string) => {
+    setDeadlineType(type);
+    setDeadlineDropdownVisible(false);
+    
+    if (type === 'personalizado') {
+      setCustomDeadlineVisible(true);
+    } else {
+      setCustomDeadlineVisible(false);
+      // Calcular data baseada no tipo selecionado
+      const currentDate = new Date();
+      let targetDate = new Date();
+      
+      switch (type) {
+        case 'semestral':
+          targetDate.setMonth(currentDate.getMonth() + 6);
+          break;
+        case 'anual':
+          targetDate.setFullYear(currentDate.getFullYear() + 1);
+          break;
+        case 'cinco_anos':
+          targetDate.setFullYear(currentDate.getFullYear() + 5);
+          break;
+      }
+      
+      const formattedDate = `${String(targetDate.getDate()).padStart(2, '0')}/${String(targetDate.getMonth() + 1).padStart(2, '0')}/${targetDate.getFullYear()}`;
+      setGoalSelectedDate(formattedDate);
+      setNewGoalDeadline(formattedDate);
+    }
+  };
+
+  const getDeadlineTypeLabel = (type: string) => {
+    switch (type) {
+      case 'semestral': return 'Semestral (6 meses)';
+      case 'anual': return 'Anual (1 ano)';
+      case 'cinco_anos': return 'Cinco Anos';
+      case 'personalizado': return 'Personalizado';
+      default: return 'Semestral (6 meses)';
+    }
   };
 
   // Funções para o calendário do modal de meta
@@ -1599,23 +2196,18 @@ export default function Planning() {
     },
     budgetActions: {
       flexDirection: 'row',
-      marginTop: 20,
-      justifyContent: 'center',
+      alignItems: 'center',
+      marginLeft: 8,
     },
     budgetActionButton: {
-      flexDirection: 'row',
-      alignItems: 'center',
+      padding: 10,
+      marginLeft: 6,
+      borderRadius: 8,
+      backgroundColor: 'rgba(0,0,0,0.03)',
+      minWidth: 36,
+      minHeight: 36,
       justifyContent: 'center',
-      backgroundColor: theme.primary,
-      paddingVertical: 12,
-      paddingHorizontal: 20,
-      borderRadius: 12,
-      flex: 0.7,
-      shadowColor: theme.primary,
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.3,
-      shadowRadius: 4,
-      elevation: 3,
+      alignItems: 'center',
     },
     budgetActionButtonText: {
       fontSize: 14,
@@ -1660,6 +2252,24 @@ export default function Planning() {
     },
     goalInfo: {
       flex: 1,
+    },
+    goalActions: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginLeft: 8,
+    },
+    goalActionButton: {
+      padding: 10,
+      marginLeft: 6,
+      borderRadius: 8,
+      backgroundColor: 'rgba(0,0,0,0.03)',
+      minWidth: 36,
+      minHeight: 36,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    deleteButton: {
+      backgroundColor: 'rgba(255, 71, 87, 0.1)',
     },
     goalTitleRow: {
       flexDirection: 'row',
@@ -2253,6 +2863,13 @@ export default function Planning() {
       color: '#333',
       fontFamily: fontFallbacks.Poppins_400Regular,
     },
+    goalDateTextInput: {
+      flex: 1,
+      fontSize: 16,
+      color: '#333',
+      fontFamily: fontFallbacks.Poppins_400Regular,
+      padding: 0,
+    },
     calendarButton: {
       padding: 4,
     },
@@ -2331,6 +2948,52 @@ export default function Planning() {
     goalSelectedDayText: {
       fontFamily: fontFallbacks.Poppins_600SemiBold,
     },
+    // Estilos do dropdown de prazo
+    deadlineDropdown: {
+      marginTop: 4,
+      borderWidth: 1,
+      borderColor: '#e0e0e0',
+      borderRadius: 8,
+      backgroundColor: '#fff',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 3,
+    },
+    deadlineOption: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      padding: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: '#f0f0f0',
+    },
+    deadlineOptionSelected: {
+      backgroundColor: `${theme.primary}10`,
+    },
+    deadlineOptionText: {
+      fontSize: 16,
+      color: '#333',
+      fontFamily: fontFallbacks.Poppins_400Regular,
+      flex: 1,
+    },
+    deadlineOptionTextSelected: {
+      color: theme.primary,
+      fontFamily: fontFallbacks.Poppins_600SemiBold,
+    },
+    customDeadlineContainer: {
+      marginTop: 12,
+      paddingTop: 12,
+      borderTopWidth: 1,
+      borderTopColor: '#f0f0f0',
+    },
+    customDeadlineLabel: {
+      fontSize: 14,
+      color: '#666',
+      fontFamily: fontFallbacks.Poppins_500Medium,
+      marginBottom: 8,
+    },
     // Estilos do ScrollView do modal
     modalScrollView: {
       flex: 1,
@@ -2393,8 +3056,12 @@ export default function Planning() {
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.dateContainer}>
-            <Text style={styles.dateText}>12 de Agosto, 2022</Text>
-            <Text style={styles.amountText}>R$ 5.543,43</Text>
+            <Text style={styles.dateText}>{new Date().toLocaleDateString('pt-BR', { 
+              day: 'numeric', 
+              month: 'long', 
+              year: 'numeric' 
+            })}</Text>
+            <Text style={styles.amountText}>R$ {saldoAtual.toFixed(2).replace('.', ',')}</Text>
             <Text style={styles.amountLabel}>Saldo</Text>
           </View>
 
@@ -2402,30 +3069,26 @@ export default function Planning() {
             // Conteúdo da aba Orçamentos
             <View style={styles.budgetContent}>
               <View style={styles.donutChartContainer}>
-                {/* Aqui iria o componente de gráfico circular */}
                 <View style={styles.chartRow}>
-                  <View style={styles.donutChart}>
-                    {/* Simulação visual do gráfico */}
-                    <View style={styles.donutChartInner} />
-                  </View>
+                  {renderDonutChart()}
                   
                   <View style={styles.legendContainer}>
                     <View style={styles.legendItem}>
                       <View style={[styles.legendDot, { backgroundColor: '#4CD964' }]} />
                       <Text style={styles.legendText}>Receita</Text>
-                      <Text style={styles.legendPercentValue}>45%</Text>
+                      <Text style={styles.legendPercentValue}>{chartData.income.percentage}%</Text>
                     </View>
                     
                     <View style={styles.legendItem}>
                       <View style={[styles.legendDot, { backgroundColor: '#FF3B30' }]} />
                       <Text style={styles.legendText}>Despesa</Text>
-                      <Text style={styles.legendPercentValue}>35%</Text>
+                      <Text style={styles.legendPercentValue}>{chartData.expense.percentage}%</Text>
                     </View>
                     
                     <View style={styles.legendItem}>
                       <View style={[styles.legendDot, { backgroundColor: '#5856D6' }]} />
                       <Text style={styles.legendText}>Transferência</Text>
-                      <Text style={styles.legendPercentValue}>20%</Text>
+                      <Text style={styles.legendPercentValue}>{chartData.transfer.percentage}%</Text>
                     </View>
                   </View>
                 </View>
@@ -2522,6 +3185,29 @@ export default function Planning() {
                           {budget.percentage}%
                         </Text>
                       </View>
+                    </View>
+
+                    <View style={styles.budgetActions}>
+                      <TouchableOpacity 
+                        style={styles.budgetActionButton}
+                        onPress={() => {
+                          console.log('Botão edit orçamento pressionado para:', budget.id);
+                          openEditBudgetModal(budget);
+                        }}
+                        activeOpacity={0.7}
+                      >
+                        <Edit2 size={18} color="#666" />
+                      </TouchableOpacity>
+                      <TouchableOpacity 
+                        style={[styles.budgetActionButton, styles.deleteButton]}
+                        onPress={() => {
+                          console.log('Botão delete orçamento pressionado para:', budget.id);
+                          handleDeleteBudget(budget.id);
+                        }}
+                        activeOpacity={0.7}
+                      >
+                        <X size={18} color="#FF4757" />
+                      </TouchableOpacity>
                     </View>
                   </TouchableOpacity>
                   
@@ -2711,9 +3397,57 @@ export default function Planning() {
                           />
                         </View>
 
+                        <View style={styles.inputGroup}>
+                          <Text style={styles.inputLabel}>Ícone da Categoria</Text>
+                          <TouchableOpacity 
+                            style={styles.iconSelectorContainer}
+                            onPress={toggleNewCategoryIcons}
+                          >
+                            <View style={styles.emojiSelectorButton}>
+                              <Text style={styles.emojiSelectorText}>
+                                {currentBudget.icon}
+                              </Text>
+                            </View>
+                            <Text style={styles.iconSelectorText}>
+                              Toque para escolher um ícone
+                            </Text>
+                          </TouchableOpacity>
+                          
+                          {newCategoryIconsVisible && (
+                            <View style={styles.emojiDropdown}>
+                              <View style={styles.emojiGrid}>
+                                {['📊', '🍽️', '🏠', '🚗', '🏥', '🎭', '💰', '🛒', '✈️', '📱', '📚', '🎁', '👕', '⚡'].map((emoji, index) => (
+                                  <TouchableOpacity 
+                                    key={index}
+                                    style={[
+                                      styles.emojiGridItem,
+                                      currentBudget.icon === emoji && styles.emojiGridItemSelected
+                                    ]}
+                                    onPress={() => {
+                                      setCurrentBudget({...currentBudget, icon: emoji});
+                                      setNewCategoryIconsVisible(false);
+                                    }}
+                                  >
+                                    <Text style={styles.emojiGridText}>{emoji}</Text>
+                                  </TouchableOpacity>
+                                ))}
+                              </View>
+                            </View>
+                          )}
+                        </View>
+
                         <TouchableOpacity 
                           style={styles.submitButton}
-                          onPress={handleEditBudget}
+                          onPress={() => {
+                            updateBudgetCategory(
+                              currentBudget.id,
+                              currentBudget.category,
+                              currentBudget.allocated,
+                              currentBudget.icon
+                            );
+                            setShowEditBudgetModal(false);
+                            setCurrentBudget(null);
+                          }}
                         >
                           <Text style={styles.submitButtonText}>Salvar Alterações</Text>
                         </TouchableOpacity>
@@ -2816,6 +3550,7 @@ export default function Planning() {
                   <TouchableOpacity 
                     style={styles.goalHeader}
                     onPress={() => toggleGoalExpanded(goal.id)}
+                    activeOpacity={0.8}
                   >
                     <View style={[styles.goalIcon, { backgroundColor: goal.color }]}>
                       <Text style={styles.goalIconText}>{goal.icon}</Text>
@@ -2847,6 +3582,29 @@ export default function Planning() {
                           {goal.percentage || 0}%
                         </Text>
                       </View>
+                    </View>
+
+                    <View style={styles.goalActions}>
+                      <TouchableOpacity 
+                        style={styles.goalActionButton}
+                        onPress={() => {
+                          console.log('Botão edit pressionado para meta:', goal.id);
+                          openEditGoalModal(goal);
+                        }}
+                        activeOpacity={0.7}
+                      >
+                        <Edit2 size={18} color="#666" />
+                      </TouchableOpacity>
+                      <TouchableOpacity 
+                        style={[styles.goalActionButton, styles.deleteButton]}
+                        onPress={() => {
+                          console.log('Botão delete pressionado para meta:', goal.id);
+                          handleDeleteGoal(goal.id);
+                        }}
+                        activeOpacity={0.7}
+                      >
+                        <X size={18} color="#FF4757" />
+                      </TouchableOpacity>
                     </View>
                   </TouchableOpacity>
                   
@@ -2949,36 +3707,63 @@ export default function Planning() {
                     
                     <View style={styles.inputGroup}>
                       <Text style={styles.inputLabel}>Prazo</Text>
-                      <TouchableOpacity style={styles.goalDateInput} onPress={toggleGoalCalendar}>
+                      <TouchableOpacity style={styles.goalDateInput} onPress={toggleDeadlineDropdown}>
                         <Calendar size={20} color="#666" style={styles.inputIcon} />
-                        <Text style={styles.goalDateText}>{goalSelectedDate}</Text>
-                        <TouchableOpacity style={styles.calendarButton} onPress={toggleGoalCalendar}>
-                          <Calendar size={20} color="#666" />
-                        </TouchableOpacity>
+                        <Text style={styles.goalDateText}>{getDeadlineTypeLabel(deadlineType)}</Text>
+                        <ChevronDown size={20} color="#666" />
                       </TouchableOpacity>
                       
-                      {goalCalendarVisible && (
-                        <View style={styles.goalCalendarPickerContainer}>
-                          <View
-                            style={[styles.goalCalendarPickerHeader, { backgroundColor: theme.primary }]}
-                          >
-                            <View style={styles.goalCalendarPickerMonthSelector}>
-                              <TouchableOpacity onPress={goToPreviousGoalMonth} style={styles.goalCalendarPickerArrow}>
-                                <ArrowLeft size={24} color="#FFF" />
-                              </TouchableOpacity>
-                              
-                              <Text style={styles.goalCalendarPickerMonthText}>
-                                {months[goalPickerMonth]} {goalPickerYear}
+                      {deadlineDropdownVisible && (
+                        <View style={styles.deadlineDropdown}>
+                          {['semestral', 'anual', 'cinco_anos', 'personalizado'].map((type) => (
+                            <TouchableOpacity
+                              key={type}
+                              style={[
+                                styles.deadlineOption,
+                                deadlineType === type && styles.deadlineOptionSelected
+                              ]}
+                              onPress={() => selectDeadlineType(type)}
+                            >
+                              <Text style={[
+                                styles.deadlineOptionText,
+                                deadlineType === type && styles.deadlineOptionTextSelected
+                              ]}>
+                                {getDeadlineTypeLabel(type)}
                               </Text>
-                              
-                              <TouchableOpacity onPress={goToNextGoalMonth} style={styles.goalCalendarPickerArrow}>
-                                <ArrowLeft size={24} color="#FFF" style={{ transform: [{ rotate: '180deg' }] }} />
-                              </TouchableOpacity>
-                            </View>
-
-                            <View style={styles.goalCalendarContainer}>
-                              {renderGoalCalendarGrid()}
-                            </View>
+                              {deadlineType === type && (
+                                <Check size={16} color={theme.primary} />
+                              )}
+                            </TouchableOpacity>
+                          ))}
+                        </View>
+                      )}
+                      
+                      {customDeadlineVisible && (
+                        <View style={styles.customDeadlineContainer}>
+                          <Text style={styles.customDeadlineLabel}>Data personalizada:</Text>
+                          <View style={styles.goalDateInput}>
+                            <Calendar size={20} color="#666" style={styles.inputIcon} />
+                            <TextInput
+                              style={styles.goalDateTextInput}
+                              value={goalSelectedDate}
+                              onChangeText={(text) => {
+                                // Aplicar máscara dd/mm/yyyy
+                                let masked = text.replace(/\D/g, ''); // Remove caracteres não numéricos
+                                if (masked.length >= 3) {
+                                  masked = masked.replace(/(\d{2})(\d)/, '$1/$2');
+                                }
+                                if (masked.length >= 6) {
+                                  masked = masked.replace(/(\d{2})\/(\d{2})(\d)/, '$1/$2/$3');
+                                }
+                                if (masked.length > 10) {
+                                  masked = masked.substring(0, 10);
+                                }
+                                setGoalSelectedDate(masked);
+                              }}
+                              placeholder="dd/mm/yyyy"
+                              keyboardType="numeric"
+                              maxLength={10}
+                            />
                           </View>
                         </View>
                       )}
@@ -3057,21 +3842,40 @@ export default function Planning() {
                             style={styles.textInput}
                             value={currentGoal.title}
                             onChangeText={(text) => setCurrentGoal({...currentGoal, title: text})}
+                            placeholder="Ex: Viagem, Carro novo..."
                           />
                         </View>
                         
                         <View style={styles.inputGroup}>
-                          <Text style={styles.inputLabel}>Valor da Meta (R$)</Text>
-                          <TextInput
-                            style={styles.textInput}
-                            value={currentGoal.target.toString()}
-                            onChangeText={(text) => setCurrentGoal({
-                              ...currentGoal, 
-                              target: parseFloat(text) || 0,
-                              percentage: (currentGoal.current / (parseFloat(text) || 1)) * 100
-                            })}
-                            keyboardType="decimal-pad"
-                          />
+                          <Text style={styles.inputLabel}>Valor da Meta</Text>
+                          <View style={styles.amountInputContainer}>
+                            <Text style={styles.currencySymbol}>R$</Text>
+                            <TextInput
+                              style={styles.amountInput}
+                              value={currentGoal.target > 0 ? currentGoal.target.toLocaleString('pt-BR', {
+                                style: 'currency',
+                                currency: 'BRL'
+                              }).replace('R$', '').trim() : ''}
+                              onChangeText={(text) => {
+                                // Remove tudo que não é número
+                                const numericValue = text.replace(/[^0-9]/g, '');
+                                // Formata como moeda brasileira
+                                if (numericValue) {
+                                  const formattedValue = (parseInt(numericValue) / 100);
+                                  setCurrentGoal({
+                                    ...currentGoal, 
+                                    target: formattedValue,
+                                    percentage: (currentGoal.current / formattedValue) * 100
+                                  });
+                                } else {
+                                  setCurrentGoal({...currentGoal, target: 0});
+                                }
+                              }}
+                              placeholder="0,00"
+                              keyboardType="numeric"
+                              placeholderTextColor="#999"
+                            />
+                          </View>
                         </View>
                         
                         <View style={styles.inputGroup}>
@@ -3080,17 +3884,73 @@ export default function Planning() {
                             style={styles.textInput}
                             value={currentGoal.deadline}
                             onChangeText={(text) => setCurrentGoal({...currentGoal, deadline: text})}
+                            placeholder="Ex: Dez 2024"
                           />
+                        </View>
+
+                        <View style={styles.inputGroup}>
+                          <Text style={styles.inputLabel}>Ícone da Meta</Text>
+                          <TouchableOpacity 
+                            style={styles.iconSelectorContainer}
+                            onPress={() => {
+                              setCurrentGoal({...currentGoal, showIconSelector: !currentGoal.showIconSelector});
+                            }}
+                          >
+                            <View style={styles.emojiSelectorButton}>
+                              <Text style={styles.emojiSelectorText}>
+                                {currentGoal.icon}
+                              </Text>
+                            </View>
+                            <Text style={styles.iconSelectorText}>
+                              Toque para escolher um ícone
+                            </Text>
+                          </TouchableOpacity>
+                          
+                          {currentGoal.showIconSelector && (
+                            <View style={styles.emojiDropdown}>
+                              <View style={styles.emojiGrid}>
+                                {['🎯', '💰', '🏠', '🚗', '✈️', '🎓', '💍', '📱', '🏖️', '🎮', '📚', '🎸', '🏋️', '🎨'].map((emoji, index) => (
+                                  <TouchableOpacity 
+                                    key={index}
+                                    style={[
+                                      styles.emojiGridItem,
+                                      currentGoal.icon === emoji && styles.emojiGridItemSelected
+                                    ]}
+                                    onPress={() => setCurrentGoal({
+                                      ...currentGoal, 
+                                      icon: emoji,
+                                      showIconSelector: false
+                                    })}
+                                  >
+                                    <Text style={styles.emojiGridText}>{emoji}</Text>
+                                  </TouchableOpacity>
+                                ))}
+                              </View>
+                            </View>
+                          )}
                         </View>
 
                         <TouchableOpacity 
                           style={styles.submitButton}
-                          onPress={() => {
-                            const updatedGoals = goalsData.map(goal => 
-                              goal.id === currentGoal.id ? currentGoal : goal
+                          onPress={async () => {
+                            if (!currentGoal.title.trim()) {
+                              Alert.alert('Erro', 'Por favor, insira um título para a meta');
+                              return;
+                            }
+                            
+                            if (!currentGoal.target || currentGoal.target <= 0) {
+                              Alert.alert('Erro', 'Por favor, insira um valor válido para a meta');
+                              return;
+                            }
+
+                            await updateFinancialGoal(
+                              currentGoal.id, 
+                              currentGoal.title, 
+                              currentGoal.target, 
+                              currentGoal.deadline,
+                              currentGoal.icon
                             );
                             
-                            setGoalsData(updatedGoals);
                             setShowEditGoalModal(false);
                             setCurrentGoal(null);
                           }}

@@ -86,7 +86,7 @@ interface UnifiedExpenseItem {
   source: 'expenses' | 'transactions'; // Para identificar a origem
 }
 
-export default function HistoricoDespesasScreen() {
+export default function HistoricoCreditoScreen() {
   const router = useRouter();
   const [theme, setTheme] = useState(themes.masculine);
   const [loading, setLoading] = useState(true);
@@ -148,20 +148,7 @@ export default function HistoricoDespesasScreen() {
       
       const userId = session.user.id;
       
-      // Buscar despesas da tabela expenses
-      const { data: expensesData, error: expensesError } = await supabase
-        .from('expenses')
-        .select('*')
-        .or(`owner_id.eq.${userId},partner_id.eq.${userId}`)
-        .order('due_date', { ascending: false });
-        
-      if (expensesError) {
-        console.error('Erro ao buscar despesas:', expensesError);
-        Alert.alert('Erro', 'Erro ao carregar despesas');
-        return;
-      }
-      
-      // Buscar transações de despesa da tabela transactions
+      // Buscar transações de crédito da tabela transactions
       const { data: transactionsData, error: transactionsError } = await supabase
         .from('transactions')
         .select(`
@@ -172,58 +159,44 @@ export default function HistoricoDespesasScreen() {
             bank
           )
         `)
-        .eq('transaction_type', 'expense')
+        .eq('payment_method', 'Crédito')
         .or(`owner_id.eq.${userId},partner_id.eq.${userId}`)
         .order('transaction_date', { ascending: false });
         
-      if (transactionsError) {
-        console.error('Erro ao buscar transações de despesa:', transactionsError);
-        Alert.alert('Erro', 'Erro ao carregar transações de despesa');
-        return;
-      }
-      
-      // Converter dados da tabela expenses para o formato unificado
-      const unifiedExpensesData: UnifiedExpenseItem[] = (expensesData || []).map((expense: Expense) => ({
-        id: expense.id,
-        description: expense.title,
-        amount: parseFloat(expense.amount.toString()),
-        date: expense.due_date,
-        isPaid: expense.is_paid,
-        isRecurring: false, // Expenses não têm campo de recorrência
-        category: expense.category,
-        accountName: expense.account,
-        source: 'expenses' as const
-      }));
-      
-      // Converter dados da tabela transactions para o formato unificado
-      const unifiedTransactionsData: UnifiedExpenseItem[] = (transactionsData || []).map((transaction: ExpenseTransaction) => ({
-        id: transaction.id,
-        description: transaction.description,
-        amount: parseFloat(transaction.amount.toString()),
-        date: transaction.transaction_date,
-        isPaid: true, // Transações são consideradas sempre pagas
-        isRecurring: transaction.recurrence_type !== 'Não recorrente',
-        category: transaction.category,
-        account: transaction.accounts,
-        icon: transaction.icon,
-        source: 'transactions' as const
-      }));
-      
-      // Combinar e ordenar por data (mais recente primeiro)
-      const allExpenses = [...unifiedExpensesData, ...unifiedTransactionsData]
-        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-      
-      console.log('Despesas carregadas:', {
-        expenses: expensesData?.length || 0,
-        transactions: transactionsData?.length || 0,
-        total: allExpenses.length
-      });
-      
-      setUnifiedExpenses(allExpenses);
+              if (transactionsError) {
+          console.error('Erro ao buscar transações de crédito:', transactionsError);
+          Alert.alert('Erro', 'Erro ao carregar transações de crédito');
+          return;
+        }
+        
+        // Converter dados da tabela transactions para o formato unificado
+        const unifiedTransactionsData: UnifiedExpenseItem[] = (transactionsData || []).map((transaction: ExpenseTransaction) => ({
+          id: transaction.id,
+          description: transaction.description,
+          amount: parseFloat(transaction.amount.toString()),
+          date: transaction.transaction_date,
+          isPaid: true, // Transações são consideradas sempre pagas
+          isRecurring: transaction.recurrence_type !== 'Não recorrente',
+          category: transaction.category,
+          account: transaction.accounts,
+          icon: transaction.icon,
+          source: 'transactions' as const
+        }));
+        
+        // Ordenar por data (mais recente primeiro)
+        const allExpenses = unifiedTransactionsData
+          .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        
+        console.log('Créditos carregados:', {
+          transactions: transactionsData?.length || 0,
+          total: allExpenses.length
+        });
+        
+        setUnifiedExpenses(allExpenses);
       
     } catch (error) {
-      console.error('Erro ao carregar despesas:', error);
-      Alert.alert('Erro', 'Erro inesperado ao carregar despesas');
+      console.error('Erro ao carregar créditos:', error);
+      Alert.alert('Erro', 'Erro inesperado ao carregar créditos');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -300,11 +273,11 @@ export default function HistoricoDespesasScreen() {
                 {item.account?.name || item.accountName} {item.account?.type && `(${item.account.type})`}
               </Text>
             )}
-            <View style={styles.sourceContainer}>
-              <Text style={styles.sourceText}>
-                {item.source === 'expenses' ? 'Despesa' : 'Transação'}
-              </Text>
-            </View>
+                         <View style={styles.sourceContainer}>
+               <Text style={styles.sourceText}>
+                 Crédito
+               </Text>
+             </View>
           </View>
         </View>
         <View style={styles.expenseAmountContainer}>
@@ -355,12 +328,12 @@ export default function HistoricoDespesasScreen() {
           >
             <ArrowLeft size={24} color="#FFFFFF" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Histórico de Despesas</Text>
+          <Text style={styles.headerTitle}>Histórico de Crédito</Text>
           <View style={styles.placeholder} />
         </View>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={theme.primary} />
-          <Text style={styles.loadingText}>Carregando despesas...</Text>
+          <Text style={styles.loadingText}>Carregando créditos...</Text>
         </View>
       </SafeAreaView>
     );
@@ -384,7 +357,7 @@ export default function HistoricoDespesasScreen() {
         >
           <ArrowLeft size={24} color="#FFFFFF" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Histórico de Despesas</Text>
+        <Text style={styles.headerTitle}>Histórico de Crédito</Text>
         <TouchableOpacity 
           style={styles.refreshButton}
           onPress={handleRefresh}
@@ -422,17 +395,16 @@ export default function HistoricoDespesasScreen() {
           </ScrollView>
         </View>
 
-
       </View>
 
-      {/* Lista de Despesas */}
+      {/* Lista de Créditos */}
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {Object.keys(groupedExpenses).length === 0 ? (
           <View style={styles.emptyContainer}>
             <Calendar size={64} color={theme.textSecondary} />
-            <Text style={styles.emptyTitle}>Nenhuma despesa encontrada</Text>
+            <Text style={styles.emptyTitle}>Nenhum crédito encontrado</Text>
             <Text style={styles.emptySubtitle}>
-              Não há despesas para os filtros selecionados.
+              Não há créditos para os filtros selecionados.
             </Text>
           </View>
         ) : (
@@ -703,4 +675,4 @@ const createStyles = (theme: any) => StyleSheet.create({
     color: theme.textSecondary,
     fontFamily: fontFallbacks.regular,
   },
-});
+}); 

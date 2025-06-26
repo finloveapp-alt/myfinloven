@@ -3,7 +3,6 @@ import { supabase } from '@/lib/supabase';
 export interface Card {
   id: string;
   name: string;
-  card_number: string;
   card_holder_name: string;
   bank_name: string;
   card_type: 'visa' | 'mastercard' | 'amex' | 'diners' | 'discover' | 'elo' | 'hipercard';
@@ -14,6 +13,7 @@ export interface Card {
   available_limit?: number;
   primary_color: string;
   secondary_color: string;
+  expiry_date?: string;
   is_active: boolean;
   owner_id: string;
   partner_id?: string;
@@ -70,7 +70,6 @@ class CardsService {
   // Criar novo cartão
   async createCard(cardData: {
     name: string;
-    card_number: string;
     card_holder_name: string;
     bank_name: string;
     card_type: string;
@@ -78,6 +77,7 @@ class CardsService {
     credit_limit?: number;
     primary_color?: string;
     secondary_color?: string;
+    expiry_date?: string;
   }): Promise<Card> {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('Usuário não autenticado');
@@ -86,7 +86,6 @@ class CardsService {
       .from('cards')
       .insert({
         name: cardData.name,
-        card_number: this.maskCardNumber(cardData.card_number),
         card_holder_name: cardData.card_holder_name,
         bank_name: cardData.bank_name,
         card_type: cardData.card_type,
@@ -95,6 +94,7 @@ class CardsService {
         current_balance: 0,
         primary_color: cardData.primary_color ?? '#b687fe',
         secondary_color: cardData.secondary_color ?? '#8B5CF6',
+        expiry_date: cardData.expiry_date,
         owner_id: user.id,
         is_active: true
       })
@@ -111,6 +111,37 @@ class CardsService {
       .from('transactions')
       .select('id, description, amount, transaction_date, transaction_type, category, icon')
       .eq('card_id', cardId)
+      .order('transaction_date', { ascending: false })
+      .limit(limit);
+
+    if (error) throw error;
+    return data || [];
+  }
+
+  // Buscar transações de todos os cartões do usuário
+  async getAllUserTransactions(limit: number = 20): Promise<CardTransaction[]> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Usuário não autenticado');
+
+    // Primeiro, buscar todos os cartões do usuário
+    const userCards = await this.getUserCards(user.id);
+    
+    if (userCards.length === 0) {
+      return [];
+    }
+
+    // Extrair os IDs dos cartões
+    const cardIds = userCards.map(card => card.id);
+
+    // Data atual no formato ISO (YYYY-MM-DD)
+    const today = new Date().toISOString().split('T')[0];
+
+    // Buscar transações de todos os cartões do usuário até a data atual
+    const { data, error } = await supabase
+      .from('transactions')
+      .select('id, description, amount, transaction_date, transaction_type, category, icon')
+      .in('card_id', cardIds)
+      .lte('transaction_date', today)
       .order('transaction_date', { ascending: false })
       .limit(limit);
 
@@ -211,20 +242,7 @@ class CardsService {
     console.log('[updateCardBalance] Verificação pós-atualização:', verifyCard);
   }
 
-  // Utilitário para mascarar número do cartão
-  private maskCardNumber(cardNumber: string): string {
-    const cleaned = cardNumber.replace(/\s/g, '');
-    if (cleaned.length < 4) return cleaned;
-    
-    const lastFour = cleaned.slice(-4);
-    const masked = cleaned.slice(0, -4).replace(/\d/g, '*');
-    return `${masked}${lastFour}`;
-  }
 
-  // Formatar número do cartão para exibição
-  formatCardNumber(cardNumber: string): string {
-    return cardNumber.replace(/(.{4})/g, '$1 ').trim();
-  }
 }
 
 export const cardsService = new CardsService(); 

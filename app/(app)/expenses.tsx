@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, ActivityIndicator, Modal, TextInput, Platform, KeyboardAvoidingView, Switch, AppState } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { ArrowLeft, Search, List, MoreVertical, AlertCircle, Plus, Calendar, Check, CheckCircle, ChevronDown, CreditCard, Filter, Clock, X, Edit, DollarSign, CreditCard as CardIcon, Percent, ChevronLeft, ChevronRight, Home, PlusCircle, Bell, BarChart, Wallet, ExternalLink, ArrowUpCircle } from 'lucide-react-native';
+import { ArrowLeft, Search, List, MoreVertical, AlertCircle, Plus, Calendar, Check, CheckCircle, ChevronDown, CreditCard, Filter, Clock, X, Edit, DollarSign, CreditCard as CardIcon, Percent, ChevronLeft, ChevronRight, Home, PlusCircle, Bell, BarChart, Wallet, ExternalLink, ArrowUpCircle, User, Diamond, Tag } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -266,6 +266,91 @@ export default function Expenses() {
     }
   };
 
+  // Buscar saldo do usuário (saldo inicial + saldo atual do mês)
+  const fetchUserBalance = async () => {
+    try {
+      // Obter a sessão atual
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session?.user) {
+        console.error('Erro ao obter sessão:', sessionError);
+        return;
+      }
+      
+      const userId = session.user.id;
+      const currentDate = new Date();
+      const currentMonth = currentDate.getMonth() + 1;
+      const currentYear = currentDate.getFullYear();
+      
+      // Buscar saldo inicial das contas
+      const { data: accounts, error: accountsError } = await supabase
+        .from('accounts')
+        .select('initial_balance')
+        .eq('owner_id', userId);
+      
+      if (accountsError) {
+        console.error('Erro ao buscar contas:', accountsError);
+        return;
+      }
+      
+      // Calcular saldo inicial
+      const initialBalance = accounts?.reduce((total, account) => {
+        return total + (Number(account.initial_balance) || 0);
+      }, 0) || 0;
+      
+      // Buscar receitas do mês atual da tabela incomes
+      const { data: monthlyIncomes, error: monthlyIncomesError } = await supabase
+        .from('incomes')
+        .select('amount')
+        .eq('owner_id', userId)
+        .gte('receipt_date', `${currentYear}-${currentMonth.toString().padStart(2, '0')}-01`)
+        .lt('receipt_date', `${currentYear}-${(currentMonth + 1).toString().padStart(2, '0')}-01`);
+      
+      // Buscar transações de receita do mês atual
+      const { data: monthlyTransactionIncomes, error: monthlyTransactionIncomesError } = await supabase
+        .from('transactions')
+        .select('amount')
+        .eq('owner_id', userId)
+        .eq('transaction_type', 'income')
+        .gte('transaction_date', `${currentYear}-${currentMonth.toString().padStart(2, '0')}-01`)
+        .lt('transaction_date', `${currentYear}-${(currentMonth + 1).toString().padStart(2, '0')}-01`);
+      
+      // Buscar despesas do mês atual da tabela expenses
+      const { data: monthlyExpenses, error: monthlyExpensesError } = await supabase
+        .from('expenses')
+        .select('amount')
+        .eq('owner_id', userId)
+        .gte('due_date', `${currentYear}-${currentMonth.toString().padStart(2, '0')}-01`)
+        .lt('due_date', `${currentYear}-${(currentMonth + 1).toString().padStart(2, '0')}-01`);
+      
+      // Buscar transações de despesa do mês atual
+      const { data: monthlyExpenseTransactions, error: monthlyExpenseTransactionsError } = await supabase
+        .from('transactions')
+        .select('amount')
+        .eq('owner_id', userId)
+        .eq('transaction_type', 'expense')
+        .gte('transaction_date', `${currentYear}-${currentMonth.toString().padStart(2, '0')}-01`)
+        .lt('transaction_date', `${currentYear}-${(currentMonth + 1).toString().padStart(2, '0')}-01`);
+      
+      // Calcular totais
+      const receitasMesIncomes = monthlyIncomes?.reduce((sum, income) => sum + Number(income.amount), 0) || 0;
+      const receitasMesTransactions = monthlyTransactionIncomes?.reduce((sum, income) => sum + Number(income.amount), 0) || 0;
+      const receitasMes = receitasMesIncomes + receitasMesTransactions;
+      
+      const despesasMesExpenses = monthlyExpenses?.reduce((sum, expense) => sum + Number(expense.amount), 0) || 0;
+      const despesasMesTransactions = monthlyExpenseTransactions?.reduce((sum, expense) => sum + Math.abs(Number(expense.amount)), 0) || 0;
+      const despesasMes = despesasMesExpenses + despesasMesTransactions;
+      
+      // Calcular saldo disponível: saldo inicial + (receitas - despesas do mês)
+      const saldoDisponivel = initialBalance + (receitasMes - despesasMes);
+      
+      setUserBalance(saldoDisponivel);
+      
+    } catch (error) {
+      console.error('Erro ao buscar saldo do usuário:', error);
+    }
+  };
+
   // Função para buscar despesas do Supabase
   const fetchExpenses = async () => {
     try {
@@ -295,9 +380,36 @@ export default function Expenses() {
         console.error('Erro ao buscar despesas:', expensesError);
         return;
       }
+
+      // Buscar cartões de crédito com saldo pendente
+      const { data: cardsData, error: cardsError } = await supabase
+        .from('cards')
+        .select('*')
+        .eq('owner_id', userId)
+        .eq('is_credit', true)
+        .eq('is_active', true)
+        .gt('current_balance', 0);
+
+      if (cardsError) {
+        console.error('Erro ao buscar cartões:', cardsError);
+      }
+
+      // Buscar transações do tipo expense
+      const { data: transactionsData, error: transactionsError } = await supabase
+        .from('transactions')
+        .select('*')
+        .eq('owner_id', userId)
+        .eq('transaction_type', 'expense')
+        .order('transaction_date', { ascending: true });
+
+      if (transactionsError) {
+        console.error('Erro ao buscar transações:', transactionsError);
+      }
       
+      const allExpenses: Expense[] = [];
+      
+      // Converter despesas do Supabase para o formato da interface
       if (expensesData) {
-        // Converter os dados do Supabase para o formato da interface
         const formattedExpenses: Expense[] = expensesData.map((expense: any) => ({
           id: expense.id,
           title: expense.title,
@@ -309,8 +421,45 @@ export default function Expenses() {
           createdAt: new Date(expense.created_at)
         }));
         
-        setExpenses(formattedExpenses);
+        allExpenses.push(...formattedExpenses);
       }
+
+      // Converter cartões de crédito para o formato de despesas
+      if (cardsData) {
+        const formattedCards: Expense[] = cardsData.map((card: any) => ({
+          id: `card_${card.id}`,
+          title: `Fatura ${card.name}`,
+          amount: parseFloat(card.current_balance),
+          dueDate: card.due_date ? new Date(card.due_date) : new Date(),
+          category: 'Cartão de Crédito',
+          account: card.bank_name || 'Cartão',
+          isPaid: false, // Cartões com saldo sempre aparecem como não pagos
+          createdAt: new Date(card.created_at || new Date())
+        }));
+        
+        allExpenses.push(...formattedCards);
+      }
+
+      // Converter transações de despesa para o formato de despesas
+      if (transactionsData) {
+        const formattedTransactions: Expense[] = transactionsData.map((transaction: any) => ({
+          id: `transaction_${transaction.id}`,
+          title: transaction.description,
+          amount: Math.abs(parseFloat(transaction.amount)), // Usar valor absoluto para despesas
+          dueDate: new Date(transaction.transaction_date),
+          category: transaction.category || 'Outros',
+          account: transaction.payment_method || 'Conta',
+          isPaid: true, // Transações são consideradas sempre pagas
+          createdAt: new Date(transaction.created_at)
+        }));
+        
+        allExpenses.push(...formattedTransactions);
+      }
+      
+      // Ordenar todas as despesas por data de vencimento
+      allExpenses.sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
+      
+      setExpenses(allExpenses);
     } catch (error) {
       console.error('Erro ao buscar despesas:', error);
     }
@@ -344,14 +493,8 @@ export default function Expenses() {
         // Buscar despesas do Supabase
         await fetchExpenses();
         
-        // Carregar saldo do usuário
-        const storedBalance = await AsyncStorage.getItem('@MyFinlove:balance');
-        if (storedBalance) {
-          setUserBalance(parseFloat(storedBalance));
-        } else {
-          // Saldo inicial se não existir
-          await AsyncStorage.setItem('@MyFinlove:balance', userBalance.toString());
-        }
+        // Carregar saldo do usuário (saldo inicial + saldo atual do mês)
+        await fetchUserBalance();
       } catch (error) {
         console.error('Erro ao carregar dados:', error);
       } finally {
@@ -364,14 +507,7 @@ export default function Expenses() {
 
 
 
-  // Salvar saldo
-  const saveBalance = async (amount: number) => {
-    try {
-      await AsyncStorage.setItem('@MyFinlove:balance', amount.toString());
-    } catch (error) {
-      console.error('Erro ao salvar saldo:', error);
-    }
-  };
+
 
   // Abrir modal de confirmação de pagamento
   const openConfirmPaymentModal = (expense: Expense) => {
@@ -389,16 +525,34 @@ export default function Expenses() {
       const feesValue = parseFloat(fees.replace(',', '.')) || 0;
       const totalAmount = selectedExpense.amount + feesValue;
       
-      // 1. Atualizar status da despesa no Supabase
-      const { error } = await supabase
-        .from('expenses')
-        .update({ is_paid: true })
-        .eq('id', selectedExpense.id);
+      // Verificar se é um cartão de crédito (ID começa com 'card_')
+      const isCardExpense = selectedExpense.id.startsWith('card_');
       
-      if (error) {
-        console.error('Erro ao atualizar despesa:', error);
-        Alert.alert('Erro', 'Erro ao atualizar status da despesa');
-        return;
+      if (isCardExpense) {
+        // Para cartões de crédito, atualizar o saldo do cartão
+        const cardId = selectedExpense.id.replace('card_', '');
+        const { error } = await supabase
+          .from('cards')
+          .update({ current_balance: 0 }) // Zerar o saldo do cartão
+          .eq('id', cardId);
+        
+        if (error) {
+          console.error('Erro ao atualizar cartão:', error);
+          Alert.alert('Erro', 'Erro ao atualizar status do cartão');
+          return;
+        }
+      } else {
+        // Para despesas normais, atualizar status na tabela expenses
+        const { error } = await supabase
+          .from('expenses')
+          .update({ is_paid: true })
+          .eq('id', selectedExpense.id);
+        
+        if (error) {
+          console.error('Erro ao atualizar despesa:', error);
+          Alert.alert('Erro', 'Erro ao atualizar status da despesa');
+          return;
+        }
       }
       
       // 2. Atualizar estado local
@@ -407,10 +561,8 @@ export default function Expenses() {
       );
       setExpenses(updatedExpenses);
       
-      // 3. Atualizar saldo
-      const newBalance = userBalance - totalAmount;
-      setUserBalance(newBalance);
-      await saveBalance(newBalance);
+      // 3. Recalcular saldo usando a mesma lógica do dashboard
+      await fetchUserBalance();
       
       // 4. Fechar modal e mostrar mensagem
       setConfirmModalVisible(false);
@@ -418,7 +570,7 @@ export default function Expenses() {
       
       Alert.alert(
         "Pagamento Efetivado",
-        `O pagamento de ${selectedExpense.title} no valor de R$ ${totalAmount.toFixed(2)} foi confirmado e seu saldo foi atualizado para R$ ${newBalance.toFixed(2)}.`
+        `O pagamento de ${selectedExpense.title} no valor de R$ ${totalAmount.toFixed(2)} foi confirmado e seu saldo foi atualizado.`
       );
     } catch (error) {
       console.error('Erro ao efetivar pagamento:', error);
@@ -1185,16 +1337,34 @@ export default function Expenses() {
     }
     
     try {
-      // Atualizar status da despesa no Supabase
-      const { error } = await supabase
-        .from('expenses')
-        .update({ is_paid: true })
-        .eq('id', activeExpense.id);
+      // Verificar se é um cartão de crédito (ID começa com 'card_')
+      const isCardExpense = activeExpense.id.startsWith('card_');
       
-      if (error) {
-        console.error('Erro ao marcar como pago:', error);
-        Alert.alert('Erro', 'Erro ao atualizar status da despesa');
-        return;
+      if (isCardExpense) {
+        // Para cartões de crédito, atualizar o saldo do cartão
+        const cardId = activeExpense.id.replace('card_', '');
+        const { error } = await supabase
+          .from('cards')
+          .update({ current_balance: 0 }) // Zerar o saldo do cartão
+          .eq('id', cardId);
+        
+        if (error) {
+          console.error('Erro ao atualizar cartão:', error);
+          Alert.alert('Erro', 'Erro ao atualizar status do cartão');
+          return;
+        }
+      } else {
+        // Para despesas normais, atualizar status na tabela expenses
+        const { error } = await supabase
+          .from('expenses')
+          .update({ is_paid: true })
+          .eq('id', activeExpense.id);
+        
+        if (error) {
+          console.error('Erro ao marcar como pago:', error);
+          Alert.alert('Erro', 'Erro ao atualizar status da despesa');
+          return;
+        }
       }
       
       // Atualizar estado local
@@ -1203,10 +1373,8 @@ export default function Expenses() {
       );
       setExpenses(updatedExpenses);
       
-      // Atualizar saldo
-      const newBalance = userBalance - activeExpense.amount;
-      setUserBalance(newBalance);
-      await saveBalance(newBalance);
+      // Recalcular saldo usando a mesma lógica do dashboard
+      await fetchUserBalance();
       
       closeOptionsMenu();
       Alert.alert(
@@ -2364,14 +2532,14 @@ export default function Expenses() {
                   style={styles.menuItem}
                   onPress={() => {
                     setMenuModalVisible(false);
-                    router.push('/expenses');
+                    router.push('/(app)/categories');
                   }}
                 >
                   <View style={[styles.menuIconContainer, { backgroundColor: `rgba(${theme === themes.feminine ? '182, 135, 254' : '0, 115, 234'}, 0.15)` }]}>
-                    <Wallet size={28} color={theme.primary} />
+                    <Tag size={28} color={theme.primary} />
                   </View>
-                  <Text style={[styles.menuItemTitle, { color: '#333' }]}>Contas a Pagar</Text>
-                  <Text style={[styles.menuItemSubtitle, { color: '#666' }]}>Gerenciar pagamentos</Text>
+                  <Text style={[styles.menuItemTitle, { color: '#333' }]}>Categorias</Text>
+                  <Text style={[styles.menuItemSubtitle, { color: '#666' }]}>Gerenciar categorias</Text>
                 </TouchableOpacity>
               </View>
 
@@ -2395,28 +2563,28 @@ export default function Expenses() {
                   style={styles.menuItem}
                   onPress={() => {
                     setMenuModalVisible(false);
-                    router.push('/(app)/receitas');
+                    router.push('/(app)/profile');
                   }}
                 >
                   <View style={[styles.menuIconContainer, { backgroundColor: `rgba(${theme === themes.feminine ? '182, 135, 254' : '0, 115, 234'}, 0.15)` }]}>
-                    <ArrowUpCircle size={28} color={theme.primary} />
+                    <User size={28} color={theme.primary} />
                   </View>
-                  <Text style={[styles.menuItemTitle, { color: '#333' }]}>Receitas</Text>
-                  <Text style={[styles.menuItemSubtitle, { color: '#666' }]}>Gerenciar receitas</Text>
+                  <Text style={[styles.menuItemTitle, { color: '#333' }]}>Perfil</Text>
+                  <Text style={[styles.menuItemSubtitle, { color: '#666' }]}>Configurações</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity 
                   style={styles.menuItem}
                   onPress={() => {
                     setMenuModalVisible(false);
-                    router.replace('/(auth)/login');
+                    router.push('/(app)/subscription');
                   }}
                 >
                   <View style={[styles.menuIconContainer, { backgroundColor: `rgba(${theme === themes.feminine ? '182, 135, 254' : '0, 115, 234'}, 0.15)` }]}>
-                    <ExternalLink size={28} color={theme.primary} />
+                    <Diamond size={28} color={theme.primary} />
                   </View>
-                  <Text style={[styles.menuItemTitle, { color: '#333' }]}>Logout</Text>
-                  <Text style={[styles.menuItemSubtitle, { color: '#666' }]}>Sair do aplicativo</Text>
+                  <Text style={[styles.menuItemTitle, { color: '#333' }]}>Assinatura</Text>
+                  <Text style={[styles.menuItemSubtitle, { color: '#666' }]}>Planos e preços</Text>
                 </TouchableOpacity>
               </View>
             </View>

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity, ScrollView, Platform, Pressable, SafeAreaView, Alert, Modal, TextInput, KeyboardAvoidingView, ActivityIndicator, useWindowDimensions, AppState } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StatusBar } from 'expo-status-bar';
-import { BarChart, ArrowLeft, ArrowRight, LogOut, Calendar, DollarSign, Check, Clock, ArrowDownCircle, ArrowUpCircle, ChevronRight, Info, ChevronDown, BookUser, Users, X, FileText, Settings, CreditCard, BarChart3, Bell, Menu, PlusCircle, Wallet, ExternalLink, Target, Receipt, Camera, Upload, ImageIcon, Home } from 'lucide-react-native';
+import { BarChart, ArrowLeft, ArrowRight, LogOut, Calendar, DollarSign, Check, Clock, ArrowDownCircle, ArrowUpCircle, ChevronRight, Info, ChevronDown, BookUser, Users, X, FileText, Settings, CreditCard, BarChart3, Bell, Menu, PlusCircle, Wallet, ExternalLink, Target, Receipt, Camera, Upload, ImageIcon, Home, User, Diamond, Tag } from 'lucide-react-native';
 import { LineChart, Line, XAxis, ResponsiveContainer } from 'recharts';
 import { useRouter } from 'expo-router';
 import { Dimensions } from 'react-native';
@@ -82,7 +82,7 @@ export default function Dashboard() {
   const [loadingSummaryData, setLoadingSummaryData] = useState(true);
   const [expensesByPerson, setExpensesByPerson] = useState({
     currentUser: { name: '', amount: 0, percentage: 0 },
-    partner: { name: '', amount: 0, percentage: 0 },
+    partners: [] as { id: string; name: string; amount: number; percentage: number; isAvatar: boolean }[],
     shared: { amount: 0, percentage: 0 }
   });
   const [loadingExpensesByPerson, setLoadingExpensesByPerson] = useState(true);
@@ -175,16 +175,35 @@ export default function Dashboard() {
     fetchFinancialGoals();
     // Buscar saldo inicial
     fetchInitialBalance();
-    // Buscar saldo atual
-    fetchCurrentBalance();
-    // Buscar saldo previsto
-    fetchPredictedBalance();
+    // Buscar saldo atual e depois o previsto
+    fetchCurrentBalance().then(() => {
+      fetchPredictedBalance();
+    });
+    
+    // Configurar atualização automática do saldo previsto a cada mudança de mês
+    const now = new Date();
+    const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    const timeUntilNextMonth = nextMonth.getTime() - now.getTime();
+    
+    // Configurar timeout para atualizar quando o mês mudar
+    const monthChangeTimeout = setTimeout(() => {
+      fetchCurrentBalance().then(() => {
+        fetchPredictedBalance();
+      });
+    }, timeUntilNextMonth);
     // Buscar dados do gráfico
     fetchChartData();
     // Buscar eventos do calendário
     fetchCalendarEvents();
     // Buscar dados do gráfico diário
     fetchDailyTransactionsChart();
+    
+    // Cleanup function para limpar o timeout
+    return () => {
+      if (monthChangeTimeout) {
+        clearTimeout(monthChangeTimeout);
+      }
+    };
   }, []);
   
   // Função para buscar o usuário atual e seus parceiros
@@ -351,7 +370,7 @@ export default function Dashboard() {
       // Buscar todos os relacionamentos de casal ativos
       const { data: couplesData, error: couplesError } = await supabase
         .from('couples')
-        .select('id, user1_id, user2_id, is_avatar, avatar_name, avatar_photo_url')
+        .select('*')
         .or(`user1_id.eq.${userId},user2_id.eq.${userId}`)
         .eq('status', 'active');
         
@@ -459,7 +478,7 @@ export default function Dashboard() {
       const previousMonth = currentMonth === 1 ? 12 : currentMonth - 1;
       const previousYear = currentMonth === 1 ? currentYear - 1 : currentYear;
       
-      // Buscar receitas do mês atual
+      // Buscar receitas do mês atual da tabela incomes
       const { data: currentIncomes, error: incomesError } = await supabase
         .from('incomes')
         .select('amount')
@@ -467,7 +486,16 @@ export default function Dashboard() {
         .gte('receipt_date', `${currentYear}-${currentMonth.toString().padStart(2, '0')}-01`)
         .lt('receipt_date', `${currentYear}-${(currentMonth + 1).toString().padStart(2, '0')}-01`);
       
-      // Buscar receitas do mês anterior
+      // Buscar transações de receita do mês atual
+      const { data: currentTransactionIncomes, error: transactionIncomesError } = await supabase
+        .from('transactions')
+        .select('amount')
+        .eq('owner_id', userId)
+        .eq('transaction_type', 'income')
+        .gte('transaction_date', `${currentYear}-${currentMonth.toString().padStart(2, '0')}-01`)
+        .lt('transaction_date', `${currentYear}-${(currentMonth + 1).toString().padStart(2, '0')}-01`);
+      
+      // Buscar receitas do mês anterior da tabela incomes
       const { data: previousIncomes, error: prevIncomesError } = await supabase
         .from('incomes')
         .select('amount')
@@ -475,7 +503,16 @@ export default function Dashboard() {
         .gte('receipt_date', `${previousYear}-${previousMonth.toString().padStart(2, '0')}-01`)
         .lt('receipt_date', `${previousYear}-${currentMonth.toString().padStart(2, '0')}-01`);
       
-      // Buscar despesas do mês atual
+      // Buscar transações de receita do mês anterior
+      const { data: previousTransactionIncomes, error: prevTransactionIncomesError } = await supabase
+        .from('transactions')
+        .select('amount')
+        .eq('owner_id', userId)
+        .eq('transaction_type', 'income')
+        .gte('transaction_date', `${previousYear}-${previousMonth.toString().padStart(2, '0')}-01`)
+        .lt('transaction_date', `${previousYear}-${currentMonth.toString().padStart(2, '0')}-01`);
+      
+      // Buscar despesas do mês atual da tabela expenses
       const { data: currentExpenses, error: expensesError } = await supabase
         .from('expenses')
         .select('amount')
@@ -483,13 +520,31 @@ export default function Dashboard() {
         .gte('due_date', `${currentYear}-${currentMonth.toString().padStart(2, '0')}-01`)
         .lt('due_date', `${currentYear}-${(currentMonth + 1).toString().padStart(2, '0')}-01`);
       
-      // Buscar despesas do mês anterior
+      // Buscar transações de despesa do mês atual
+      const { data: currentExpenseTransactions, error: expenseTransactionsError } = await supabase
+        .from('transactions')
+        .select('amount')
+        .eq('owner_id', userId)
+        .eq('transaction_type', 'expense')
+        .gte('transaction_date', `${currentYear}-${currentMonth.toString().padStart(2, '0')}-01`)
+        .lt('transaction_date', `${currentYear}-${(currentMonth + 1).toString().padStart(2, '0')}-01`);
+      
+      // Buscar despesas do mês anterior da tabela expenses
       const { data: previousExpenses, error: prevExpensesError } = await supabase
         .from('expenses')
         .select('amount')
         .eq('owner_id', userId)
         .gte('due_date', `${previousYear}-${previousMonth.toString().padStart(2, '0')}-01`)
         .lt('due_date', `${previousYear}-${currentMonth.toString().padStart(2, '0')}-01`);
+      
+      // Buscar transações de despesa do mês anterior
+      const { data: previousExpenseTransactions, error: prevExpenseTransactionsError } = await supabase
+        .from('transactions')
+        .select('amount')
+        .eq('owner_id', userId)
+        .eq('transaction_type', 'expense')
+        .gte('transaction_date', `${previousYear}-${previousMonth.toString().padStart(2, '0')}-01`)
+        .lt('transaction_date', `${previousYear}-${currentMonth.toString().padStart(2, '0')}-01`);
       
       // Buscar transações de débito do mês atual
       const { data: currentDebits, error: debitsError } = await supabase
@@ -527,21 +582,36 @@ export default function Dashboard() {
         .gte('transaction_date', `${previousYear}-${previousMonth.toString().padStart(2, '0')}-01`)
         .lt('transaction_date', `${previousYear}-${currentMonth.toString().padStart(2, '0')}-01`);
       
-      // Calcular totais
-      const receitasTotal = currentIncomes?.reduce((sum, income) => sum + Number(income.amount), 0) || 0;
-      const receitasPrevious = previousIncomes?.reduce((sum, income) => sum + Number(income.amount), 0) || 0;
+      // Calcular totais das receitas
+      const receitasFromIncomes = currentIncomes?.reduce((sum, income) => sum + Number(income.amount), 0) || 0;
+      const receitasFromTransactions = currentTransactionIncomes?.reduce((sum, income) => sum + Number(income.amount), 0) || 0;
+      const receitasTotal = receitasFromIncomes + receitasFromTransactions;
+      
+      const previousReceitasFromIncomes = previousIncomes?.reduce((sum, income) => sum + Number(income.amount), 0) || 0;
+      const previousReceitasFromTransactions = previousTransactionIncomes?.reduce((sum, income) => sum + Number(income.amount), 0) || 0;
+      const receitasPrevious = previousReceitasFromIncomes + previousReceitasFromTransactions;
+      
       const receitasChange = receitasPrevious > 0 ? ((receitasTotal - receitasPrevious) / receitasPrevious) * 100 : 0;
       
-      const despesasTotal = currentExpenses?.reduce((sum, expense) => sum + Number(expense.amount), 0) || 0;
-      const despesasPrevious = previousExpenses?.reduce((sum, expense) => sum + Number(expense.amount), 0) || 0;
+      // Calcular totais das despesas (expenses + transações de despesa)
+      const despesasFromExpenses = currentExpenses?.reduce((sum, expense) => sum + Number(expense.amount), 0) || 0;
+      const despesasFromTransactions = currentExpenseTransactions?.reduce((sum, expense) => sum + Math.abs(Number(expense.amount)), 0) || 0;
+      const despesasTotal = despesasFromExpenses + despesasFromTransactions;
+      
+      const previousDespesasFromExpenses = previousExpenses?.reduce((sum, expense) => sum + Number(expense.amount), 0) || 0;
+      const previousDespesasFromTransactions = previousExpenseTransactions?.reduce((sum, expense) => sum + Math.abs(Number(expense.amount)), 0) || 0;
+      const despesasPrevious = previousDespesasFromExpenses + previousDespesasFromTransactions;
+      
       const despesasChange = despesasPrevious > 0 ? ((despesasTotal - despesasPrevious) / despesasPrevious) * 100 : 0;
       
-      const debitosTotal = Math.abs(currentDebits?.reduce((sum, debit) => sum + Number(debit.amount), 0) || 0);
-      const debitosPrevious = Math.abs(previousDebits?.reduce((sum, debit) => sum + Number(debit.amount), 0) || 0);
+      // Calcular totais dos débitos
+      const debitosTotal = currentDebits?.reduce((sum, debit) => sum + Math.abs(Number(debit.amount)), 0) || 0;
+      const debitosPrevious = previousDebits?.reduce((sum, debit) => sum + Math.abs(Number(debit.amount)), 0) || 0;
       const debitosChange = debitosPrevious > 0 ? ((debitosTotal - debitosPrevious) / debitosPrevious) * 100 : 0;
       
-      const creditosTotal = Math.abs(currentCredits?.reduce((sum, credit) => sum + Number(credit.amount), 0) || 0);
-      const creditosPrevious = Math.abs(previousCredits?.reduce((sum, credit) => sum + Number(credit.amount), 0) || 0);
+      // Calcular totais dos créditos
+      const creditosTotal = currentCredits?.reduce((sum, credit) => sum + Math.abs(Number(credit.amount)), 0) || 0;
+      const creditosPrevious = previousCredits?.reduce((sum, credit) => sum + Math.abs(Number(credit.amount)), 0) || 0;
       const creditosChange = creditosPrevious > 0 ? ((creditosTotal - creditosPrevious) / creditosPrevious) * 100 : 0;
       
       // Atualizar estado com dados reais
@@ -556,65 +626,6 @@ export default function Dashboard() {
       console.error('Erro ao buscar dados financeiros:', error);
     } finally {
       setLoadingFinancialData(false);
-    }
-  };
-
-  // Função para buscar dados do resumo do mês
-  const fetchSummaryData = async () => {
-    try {
-      setLoadingSummaryData(true);
-      
-      // Obter a sessão atual
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      
-      if (sessionError || !session?.user) {
-        console.error('Erro ao obter sessão:', sessionError);
-        return;
-      }
-      
-      const userId = session.user.id;
-      const currentDate = new Date();
-      const currentMonth = currentDate.getMonth() + 1;
-      const currentYear = currentDate.getFullYear();
-      
-      // Buscar saldo total das contas
-      const { data: accounts, error: accountsError } = await supabase
-        .from('accounts')
-        .select('balance')
-        .eq('owner_id', userId);
-      
-      // Buscar receitas do mês atual
-      const { data: monthlyIncomes, error: monthlyIncomesError } = await supabase
-        .from('incomes')
-        .select('amount')
-        .eq('owner_id', userId)
-        .gte('receipt_date', `${currentYear}-${currentMonth.toString().padStart(2, '0')}-01`)
-        .lt('receipt_date', `${currentYear}-${(currentMonth + 1).toString().padStart(2, '0')}-01`);
-      
-      // Buscar despesas do mês atual
-      const { data: monthlyExpenses, error: monthlyExpensesError } = await supabase
-        .from('expenses')
-        .select('amount')
-        .eq('owner_id', userId)
-        .gte('due_date', `${currentYear}-${currentMonth.toString().padStart(2, '0')}-01`)
-        .lt('due_date', `${currentYear}-${(currentMonth + 1).toString().padStart(2, '0')}-01`);
-      
-      // Calcular totais
-      const saldoTotal = accounts?.reduce((sum, account) => sum + Number(account.balance), 0) || 0;
-      const receitasMes = monthlyIncomes?.reduce((sum, income) => sum + Number(income.amount), 0) || 0;
-      const despesasMes = monthlyExpenses?.reduce((sum, expense) => sum + Number(expense.amount), 0) || 0;
-      
-      // Atualizar estado
-      setSummaryData({
-        saldoTotal,
-        receitasMes,
-        despesasMes
-      });
-      
-    } catch (error) {
-      console.error('Erro ao buscar dados do resumo:', error);
-    } finally {
-      setLoadingSummaryData(false);
     }
   };
 
@@ -754,41 +765,59 @@ export default function Dashboard() {
         .eq('id', userId)
         .single();
       
-      // Buscar parceiro ativo
-      const { data: coupleData, error: coupleError } = await supabase
+      // Buscar todos os casais ativos do usuário (incluindo avatares)
+      const { data: couplesData, error: couplesError } = await supabase
         .from('couples')
-        .select('user1_id, user2_id, is_avatar, avatar_name')
+        .select('user1_id, user2_id, is_avatar, avatar_name, id')
         .or(`user1_id.eq.${userId},user2_id.eq.${userId}`)
-        .eq('status', 'active')
-        .single();
+        .eq('status', 'active');
       
       let partnerName = '';
       let partnerId = null;
+      let avatarExpenses: { [key: string]: { name: string; amount: number } } = {};
       
-      if (coupleData && !coupleError) {
-        if (coupleData.is_avatar) {
-          partnerName = coupleData.avatar_name || 'Avatar';
-        } else {
-          partnerId = coupleData.user1_id === userId ? coupleData.user2_id : coupleData.user1_id;
-          
-          if (partnerId) {
-            const { data: partnerProfile } = await supabase
-              .from('profiles')
-              .select('name')
-              .eq('id', partnerId)
-              .single();
+      if (couplesData && !couplesError) {
+        for (const couple of couplesData) {
+          if (couple.is_avatar) {
+            // Buscar gastos do avatar
+            const { data: avatarTransactions } = await supabase
+              .from('transactions')
+              .select('amount')
+              .eq('avatar_id', couple.id)
+              .eq('transaction_type', 'expense');
             
-            partnerName = partnerProfile?.name || 'Parceiro';
+            const avatarTotal = avatarTransactions?.reduce((sum, t) => sum + Math.abs(Number(t.amount)), 0) || 0;
+            
+            if (avatarTotal > 0) {
+              avatarExpenses[couple.id] = {
+                name: couple.avatar_name || 'Avatar',
+                amount: avatarTotal
+              };
+            }
+          } else {
+            // É um parceiro real
+            partnerId = couple.user1_id === userId ? couple.user2_id : couple.user1_id;
+            
+            if (partnerId) {
+              const { data: partnerProfile } = await supabase
+                .from('profiles')
+                .select('name')
+                .eq('id', partnerId)
+                .single();
+              
+              partnerName = partnerProfile?.name || 'Parceiro';
+            }
           }
         }
       }
       
-      // Buscar todas as transações de despesa do usuário atual
+      // Buscar todas as transações de despesa do usuário atual (excluindo avatares)
       const { data: userTransactions, error: userTransError } = await supabase
         .from('transactions')
         .select('amount')
         .eq('owner_id', userId)
-        .eq('transaction_type', 'expense');
+        .eq('transaction_type', 'expense')
+        .is('avatar_id', null);
       
       // Buscar todas as despesas do usuário atual
       const { data: userExpenses, error: userExpError } = await supabase
@@ -805,12 +834,13 @@ export default function Dashboard() {
       let sharedTotal = 0;
       
       if (partnerId) {
-        // Buscar transações do parceiro
+        // Buscar transações do parceiro (excluindo avatares)
         const { data: partnerTransactions } = await supabase
           .from('transactions')
           .select('amount')
           .eq('owner_id', partnerId)
-          .eq('transaction_type', 'expense');
+          .eq('transaction_type', 'expense')
+          .is('avatar_id', null);
         
         // Buscar despesas do parceiro
         const { data: partnerExpenses } = await supabase
@@ -822,13 +852,14 @@ export default function Dashboard() {
         const partnerExpenseTotal = partnerExpenses?.reduce((sum, e) => sum + Number(e.amount), 0) || 0;
         partnerTotal = partnerTransactionTotal + partnerExpenseTotal;
         
-        // Buscar gastos compartilhados (onde partner_id está preenchido)
+        // Buscar gastos compartilhados (onde partner_id está preenchido, excluindo avatares)
         const { data: sharedTransactions } = await supabase
           .from('transactions')
           .select('amount')
           .not('partner_id', 'is', null)
           .or(`owner_id.eq.${userId},partner_id.eq.${userId}`)
-          .eq('transaction_type', 'expense');
+          .eq('transaction_type', 'expense')
+          .is('avatar_id', null);
         
         const { data: sharedExpenses } = await supabase
           .from('expenses')
@@ -841,13 +872,43 @@ export default function Dashboard() {
         sharedTotal = sharedTransactionTotal + sharedExpenseTotal;
       }
       
+      // Calcular total de gastos dos avatares
+      const totalAvatarExpenses = Object.values(avatarExpenses).reduce((sum, avatar) => sum + avatar.amount, 0);
+      
       // Calcular total geral
-      const totalExpenses = currentUserTotal + partnerTotal + sharedTotal;
+      const totalExpenses = currentUserTotal + partnerTotal + sharedTotal + totalAvatarExpenses;
       
       // Calcular percentuais
       const currentUserPercentage = totalExpenses > 0 ? (currentUserTotal / totalExpenses) * 100 : 0;
       const partnerPercentage = totalExpenses > 0 ? (partnerTotal / totalExpenses) * 100 : 0;
       const sharedPercentage = totalExpenses > 0 ? (sharedTotal / totalExpenses) * 100 : 0;
+      
+      // Criar lista de parceiros com gastos
+      const partnersWithExpenses: { id: string; name: string; amount: number; percentage: number; isAvatar: boolean }[] = [];
+      
+      // Adicionar parceiro real se existir (mesmo sem gastos para mostrar R$ 0,00)
+      if (partnerId) {
+        partnersWithExpenses.push({
+          id: partnerId,
+          name: partnerName,
+          amount: partnerTotal,
+          percentage: totalExpenses > 0 ? (partnerTotal / totalExpenses) * 100 : 0,
+          isAvatar: false
+        });
+      }
+      
+      // Adicionar avatares com gastos (só mostrar se tiver gastos)
+      Object.entries(avatarExpenses).forEach(([avatarId, avatar]) => {
+        if (avatar.amount > 0) {
+          partnersWithExpenses.push({
+            id: avatarId,
+            name: avatar.name,
+            amount: avatar.amount,
+            percentage: totalExpenses > 0 ? (avatar.amount / totalExpenses) * 100 : 0,
+            isAvatar: true
+          });
+        }
+      });
       
       // Atualizar estado
       setExpensesByPerson({
@@ -856,11 +917,7 @@ export default function Dashboard() {
           amount: currentUserTotal,
           percentage: currentUserPercentage
         },
-        partner: {
-          name: partnerName || 'Parceiro',
-          amount: partnerTotal,
-          percentage: partnerPercentage
-        },
+        partners: partnersWithExpenses,
         shared: {
           amount: sharedTotal,
           percentage: sharedPercentage
@@ -1330,7 +1387,7 @@ export default function Dashboard() {
     }
   };
 
-  // Função para buscar saldo previsto (receitas - gastos do mês)
+  // Função para buscar saldo previsto (receitas - gastos do próximo mês)
   const fetchPredictedBalance = async () => {
     try {
       // Obter a sessão atual
@@ -1343,42 +1400,84 @@ export default function Dashboard() {
       
       const userId = session.user.id;
       const currentDate = new Date();
-      const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-      const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
       
-      // Buscar receitas do mês
+      // Calcular o próximo mês
+      const nextMonth = currentDate.getMonth() + 1;
+      const nextYear = nextMonth > 11 ? currentDate.getFullYear() + 1 : currentDate.getFullYear();
+      const adjustedMonth = nextMonth > 11 ? 0 : nextMonth;
+      
+      const startOfNextMonth = new Date(nextYear, adjustedMonth, 1);
+      const endOfNextMonth = new Date(nextYear, adjustedMonth + 1, 0);
+      
+      // Buscar receitas do próximo mês na tabela incomes
       const { data: incomes, error: incomesError } = await supabase
         .from('incomes')
         .select('amount')
         .eq('owner_id', userId)
-        .gte('receipt_date', startOfMonth.toISOString())
-        .lte('receipt_date', endOfMonth.toISOString());
+        .gte('receipt_date', startOfNextMonth.toISOString())
+        .lte('receipt_date', endOfNextMonth.toISOString());
       
-      // Buscar despesas do mês
+      // Buscar despesas do próximo mês na tabela expenses
       const { data: expenses, error: expensesError } = await supabase
         .from('expenses')
         .select('amount')
         .eq('owner_id', userId)
-        .gte('due_date', startOfMonth.toISOString())
-        .lte('due_date', endOfMonth.toISOString());
+        .gte('due_date', startOfNextMonth.toISOString())
+        .lte('due_date', endOfNextMonth.toISOString());
       
-      if (incomesError || expensesError) {
-        console.error('Erro ao buscar receitas/despesas:', incomesError || expensesError);
+      // Buscar transações do próximo mês na tabela transactions
+      const { data: transactions, error: transactionsError } = await supabase
+        .from('transactions')
+        .select('amount, transaction_type')
+        .eq('owner_id', userId)
+        .gte('transaction_date', startOfNextMonth.toISOString())
+        .lte('transaction_date', endOfNextMonth.toISOString());
+      
+      if (incomesError || expensesError || transactionsError) {
+        console.error('Erro ao buscar dados do próximo mês:', incomesError || expensesError || transactionsError);
         return;
       }
       
-      // Somar receitas do mês
+      // Somar receitas do próximo mês da tabela incomes
       const totalIncomes = incomes?.reduce((total, income) => {
         return total + (Number(income.amount) || 0);
       }, 0) || 0;
       
-      // Somar despesas do mês
+      // Somar despesas do próximo mês da tabela expenses
       const totalExpenses = expenses?.reduce((total, expense) => {
         return total + (Number(expense.amount) || 0);
       }, 0) || 0;
       
-      // Saldo previsto = receitas - despesas
-      const predicted = totalIncomes - totalExpenses;
+      // Somar transações do próximo mês da tabela transactions
+      const transactionIncomes = transactions?.reduce((total, transaction) => {
+        if (transaction.transaction_type === 'income') {
+          return total + (Number(transaction.amount) || 0);
+        }
+        return total;
+      }, 0) || 0;
+      
+      const transactionExpenses = transactions?.reduce((total, transaction) => {
+        if (transaction.transaction_type === 'expense') {
+          return total + Math.abs(Number(transaction.amount) || 0);
+        }
+        return total;
+      }, 0) || 0;
+      
+      // Somar todas as receitas e despesas do próximo mês
+      const totalNextMonthIncomes = totalIncomes + transactionIncomes;
+      const totalNextMonthExpenses = totalExpenses + transactionExpenses;
+      
+      // Saldo previsto = saldo atual + (receitas - despesas do próximo mês)
+      const predicted = currentBalance + (totalNextMonthIncomes - totalNextMonthExpenses);
+      
+      console.log('Cálculo do Saldo Previsto:', {
+        saldoAtual: currentBalance,
+        receitasProximoMes: totalNextMonthIncomes,
+        despesasProximoMes: totalNextMonthExpenses,
+        saldoPrevisto: predicted,
+        proximoMes: `${adjustedMonth + 1}/${nextYear}`
+      });
+      
       setPredictedBalance(predicted);
       
     } catch (error) {
@@ -2216,6 +2315,98 @@ export default function Dashboard() {
     }
   };
 
+  // Função para buscar dados do resumo do mês
+  const fetchSummaryData = async () => {
+    try {
+      setLoadingSummaryData(true);
+      
+      // Obter a sessão atual
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session?.user) {
+        console.error('Erro ao obter sessão:', sessionError);
+        return;
+      }
+      
+      const userId = session.user.id;
+      const currentDate = new Date();
+      const currentMonth = currentDate.getMonth() + 1;
+      const currentYear = currentDate.getFullYear();
+      
+      // Buscar contas com saldo inicial
+      const { data: accounts, error: accountsError } = await supabase
+        .from('accounts')
+        .select('id, initial_balance')
+        .eq('owner_id', userId);
+      
+      if (accountsError) {
+        console.error('Erro ao buscar contas:', accountsError);
+        return;
+      }
+      
+      // Saldo será calculado após obter receitas e despesas
+      let saldoTotal = 0;
+      
+      // Buscar receitas do mês atual da tabela incomes
+      const { data: monthlyIncomes, error: monthlyIncomesError } = await supabase
+        .from('incomes')
+        .select('amount')
+        .eq('owner_id', userId)
+        .gte('receipt_date', `${currentYear}-${currentMonth.toString().padStart(2, '0')}-01`)
+        .lt('receipt_date', `${currentYear}-${(currentMonth + 1).toString().padStart(2, '0')}-01`);
+      
+      // Buscar transações de receita do mês atual
+      const { data: monthlyTransactionIncomes, error: monthlyTransactionIncomesError } = await supabase
+        .from('transactions')
+        .select('amount')
+        .eq('owner_id', userId)
+        .eq('transaction_type', 'income')
+        .gte('transaction_date', `${currentYear}-${currentMonth.toString().padStart(2, '0')}-01`)
+        .lt('transaction_date', `${currentYear}-${(currentMonth + 1).toString().padStart(2, '0')}-01`);
+      
+      // Buscar despesas do mês atual da tabela expenses
+      const { data: monthlyExpenses, error: monthlyExpensesError } = await supabase
+        .from('expenses')
+        .select('amount')
+        .eq('owner_id', userId)
+        .gte('due_date', `${currentYear}-${currentMonth.toString().padStart(2, '0')}-01`)
+        .lt('due_date', `${currentYear}-${(currentMonth + 1).toString().padStart(2, '0')}-01`);
+      
+      // Buscar transações de despesa do mês atual
+      const { data: monthlyExpenseTransactions, error: monthlyExpenseTransactionsError } = await supabase
+        .from('transactions')
+        .select('amount')
+        .eq('owner_id', userId)
+        .eq('transaction_type', 'expense')
+        .gte('transaction_date', `${currentYear}-${currentMonth.toString().padStart(2, '0')}-01`)
+        .lt('transaction_date', `${currentYear}-${(currentMonth + 1).toString().padStart(2, '0')}-01`);
+      
+      // Calcular totais
+      const receitasMesIncomes = monthlyIncomes?.reduce((sum, income) => sum + Number(income.amount), 0) || 0;
+      const receitasMesTransactions = monthlyTransactionIncomes?.reduce((sum, income) => sum + Number(income.amount), 0) || 0;
+      const receitasMes = receitasMesIncomes + receitasMesTransactions;
+      
+      const despesasMesExpenses = monthlyExpenses?.reduce((sum, expense) => sum + Number(expense.amount), 0) || 0;
+      const despesasMesTransactions = monthlyExpenseTransactions?.reduce((sum, expense) => sum + Math.abs(Number(expense.amount)), 0) || 0;
+      const despesasMes = despesasMesExpenses + despesasMesTransactions;
+      
+      // Calcular saldo como receitas - despesas
+      saldoTotal = receitasMes - despesasMes;
+      
+      // Atualizar estado
+      setSummaryData({
+        saldoTotal,
+        receitasMes,
+        despesasMes
+      });
+      
+    } catch (error) {
+      console.error('Erro ao buscar dados do resumo:', error);
+    } finally {
+      setLoadingSummaryData(false);
+    }
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <StatusBar style="light" />
@@ -2287,7 +2478,7 @@ export default function Dashboard() {
                   <Text style={styles.balanceAmountSmall}>{formatCurrency(initialBalance)}</Text>
                 </View>
                 <View style={[styles.balanceValueItem, styles.balanceValueCenterItem]}>
-                  <Text style={styles.balanceAmountLarge}>{formatCurrency(currentBalance)}</Text>
+                  <Text style={styles.balanceAmountLarge}>{formatCurrency(summaryData.saldoTotal)}</Text>
                 </View>
                 <View style={styles.balanceValueItem}>
                   <Text style={styles.balanceAmountSmall}>{formatCurrency(predictedBalance)}</Text>
@@ -2410,6 +2601,7 @@ export default function Dashboard() {
               onPressOut={() => {
                 setPressedCard(null);
               }}
+              onPress={() => router.push('/historico-receitas')}
             >
               <Text style={styles.cardLabel}>Receitas</Text>
               {loadingFinancialData ? (
@@ -2436,6 +2628,7 @@ export default function Dashboard() {
               onPressOut={() => {
                 setPressedCard(null);
               }}
+              onPress={() => router.push('/historico-despesas')}
             >
               <Text style={styles.cardLabel}>Despesas</Text>
               {loadingFinancialData ? (
@@ -2462,6 +2655,7 @@ export default function Dashboard() {
               onPressOut={() => {
                 setPressedCard(null);
               }}
+              onPress={() => router.push('/historico-debitos')}
             >
               <Text style={styles.cardLabel}>Débitos</Text>
               {loadingFinancialData ? (
@@ -2488,6 +2682,7 @@ export default function Dashboard() {
               onPressOut={() => {
                 setPressedCard(null);
               }}
+              onPress={() => router.push('/historico-credito')}
             >
               <Text style={styles.cardLabel}>Créditos</Text>
               {loadingFinancialData ? (
@@ -2601,11 +2796,16 @@ export default function Dashboard() {
             <ChevronRight size={16} color="#999" style={styles.chevronIcon} />
           </TouchableOpacity>
 
-          <View style={styles.summaryItem}>
+          <TouchableOpacity 
+            style={[styles.summaryItem, styles.clickableItem]}
+            onPress={() => router.push('/historico-despesas')}
+            activeOpacity={0.7}
+          >
             <ArrowUpCircle size={18} color={theme.expense} />
             <Text style={styles.summaryLabel}>Despesas totais do mês:</Text>
                 <Text style={[styles.summaryValue, {color: theme.expense}]}>{formatCurrency(summaryData.despesasMes)}</Text>
-          </View>
+            <ChevronRight size={16} color="#999" style={styles.chevronIcon} />
+          </TouchableOpacity>
             </>
           )}
         </View>
@@ -2623,56 +2823,58 @@ export default function Dashboard() {
             </View>
           ) : (
             <>
-          <View style={styles.personExpense}>
-            <View style={styles.personExpenseHeader}>
-                  <Text style={styles.personName}>{expensesByPerson.currentUser.name}:</Text>
+              {/* Usuário atual - sempre mostrar */}
+              <View style={styles.personExpense}>
+                <View style={styles.personExpenseHeader}>
+                  <View style={styles.personInfoContainer}>
+                    <Image 
+                      source={{ 
+                        uri: currentUser?.profile_picture_url || currentUser?.avatar_url || 'https://via.placeholder.com/40'
+                      }} 
+                      style={styles.personAvatar}
+                    />
+                    <Text style={styles.personName}>{expensesByPerson.currentUser.name}</Text>
+                  </View>
                   <Text style={styles.personAmount}>{formatCurrency(expensesByPerson.currentUser.amount)}</Text>
-            </View>
-            <View style={styles.progressBar}>
+                </View>
+                <View style={styles.progressBar}>
                   <View style={[styles.progressFill, { 
                     backgroundColor: theme.primary, 
                     width: `${expensesByPerson.currentUser.percentage}%` 
                   }]} />
-            </View>
-          </View>
-
-              {expensesByPerson.partner.name !== 'Parceiro' && expensesByPerson.partner.amount > 0 && (
-          <View style={styles.personExpense}>
-            <View style={styles.personExpenseHeader}>
-                    <Text style={styles.personName}>{expensesByPerson.partner.name}:</Text>
-                    <Text style={styles.personAmount}>{formatCurrency(expensesByPerson.partner.amount)}</Text>
-            </View>
-            <View style={styles.progressBar}>
-                    <View style={[styles.progressFill, { 
-                      backgroundColor: theme === themes.masculine ? theme.shared : theme.primary, 
-                      width: `${expensesByPerson.partner.percentage}%` 
-                    }]} />
-            </View>
-          </View>
-              )}
-
-              {expensesByPerson.shared.amount > 0 && (
-          <View style={styles.personExpense}>
-            <View style={styles.personExpenseHeader}>
-              <Text style={styles.personName}>Compartilhado:</Text>
-                    <Text style={styles.personAmount}>{formatCurrency(expensesByPerson.shared.amount)}</Text>
-            </View>
-            <View style={styles.progressBar}>
-                    <View style={[styles.progressFill, { 
-                      backgroundColor: theme.shared, 
-                      width: `${expensesByPerson.shared.percentage}%` 
-                    }]} />
-            </View>
-          </View>
-              )}
-
-              {expensesByPerson.currentUser.amount === 0 && 
-               expensesByPerson.partner.amount === 0 && 
-               expensesByPerson.shared.amount === 0 && (
-                <View style={styles.emptyContainer}>
-                  <Text style={styles.emptyText}>Nenhum gasto encontrado</Text>
                 </View>
-              )}
+              </View>
+
+              {/* Parceiros e Avatares - mostrar todos com gastos */}
+              {expensesByPerson.partners.map((partner, index) => {
+                // Buscar dados visuais do parceiro/avatar
+                const partnerData = partnerUsers.find(p => p.id === partner.id || p.name === partner.name);
+                
+                return (
+                  <View key={partner.id} style={styles.personExpense}>
+                    <View style={styles.personExpenseHeader}>
+                      <View style={styles.personInfoContainer}>
+                        <Image 
+                          source={{ 
+                            uri: partnerData?.profile_picture_url || partnerData?.avatar_url || 'https://via.placeholder.com/40'
+                          }} 
+                          style={styles.personAvatar}
+                        />
+                        <Text style={styles.personName}>{partner.name}</Text>
+                      </View>
+                      <Text style={styles.personAmount}>{formatCurrency(partner.amount)}</Text>
+                    </View>
+                    <View style={styles.progressBar}>
+                      <View style={[styles.progressFill, { 
+                        backgroundColor: partner.isAvatar ? '#FFA500' : (theme === themes.masculine ? theme.shared : theme.primary), 
+                        width: `${partner.percentage}%` 
+                      }]} />
+                    </View>
+                  </View>
+                );
+              })}
+
+
             </>
           )}
         </View>
@@ -2746,46 +2948,46 @@ export default function Dashboard() {
         </TouchableOpacity>
 
         {/* Metas Financeiras */}
-        <View style={[styles.sectionContainer, { backgroundColor: theme.card }]}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Metas Financeiras</Text>
-            <TouchableOpacity onPress={() => router.push('/planning')}>
+        <TouchableOpacity onPress={() => router.push('/planning')} activeOpacity={0.8}>
+          <View style={[styles.sectionContainer, { backgroundColor: theme.card }]}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Metas Financeiras</Text>
               <ChevronRight size={20} color="#999" />
-            </TouchableOpacity>
-          </View>
+            </View>
 
-          {loadingFinancialGoals ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="small" color={theme.primary} />
-              <Text style={styles.loadingText}>Carregando metas...</Text>
+            {loadingFinancialGoals ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="small" color={theme.primary} />
+                <Text style={styles.loadingText}>Carregando metas...</Text>
+                </View>
+            ) : financialGoals.length === 0 ? (
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyText}>Nenhuma meta cadastrada</Text>
               </View>
-          ) : financialGoals.length === 0 ? (
-            <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>Nenhuma meta cadastrada</Text>
-            </View>
-          ) : (
-            financialGoals.map((goal, index) => (
-              <View key={goal.id || index} style={styles.goalItem}>
-            <View style={styles.goalHeader}>
-              <View style={styles.goalTitleContainer}>
-                    <Target size={18} color={goal.color} />
-                    <Text style={styles.goalTitle}>{goal.title}</Text>
+            ) : (
+              financialGoals.map((goal, index) => (
+                <View key={goal.id || index} style={styles.goalItem}>
+              <View style={styles.goalHeader}>
+                <View style={styles.goalTitleContainer}>
+                      <Target size={18} color={goal.color} />
+                      <Text style={styles.goalTitle}>{goal.title}</Text>
+                </View>
+                    {goal.percentage <= 100 ? (
+                      <Text style={styles.goalPercentage}>{goal.percentage}%</Text>
+                    ) : (
+                      <Text style={styles.goalAmount}>
+                        {formatCurrency(goal.currentAmount)} <Text style={styles.goalTarget}>/ {formatCurrency(goal.targetAmount)}</Text>
+                      </Text>
+                    )}
               </View>
-                  {goal.percentage <= 100 ? (
-                    <Text style={styles.goalPercentage}>{goal.percentage}%</Text>
-                  ) : (
-                    <Text style={styles.goalAmount}>
-                      {formatCurrency(goal.currentAmount)} <Text style={styles.goalTarget}>/ {formatCurrency(goal.targetAmount)}</Text>
-                    </Text>
-                  )}
+              <View style={styles.progressBar}>
+                    <View style={[styles.progressFill, { backgroundColor: goal.color, width: `${Math.min(goal.percentage, 100)}%` }]} />
+              </View>
             </View>
-            <View style={styles.progressBar}>
-                  <View style={[styles.progressFill, { backgroundColor: goal.color, width: `${Math.min(goal.percentage, 100)}%` }]} />
-            </View>
+              ))
+            )}
           </View>
-            ))
-          )}
-        </View>
+        </TouchableOpacity>
 
         {/* Calendário Financeiro - Funcional */}
         <View style={[styles.sectionContainer, { backgroundColor: theme.card, marginBottom: 100 }]}>
@@ -3015,14 +3217,14 @@ export default function Dashboard() {
                   style={styles.menuItem}
                   onPress={() => {
                     setMenuModalVisible(false);
-                    router.push('/expenses');
+                    router.push('/(app)/categories');
                   }}
                 >
                   <View style={[styles.menuIconContainer, { backgroundColor: `rgba(${theme === themes.feminine ? '182, 135, 254' : '0, 115, 234'}, 0.15)` }]}>
-                    <Wallet size={28} color={theme.primary} />
+                    <Tag size={28} color={theme.primary} />
                   </View>
-                  <Text style={[styles.menuItemTitle, { color: '#333' }]}>Contas a Pagar</Text>
-                  <Text style={[styles.menuItemSubtitle, { color: '#666' }]}>Gerenciar pagamentos</Text>
+                  <Text style={[styles.menuItemTitle, { color: '#333' }]}>Categorias</Text>
+                  <Text style={[styles.menuItemSubtitle, { color: '#666' }]}>Gerenciar categorias</Text>
                 </TouchableOpacity>
               </View>
 
@@ -3046,28 +3248,28 @@ export default function Dashboard() {
                   style={styles.menuItem}
                   onPress={() => {
                     setMenuModalVisible(false);
-                    router.push('/(app)/receitas');
+                    router.push('/(app)/profile');
                   }}
                 >
                   <View style={[styles.menuIconContainer, { backgroundColor: `rgba(${theme === themes.feminine ? '182, 135, 254' : '0, 115, 234'}, 0.15)` }]}>
-                    <ArrowUpCircle size={28} color={theme.primary} />
+                    <User size={28} color={theme.primary} />
                   </View>
-                  <Text style={[styles.menuItemTitle, { color: '#333' }]}>Receitas</Text>
-                  <Text style={[styles.menuItemSubtitle, { color: '#666' }]}>Gerenciar receitas</Text>
+                  <Text style={[styles.menuItemTitle, { color: '#333' }]}>Perfil</Text>
+                  <Text style={[styles.menuItemSubtitle, { color: '#666' }]}>Configurações</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity 
                   style={styles.menuItem}
                   onPress={() => {
                     setMenuModalVisible(false);
-                    router.replace('/(auth)/login');
+                    router.push('/(app)/subscription');
                   }}
                 >
                   <View style={[styles.menuIconContainer, { backgroundColor: `rgba(${theme === themes.feminine ? '182, 135, 254' : '0, 115, 234'}, 0.15)` }]}>
-                    <ExternalLink size={28} color={theme.primary} />
+                    <Diamond size={28} color={theme.primary} />
                   </View>
-                  <Text style={[styles.menuItemTitle, { color: '#333' }]}>Logout</Text>
-                  <Text style={[styles.menuItemSubtitle, { color: '#666' }]}>Sair do aplicativo</Text>
+                  <Text style={[styles.menuItemTitle, { color: '#333' }]}>Assinatura</Text>
+                  <Text style={[styles.menuItemSubtitle, { color: '#666' }]}>Planos e preços</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -3804,7 +4006,18 @@ const styles = StyleSheet.create({
   personExpenseHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 6,
+  },
+  personInfoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  personAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    marginRight: 12,
   },
   personName: {
     fontSize: 14,

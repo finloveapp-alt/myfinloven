@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Dimensions, Platform, Modal, TextInput } from 'react-native';
-import { ChevronLeft, ChevronRight, Search, ArrowLeft, Filter, Plus, PlusCircle, X, Calendar, ArrowRight, ArrowDown, DollarSign, CreditCard, RefreshCw, BarChart, Menu, Home, Bell, Receipt, Wallet, Info, ExternalLink, ArrowUp, ArrowUpCircle } from 'lucide-react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Dimensions, Platform, Modal, TextInput, TouchableWithoutFeedback, Pressable } from 'react-native';
+import { ChevronLeft, ChevronRight, Search, ArrowLeft, Filter, Plus, PlusCircle, X, Calendar, ArrowRight, ArrowDown, DollarSign, CreditCard, RefreshCw, BarChart, Menu, Home, Bell, Receipt, Wallet, Info, ExternalLink, ArrowUp, ArrowUpCircle, User, Diamond, Tag } from 'lucide-react-native';
 import { StatusBar } from 'expo-status-bar';
 import BottomNavigation from '@/components/BottomNavigation';
 import { useRouter } from 'expo-router';
@@ -1896,23 +1896,64 @@ export default function Registers() {
       const userId = session.user.id;
       setCurrentUser({ id: userId });
       
-      // Buscar as contas do usuário (próprias ou compartilhadas)
+      // Buscar as contas do usuário (próprias e compartilhadas)
       const { data: accounts, error: accountsError } = await supabase
         .from('accounts')
-        .select('*')
+        .select(`
+          *,
+          avatar:avatar_id(id, avatar_name)
+        `)
         .or(`owner_id.eq.${userId},partner_id.eq.${userId}`);
         
       if (accountsError) {
         console.error('Erro ao buscar contas do usuário:', accountsError);
         return;
       }
+
+      // Buscar avatares do usuário
+      const { data: avatars, error: avatarsError } = await supabase
+        .from('couples')
+        .select('id, avatar_name')
+        .eq('is_avatar', true)
+        .eq('user1_id', userId);
+
+      if (avatarsError) {
+        console.error('Erro ao buscar avatares:', avatarsError);
+      }
+
+      // Buscar contas dos avatares
+      let avatarAccounts = [];
+      if (avatars && avatars.length > 0) {
+        const avatarIds = avatars.map(avatar => avatar.id);
+        const { data: avatarAccountsData, error: avatarAccountsError } = await supabase
+          .from('accounts')
+          .select(`
+            *,
+            avatar:avatar_id(id, avatar_name)
+          `)
+          .in('avatar_id', avatarIds);
+
+        if (avatarAccountsError) {
+          console.error('Erro ao buscar contas dos avatares:', avatarAccountsError);
+        } else {
+          avatarAccounts = avatarAccountsData || [];
+        }
+      }
+
+      // Combinar todas as contas e remover duplicatas
+      const allAccounts = [...(accounts || []), ...avatarAccounts];
       
-      if (accounts && accounts.length > 0) {
-        setUserAccounts(accounts);
+      // Remover duplicatas baseado no ID da conta
+      const uniqueAccounts = allAccounts.filter((account, index, self) => 
+        index === self.findIndex(a => a.id === account.id)
+      );
+      
+      if (uniqueAccounts && uniqueAccounts.length > 0) {
+        setUserAccounts(uniqueAccounts);
         
         // Criar um mapa de contas para acesso rápido por ID
         const accountsMapObj: {[key: string]: any} = {};
-        accounts.forEach(account => {
+        uniqueAccounts.forEach(account => {
           accountsMapObj[account.id] = account;
         });
         setAccountsMap(accountsMapObj);
@@ -2012,6 +2053,13 @@ export default function Registers() {
         .select('id, user1_id, user2_id, is_avatar')
         .or(`user1_id.eq.${userId},user2_id.eq.${userId}`)
         .eq('status', 'active');
+
+      // Buscar avatares do usuário
+      const { data: avatars, error: avatarsError } = await supabase
+        .from('couples')
+        .select('id, avatar_name')
+        .eq('is_avatar', true)
+        .eq('user1_id', userId);
       
       if (couplesError) {
         console.error('Erro ao buscar casais:', couplesError);
@@ -2057,12 +2105,36 @@ export default function Registers() {
             isAvatar: couple.is_avatar
           };
         }).filter(partner => partner.id !== null); // Filtrar apenas parceiros válidos
+
+        // Adicionar avatares à lista de parceiros
+        const avatarPartners = (avatars || []).map(avatar => ({
+          id: avatar.id,
+          name: avatar.avatar_name,
+          coupleId: avatar.id,
+          isAvatar: true
+        }));
+
+        // Combinar parceiros e avatares
+        const allPartners = [...partners, ...avatarPartners];
         
-        setUserPartners(partners);
-        console.log('Parceiros encontrados:', partners);
+        setUserPartners(allPartners);
+        console.log('Parceiros e avatares encontrados:', allPartners);
       } else {
-        console.log('Nenhum parceiro encontrado para o usuário');
-        setUserPartners([]);
+        // Mesmo sem parceiros, verificar se há avatares
+        const avatarPartners = (avatars || []).map(avatar => ({
+          id: avatar.id,
+          name: avatar.avatar_name,
+          coupleId: avatar.id,
+          isAvatar: true
+        }));
+
+        if (avatarPartners.length > 0) {
+          setUserPartners(avatarPartners);
+          console.log('Apenas avatares encontrados:', avatarPartners);
+        } else {
+          console.log('Nenhum parceiro ou avatar encontrado para o usuário');
+          setUserPartners([]);
+        }
       }
     } catch (error) {
       console.error('Erro ao buscar parceiros:', error);
@@ -2308,16 +2380,20 @@ export default function Registers() {
   const toggleIcons = () => {
     setIconsVisible(!iconsVisible);
     
-    // Fechar outros dropdowns se estiverem abertos
-    if (paymentMethodsVisible) {
-      setPaymentMethodsVisible(false);
-    }
-    if (calendarVisible) {
-      setCalendarVisible(false);
-    }
-    if (accountsVisible) {
-      setAccountsVisible(false);
-    }
+    // Fechar todos os outros dropdowns
+    setPartnersVisible(false);
+    setPaymentMethodsVisible(false);
+    setCardsVisible(false);
+    setAccountsVisible(false);
+    setCalendarVisible(false);
+    setCategoriesVisible(false);
+    setRecurrenceVisible(false);
+    setRecurrenceEndDateVisible(false);
+    setGoalsVisible(false);
+    setBudgetsVisible(false);
+    setNewCategoryIconsVisible(false);
+    setAccountTypesVisible(false);
+    setAccountOwnersVisible(false);
   };
 
   // Função para selecionar um ícone
@@ -2535,7 +2611,10 @@ export default function Registers() {
         return;
       }
       
-      if (!amount || isNaN(parseFloat(amount.replace(',', '.')))) {
+      // Converter valor formatado para número
+      const numericAmount = parseFloat(amount.replace(/\./g, '').replace(',', '.'));
+      
+      if (!amount || isNaN(numericAmount) || numericAmount <= 0) {
         setErrorMessage('Por favor, informe um valor válido.');
         setIsSaving(false);
         return;
@@ -2572,7 +2651,7 @@ export default function Registers() {
       const userId = session.user.id;
       
       // Preparar o valor conforme o tipo de transação
-      let transactionAmount = parseFloat(amount.replace(',', '.'));
+      let transactionAmount = numericAmount;
       if (transactionType === 'expense') {
         transactionAmount = -Math.abs(transactionAmount); // Garantir que será negativo
       } else if (transactionType === 'income') {
@@ -2588,6 +2667,23 @@ export default function Registers() {
         parsedRecurrenceEndDate = parseDate(recurrenceEndDate);
       }
       
+      // Determinar o partner_id e avatar_id corretos
+      let partnerId = null;
+      let avatarId = null;
+      
+      if (isSharedTransaction && selectedPartnerId) {
+        const selectedPartner = userPartners.find(p => p.id === selectedPartnerId);
+        if (selectedPartner) {
+          if (selectedPartner.isAvatar) {
+            // Se for um avatar, usar avatar_id
+            avatarId = selectedPartnerId;
+          } else {
+            // Se for um parceiro real, usar partner_id
+            partnerId = selectedPartnerId;
+          }
+        }
+      }
+
       // Preparar os dados da transação
       const transactionData = {
         description,
@@ -2601,7 +2697,8 @@ export default function Registers() {
         recurrence_frequency: isRecurrent ? 'monthly' : null,
         recurrence_end_date: parsedRecurrenceEndDate ? parsedRecurrenceEndDate.toISOString() : null,
         owner_id: userId,
-        partner_id: isSharedTransaction ? selectedPartnerId : null, // Incluir parceiro apenas se for transação compartilhada
+        partner_id: partnerId, // ID do parceiro real
+        avatar_id: avatarId, // ID do avatar
         card_id: selectedCardId || null, // Incluir o ID do cartão se selecionado
         goal_id: allocationType === 'goal' ? selectedGoalId : null, // Incluir o ID da meta se selecionada
         budget_category_id: allocationType === 'budget' ? selectedBudgetId : null, // Incluir o ID do orçamento se selecionado
@@ -3151,10 +3248,20 @@ export default function Registers() {
   // Funções para o seletor de método de pagamento
   const togglePaymentMethods = () => {
     setPaymentMethodsVisible(!paymentMethodsVisible);
-    // Fecha o calendário se estiver aberto
-    if (calendarVisible) {
-      setCalendarVisible(false);
-    }
+    // Fecha todos os outros dropdowns
+    setIconsVisible(false);
+    setPartnersVisible(false);
+    setCardsVisible(false);
+    setAccountsVisible(false);
+    setCalendarVisible(false);
+    setCategoriesVisible(false);
+    setRecurrenceVisible(false);
+    setRecurrenceEndDateVisible(false);
+    setGoalsVisible(false);
+    setBudgetsVisible(false);
+    setNewCategoryIconsVisible(false);
+    setAccountTypesVisible(false);
+    setAccountOwnersVisible(false);
   };
 
   const selectPaymentMethod = (method: string) => {
@@ -3217,7 +3324,7 @@ export default function Registers() {
   };
 
   const selectCard = (card: Card) => {
-    const lastFourDigits = card.card_number?.slice(-4) || '0000';
+                    const lastFourDigits = '0000';
     setSelectedCard(`${card.bank_name} •••• ${lastFourDigits}`);
     setSelectedCardId(card.id);
     setCardsVisible(false);
@@ -3644,6 +3751,54 @@ export default function Registers() {
     setAccountOwnersVisible(false);
   };
 
+  // Função para fechar todos os dropdowns
+  const closeAllDropdowns = () => {
+    console.log('Fechando todos os dropdowns...');
+    setIconsVisible(false);
+    setPartnersVisible(false);
+    setPaymentMethodsVisible(false);
+    setCardsVisible(false);
+    setAccountsVisible(false);
+    setCalendarVisible(false);
+    setCategoriesVisible(false);
+    setRecurrenceVisible(false);
+    setRecurrenceEndDateVisible(false);
+    setGoalsVisible(false);
+    setBudgetsVisible(false);
+    setNewCategoryIconsVisible(false);
+    setAccountTypesVisible(false);
+    setAccountOwnersVisible(false);
+  };
+
+  // Função para prevenir o fechamento dos dropdowns
+  const preventClose = (e: any) => {
+    e.stopPropagation();
+  };
+
+  // Função para formatar valor como moeda
+  const formatCurrency = (value: string) => {
+    // Remove tudo que não é dígito
+    const onlyNumbers = value.replace(/\D/g, '');
+    
+    // Se vazio, retorna vazio
+    if (onlyNumbers === '') return '';
+    
+    // Converte para número e divide por 100 para ter centavos
+    const numberValue = parseInt(onlyNumbers) / 100;
+    
+    // Formata como moeda brasileira
+    return numberValue.toLocaleString('pt-BR', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    });
+  };
+
+  // Função para tratar mudança no valor da transação
+  const handleAmountChange = (text: string) => {
+    const formattedValue = formatCurrency(text);
+    setAmount(formattedValue);
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <StatusBar style="light" />
@@ -3838,8 +3993,8 @@ export default function Registers() {
         visible={modalVisible}
         onRequestClose={closeModal}
       >
-        <View style={styles.modalOverlay}>
-                    <View style={styles.modalContent}>
+        <Pressable style={styles.modalOverlay} onPress={closeAllDropdowns}>
+          <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Nova Transação</Text>
               <TouchableOpacity style={styles.closeButton} onPress={closeModal}>
@@ -4028,11 +4183,19 @@ export default function Registers() {
                   {selectedPartnerId ? (
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                       <Text style={[styles.selectedPartnerText, { color: theme.shared }]}>
-                        {userPartners.find(p => p.id === selectedPartnerId)?.name || 'Parceiro'}
+                        {(() => {
+                          const selectedPartner = userPartners.find(p => p.id === selectedPartnerId);
+                          if (selectedPartner) {
+                            return selectedPartner.isAvatar 
+                              ? `${selectedPartner.name} (Avatar)` 
+                              : selectedPartner.name;
+                          }
+                          return 'Parceiro';
+                        })()}
                       </Text>
                     </View>
                   ) : (
-                    <Text style={styles.partnerSelectorText}>Selecione um parceiro</Text>
+                    <Text style={styles.partnerSelectorText}>Selecione um parceiro ou avatar</Text>
                   )}
                   <ChevronRight size={18} color="#666" style={{ transform: [{ rotate: '90deg' }] as any }} />
                 </TouchableOpacity>
@@ -4114,7 +4277,7 @@ export default function Registers() {
                 <TextInput
                   style={styles.amountInput}
                   value={amount}
-                  onChangeText={setAmount}
+                  onChangeText={handleAmountChange}
                   placeholder="0,00"
                   keyboardType="numeric"
                   placeholderTextColor="#999"
@@ -4131,7 +4294,10 @@ export default function Registers() {
                     styles.paymentMethodFullButton,
                     paymentMethod ? styles.paymentMethodSelected : null
                   ]} 
-                  onPress={togglePaymentMethods}
+                  onPress={(e) => {
+                    preventClose(e);
+                    togglePaymentMethods();
+                  }}
                 >
                   {paymentMethod ? (
                     <>
@@ -4148,7 +4314,7 @@ export default function Registers() {
                 </TouchableOpacity>
                 
                                   {paymentMethodsVisible && (
-                    <View style={[styles.paymentMethodsDropdown, { zIndex: 75 }]}>
+                    <Pressable style={[styles.paymentMethodsDropdown, { zIndex: 75 }]} onPress={preventClose}>
                     <TouchableOpacity 
                       style={[
                         styles.paymentMethodOption,
@@ -4205,7 +4371,7 @@ export default function Registers() {
                         paymentMethod === 'Dinheiro' && styles.paymentMethodOptionTextSelected
                       ]}>Dinheiro</Text>
                     </TouchableOpacity>
-                  </View>
+                  </Pressable>
                 )}
               </View>
             )}
@@ -4246,7 +4412,7 @@ export default function Registers() {
                                { fontSize: 12, opacity: 0.7 },
                                selectedCardId === card.id && styles.paymentMethodOptionTextSelected
                              ]}>
-                               •••• {card.card_number?.slice(-4) || '0000'}
+                               •••• 0000
                              </Text>
                            </View>
                         </TouchableOpacity>
@@ -4767,7 +4933,14 @@ export default function Registers() {
                         <Text style={[
                           styles.paymentMethodOptionText,
                           selectedAccountId === account.id && styles.paymentMethodOptionTextSelected
-                        ]}>{account.name}</Text>
+                        ]}>
+                          {account.name}
+                          {account.avatar && account.avatar.avatar_name && (
+                            <Text style={{ fontSize: 12, color: '#666', fontStyle: 'italic' }}>
+                              {' '}({account.avatar.avatar_name})
+                            </Text>
+                          )}
+                        </Text>
                         <Text style={{ fontSize: 12, color: '#777', fontFamily: fontFallbacks.Poppins_400Regular }}>
                           {account.type}
                         </Text>
@@ -4959,7 +5132,7 @@ export default function Registers() {
             </TouchableOpacity>
             </ScrollView>
           </View>
-        </View>
+        </Pressable>
       </Modal>
 
       {/* Menu Modal */}
@@ -5060,14 +5233,14 @@ export default function Registers() {
                   style={styles.menuItem}
                   onPress={() => {
                     setMenuModalVisible(false);
-                    router.push('/expenses');
+                    router.push('/(app)/categories');
                   }}
                 >
                   <View style={[styles.menuIconContainer, { backgroundColor: `rgba(${theme === themes.feminine ? '182, 135, 254' : '0, 115, 234'}, 0.15)` }]}>
-                    <Wallet size={28} color={theme.primary} />
+                    <Tag size={28} color={theme.primary} />
                   </View>
-                  <Text style={[styles.menuItemTitle, { color: '#333' }]}>Contas a Pagar</Text>
-                  <Text style={[styles.menuItemSubtitle, { color: '#666' }]}>Gerenciar pagamentos</Text>
+                  <Text style={[styles.menuItemTitle, { color: '#333' }]}>Categorias</Text>
+                  <Text style={[styles.menuItemSubtitle, { color: '#666' }]}>Gerenciar categorias</Text>
                 </TouchableOpacity>
               </View>
 
@@ -5091,28 +5264,28 @@ export default function Registers() {
                   style={styles.menuItem}
                   onPress={() => {
                     setMenuModalVisible(false);
-                    router.push('/(app)/receitas');
+                    router.push('/(app)/profile');
                   }}
                 >
                   <View style={[styles.menuIconContainer, { backgroundColor: `rgba(${theme === themes.feminine ? '182, 135, 254' : '0, 115, 234'}, 0.15)` }]}>
-                    <ArrowUpCircle size={28} color={theme.primary} />
+                    <User size={28} color={theme.primary} />
                   </View>
-                  <Text style={[styles.menuItemTitle, { color: '#333' }]}>Receitas</Text>
-                  <Text style={[styles.menuItemSubtitle, { color: '#666' }]}>Gerenciar receitas</Text>
+                  <Text style={[styles.menuItemTitle, { color: '#333' }]}>Perfil</Text>
+                  <Text style={[styles.menuItemSubtitle, { color: '#666' }]}>Configurações</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity 
                   style={styles.menuItem}
                   onPress={() => {
                     setMenuModalVisible(false);
-                    router.replace('/(auth)/login');
+                    router.push('/(app)/subscription');
                   }}
                 >
                   <View style={[styles.menuIconContainer, { backgroundColor: `rgba(${theme === themes.feminine ? '182, 135, 254' : '0, 115, 234'}, 0.15)` }]}>
-                    <ExternalLink size={28} color={theme.primary} />
+                    <Diamond size={28} color={theme.primary} />
                   </View>
-                  <Text style={[styles.menuItemTitle, { color: '#333' }]}>Logout</Text>
-                  <Text style={[styles.menuItemSubtitle, { color: '#666' }]}>Sair do aplicativo</Text>
+                  <Text style={[styles.menuItemTitle, { color: '#333' }]}>Assinatura</Text>
+                  <Text style={[styles.menuItemSubtitle, { color: '#666' }]}>Planos e preços</Text>
                 </TouchableOpacity>
               </View>
             </View>

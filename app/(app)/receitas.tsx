@@ -38,7 +38,8 @@ import {
   ChevronDown,
   Edit,
   Copy,
-  CreditCard
+  CreditCard,
+  RefreshCw
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
@@ -131,6 +132,16 @@ export default function ReceitasScreen() {
   const [selectedDate, setSelectedDate] = useState(
     `${String(new Date().getDate()).padStart(2, '0')}/${String(new Date().getMonth() + 1).padStart(2, '0')}/${new Date().getFullYear()}`
   );
+
+  // Estados para recorrência
+  const [recurrenceType, setRecurrenceType] = useState('Não recorrente');
+  const [isRecurrent, setIsRecurrent] = useState(false);
+  const [recurrenceEndDate, setRecurrenceEndDate] = useState('');
+  const [recurrenceVisible, setRecurrenceVisible] = useState(false);
+  const [recurrenceEndDateVisible, setRecurrenceEndDateVisible] = useState(false);
+  const [recurrenceEndPickerMonth, setRecurrenceEndPickerMonth] = useState(new Date().getMonth());
+  const [recurrenceEndPickerYear, setRecurrenceEndPickerYear] = useState(new Date().getFullYear());
+  const [recurrenceEndPickerDay, setRecurrenceEndPickerDay] = useState(new Date().getDate());
 
   // Constantes para o calendário
   const weekDays = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
@@ -434,6 +445,12 @@ export default function ReceitasScreen() {
       return;
     }
     
+    // Validação adicional para receita recorrente
+    if (isRecurrent && !recurrenceEndDate) {
+      Alert.alert('Erro', 'Por favor, informe a data de fim da recorrência.');
+      return;
+    }
+    
     try {
       // Obter a sessão atual para o ID do usuário
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
@@ -444,8 +461,8 @@ export default function ReceitasScreen() {
       }
       
       // Converter a data do texto para Date
-      const dateParts = dateText.split('/');
-      let receiptDate = newIncome.receiptDate;
+      const dateParts = selectedDate.split('/');
+      let receiptDate = new Date();
       
       if (dateParts.length === 3) {
         const day = parseInt(dateParts[0]);
@@ -457,6 +474,21 @@ export default function ReceitasScreen() {
         }
       }
       
+      // Converter a data de fim da recorrência se existir
+      let parsedRecurrenceEndDate = null;
+      if (isRecurrent && recurrenceEndDate) {
+        const endDateParts = recurrenceEndDate.split('/');
+        if (endDateParts.length === 3) {
+          const day = parseInt(endDateParts[0]);
+          const month = parseInt(endDateParts[1]) - 1;
+          const year = parseInt(endDateParts[2]);
+          
+          if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
+            parsedRecurrenceEndDate = new Date(year, month, day);
+          }
+        }
+      }
+      
       // Preparar dados para inserção no Supabase
       const incomeData = {
         description: newIncome.description,
@@ -464,7 +496,10 @@ export default function ReceitasScreen() {
         receipt_date: receiptDate.toISOString(),
         is_received: newIncome.isReceived,
         is_shared: newIncome.isShared,
-        is_recurring: newIncome.isRecurring,
+        is_recurring: isRecurrent,
+        recurrence_type: recurrenceType,
+        recurrence_frequency: isRecurrent ? 1 : null,
+        recurrence_end_date: parsedRecurrenceEndDate ? parsedRecurrenceEndDate.toISOString() : null,
         category: newIncome.category || null,
         account_id: selectedAccount?.id || null,
         account_name: selectedAccount?.name || 'Minha Carteira',
@@ -486,6 +521,11 @@ export default function ReceitasScreen() {
       }
       
       if (data) {
+        // Se for recorrente, criar as receitas futuras
+        if (isRecurrent && recurrenceEndDate && parsedRecurrenceEndDate) {
+          await createRecurringIncomes(incomeData, receiptDate, parsedRecurrenceEndDate);
+        }
+        
         // Converter dados do banco para o formato esperado e adicionar à lista local
         const newIncomeItem: Income = {
           id: data.id,
@@ -505,7 +545,12 @@ export default function ReceitasScreen() {
         setIncomes(updatedIncomes);
         
         setModalVisible(false);
-        Alert.alert('Sucesso', 'Receita cadastrada com sucesso!');
+        
+        // Mostrar mensagem de sucesso adequada
+        const successMessage = isRecurrent ? 
+          'Receita recorrente criada com sucesso! As próximas receitas foram agendadas automaticamente.' : 
+          'Receita cadastrada com sucesso!';
+        Alert.alert('Sucesso', successMessage);
         
         // Resetar form
         setNewIncome({
@@ -520,6 +565,13 @@ export default function ReceitasScreen() {
         setAccountsVisible(false);
         setCalendarVisible(false);
         
+        // Resetar estados de recorrência
+        setRecurrenceType('Não recorrente');
+        setIsRecurrent(false);
+        setRecurrenceEndDate('');
+        setRecurrenceVisible(false);
+        setRecurrenceEndDateVisible(false);
+        
         // Resetar estados do calendário
         const today = new Date();
         setPickerMonth(today.getMonth());
@@ -532,6 +584,81 @@ export default function ReceitasScreen() {
     } catch (error) {
       console.error('Erro inesperado ao salvar receita:', error);
       Alert.alert('Erro', 'Ocorreu um erro inesperado. Tente novamente.');
+    }
+  };
+
+  // Função para criar receitas recorrentes
+  const createRecurringIncomes = async (baseIncomeData: any, startDate: Date, endDate: Date) => {
+    try {
+      const recurringIncomes = [];
+      
+      // Obter os componentes da data inicial
+      const originalDay = startDate.getDate();
+      const originalHour = startDate.getHours();
+      const originalMinute = startDate.getMinutes();
+      const originalSecond = startDate.getSeconds();
+      
+      let currentYear = startDate.getFullYear();
+      let currentMonth = startDate.getMonth() + 1; // Começar do próximo mês
+      
+      // Criar receitas mensais até a data de fim
+      let iterationCount = 0;
+      while (true) {
+        iterationCount++;
+        
+        // Ajustar o ano se necessário
+        if (currentMonth > 11) {
+          currentMonth = 0;
+          currentYear++;
+        }
+        
+        // Criar a data para este mês
+        // Usar Math.min para garantir que o dia seja válido no mês atual
+        const daysInCurrentMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+        const dayToUse = Math.min(originalDay, daysInCurrentMonth);
+        
+        const currentDate = new Date(currentYear, currentMonth, dayToUse, originalHour, originalMinute, originalSecond);
+        
+        // Verificar se ainda está dentro do período de recorrência
+        if (currentDate > endDate) {
+          break;
+        }
+        
+        const recurringIncome = {
+          ...baseIncomeData,
+          receipt_date: currentDate.toISOString(),
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+        
+        recurringIncomes.push(recurringIncome);
+        
+        // Avançar para o próximo mês
+        currentMonth++;
+        
+        // Proteção contra loop infinito
+        if (iterationCount > 100) {
+          console.error('ERRO: Loop infinito detectado na criação de receitas recorrentes.');
+          break;
+        }
+      }
+      
+      // Inserir todas as receitas recorrentes de uma vez
+      if (recurringIncomes.length > 0) {
+        const { data, error: recurringError } = await supabase
+          .from('incomes')
+          .insert(recurringIncomes)
+          .select();
+        
+        if (recurringError) {
+          console.error('Erro ao criar receitas recorrentes:', recurringError);
+        } else {
+          console.log(`${recurringIncomes.length} receitas recorrentes criadas com sucesso`);
+        }
+      }
+      
+    } catch (error) {
+      console.error('Erro ao processar receitas recorrentes:', error);
     }
   };
 
@@ -702,6 +829,224 @@ export default function ReceitasScreen() {
     return `${integerPart},${decimalPart}`;
   };
 
+  // Funções para gerenciar recorrência
+  const toggleRecurrence = () => {
+    setRecurrenceVisible(!recurrenceVisible);
+    
+    // Fechar outros dropdowns se estiverem abertos
+    if (calendarVisible) {
+      setCalendarVisible(false);
+    }
+    if (accountsVisible) {
+      setAccountsVisible(false);
+    }
+  };
+
+  const selectRecurrenceType = (type: string) => {
+    setRecurrenceType(type);
+    setIsRecurrent(type !== 'Não recorrente');
+    setRecurrenceVisible(false);
+    
+    // Se não for recorrente, limpar a data de fim
+    if (type === 'Não recorrente') {
+      setRecurrenceEndDate('');
+    }
+  };
+
+  const toggleRecurrenceEndCalendar = () => {
+    if (!recurrenceEndDateVisible) {
+      // Ao abrir, sincronizar com a data atual ou data já selecionada
+      if (recurrenceEndDate) {
+        const [day, month, year] = recurrenceEndDate.split('/').map(Number);
+        setRecurrenceEndPickerMonth(month - 1);
+        setRecurrenceEndPickerYear(year);
+        setRecurrenceEndPickerDay(day);
+      } else {
+        const today = new Date();
+        setRecurrenceEndPickerMonth(today.getMonth());
+        setRecurrenceEndPickerYear(today.getFullYear());
+        setRecurrenceEndPickerDay(today.getDate());
+      }
+    }
+    setRecurrenceEndDateVisible(!recurrenceEndDateVisible);
+  };
+
+  const goToPreviousRecurrenceEndPickerMonth = () => {
+    if (recurrenceEndPickerMonth === 0) {
+      setRecurrenceEndPickerMonth(11);
+      setRecurrenceEndPickerYear(recurrenceEndPickerYear - 1);
+    } else {
+      setRecurrenceEndPickerMonth(recurrenceEndPickerMonth - 1);
+    }
+  };
+
+  const goToNextRecurrenceEndPickerMonth = () => {
+    if (recurrenceEndPickerMonth === 11) {
+      setRecurrenceEndPickerMonth(0);
+      setRecurrenceEndPickerYear(recurrenceEndPickerYear + 1);
+    } else {
+      setRecurrenceEndPickerMonth(recurrenceEndPickerMonth + 1);
+    }
+  };
+
+  const selectRecurrenceEndDateFromPicker = (day: number) => {
+    setRecurrenceEndPickerDay(day);
+    const newDate = `${String(day).padStart(2, '0')}/${String(recurrenceEndPickerMonth + 1).padStart(2, '0')}/${recurrenceEndPickerYear}`;
+    setRecurrenceEndDate(newDate);
+    setRecurrenceEndDateVisible(false);
+  };
+
+  const generateRecurrenceEndPickerCalendarDays = () => {
+    const daysInMonth = new Date(recurrenceEndPickerYear, recurrenceEndPickerMonth + 1, 0).getDate();
+    const firstDayOfMonth = new Date(recurrenceEndPickerYear, recurrenceEndPickerMonth, 1).getDay();
+    const adjustedFirstDay = firstDayOfMonth === 0 ? 6 : firstDayOfMonth - 1;
+    
+    // Dias do mês anterior para completar a primeira semana
+    const daysFromPreviousMonth = adjustedFirstDay;
+    const previousMonthDays = [];
+    if (daysFromPreviousMonth > 0) {
+      const daysInPreviousMonth = new Date(recurrenceEndPickerYear, recurrenceEndPickerMonth, 0).getDate();
+      for (let i = daysInPreviousMonth - daysFromPreviousMonth + 1; i <= daysInPreviousMonth; i++) {
+        previousMonthDays.push({
+          day: i,
+          currentMonth: false,
+          isToday: false,
+          isSelected: false
+        });
+      }
+    }
+    
+    // Dias do mês atual
+    const currentMonthDays = [];
+    const today = new Date();
+    for (let day = 1; day <= daysInMonth; day++) {
+      const isToday = 
+        day === today.getDate() && 
+        recurrenceEndPickerMonth === today.getMonth() && 
+        recurrenceEndPickerYear === today.getFullYear();
+      
+      const isSelected = day === recurrenceEndPickerDay;
+      
+      currentMonthDays.push({
+        day,
+        currentMonth: true,
+        isToday,
+        isSelected
+      });
+    }
+    
+    // Dias do próximo mês para completar a última semana
+    const totalDaysShown = previousMonthDays.length + currentMonthDays.length;
+    const remainingDays = 42 - totalDaysShown; // 6 semanas * 7 dias
+    const nextMonthDays = [];
+    for (let day = 1; day <= remainingDays; day++) {
+      nextMonthDays.push({
+        day,
+        currentMonth: false,
+        isToday: false,
+        isSelected: false
+      });
+    }
+    
+    return [...previousMonthDays, ...currentMonthDays, ...nextMonthDays];
+  };
+
+  const renderRecurrenceEndPickerCalendarGrid = () => {
+    const days = generateRecurrenceEndPickerCalendarDays();
+    const rows: JSX.Element[] = [];
+    let cells: JSX.Element[] = [];
+
+    // Adicionar cabeçalho dos dias da semana
+    const headerCells = weekDays.map((day, index) => (
+      <View key={`recurrence-header-${index}`} style={styles.pickerCalendarHeaderCell}>
+        <Text style={styles.pickerCalendarHeaderText}>{day}</Text>
+      </View>
+    ));
+    rows.push(
+      <View key="recurrence-header" style={styles.pickerCalendarRow}>
+        {headerCells}
+      </View>
+    );
+
+    // Agrupar os dias em semanas
+    days.forEach((day, index) => {
+      const isSelected = recurrenceEndPickerDay === day.day && day.currentMonth;
+      
+      cells.push(
+        <TouchableOpacity
+          key={`recurrence-day-${index}`}
+          style={[
+            styles.pickerCalendarCell,
+            day.isToday && styles.pickerCalendarTodayCell,
+            isSelected && styles.pickerCalendarSelectedCell,
+            !day.currentMonth && styles.pickerCalendarInactiveCell
+          ]}
+          onPress={() => day.currentMonth && selectRecurrenceEndDateFromPicker(day.day)}
+          disabled={!day.currentMonth}
+        >
+          <Text style={[
+            styles.pickerCalendarCellText,
+            day.isToday && styles.pickerCalendarTodayCellText,
+            isSelected && styles.pickerCalendarSelectedCellText,
+            !day.currentMonth && styles.pickerCalendarInactiveCellText
+          ]}>
+            {day.day}
+          </Text>
+        </TouchableOpacity>
+      );
+
+      if ((index + 1) % 7 === 0) {
+        rows.push(
+          <View key={`recurrence-week-${Math.floor(index / 7)}`} style={styles.pickerCalendarRow}>
+            {cells}
+          </View>
+        );
+        cells = [];
+      }
+    });
+
+    return rows;
+  };
+
+  // Função para resetar todos os estados do modal
+  const resetModalStates = () => {
+    // Resetar form
+    setNewIncome({
+      description: '',
+      amount: 0,
+      receiptDate: new Date(),
+      isReceived: false,
+      isShared: false,
+      isRecurring: false,
+    });
+    
+    // Resetar estados de recorrência
+    setRecurrenceType('Não recorrente');
+    setIsRecurrent(false);
+    setRecurrenceEndDate('');
+    setRecurrenceVisible(false);
+    setRecurrenceEndDateVisible(false);
+    
+    // Resetar outros estados
+    setAccountsVisible(false);
+    setCalendarVisible(false);
+    setSelectedAccount(null);
+    
+    // Resetar estados do calendário
+    const today = new Date();
+    setPickerMonth(today.getMonth());
+    setPickerYear(today.getFullYear());
+    setPickerDay(today.getDate());
+    setSelectedDate(`${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`);
+    setDateText(today.toLocaleDateString('pt-BR'));
+  };
+
+  // Função para abrir o modal
+  const openModal = () => {
+    resetModalStates();
+    setModalVisible(true);
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar style="light" />
@@ -783,7 +1128,7 @@ export default function ReceitasScreen() {
       {/* Botão de adicionar receita flutuante */}
       <TouchableOpacity 
         style={[styles.addButton, {backgroundColor: theme.primary}]}
-        onPress={() => setModalVisible(true)}
+        onPress={openModal}
       >
         <Plus size={24} color="white" />
       </TouchableOpacity>
@@ -798,7 +1143,7 @@ export default function ReceitasScreen() {
           {incomes.length === 0 ? (
             <View style={styles.emptyContainer}>
               <Text style={styles.emptyText}>Nenhuma receita cadastrada</Text>
-              <TouchableOpacity onPress={() => setModalVisible(true)} style={styles.emptyButton}>
+              <TouchableOpacity onPress={openModal} style={styles.emptyButton}>
                 <Text style={styles.emptyButtonText}>Adicionar Receita</Text>
               </TouchableOpacity>
             </View>
@@ -1225,13 +1570,19 @@ export default function ReceitasScreen() {
         animationType="slide"
         transparent={true}
         visible={modalVisible}
-        onRequestClose={() => setModalVisible(false)}
+        onRequestClose={() => {
+          setModalVisible(false);
+          resetModalStates();
+        }}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Efetivar Receita</Text>
-              <TouchableOpacity style={styles.closeButton} onPress={() => setModalVisible(false)}>
+              <TouchableOpacity style={styles.closeButton} onPress={() => {
+                setModalVisible(false);
+                resetModalStates();
+              }}>
                 <X size={20} color="#333" />
               </TouchableOpacity>
             </View>
@@ -1388,6 +1739,105 @@ export default function ReceitasScreen() {
                   </View>
                 )}
               </View>
+
+              {/* Configuração de Repetição */}
+              <View style={[styles.inputGroup, { zIndex: 55 }]}>
+                <Text style={styles.inputLabel}>Configurar Repetição</Text>
+                <TouchableOpacity 
+                  style={[
+                    styles.selectInput,
+                    recurrenceType !== 'Não recorrente' ? { borderColor: theme.primary, borderWidth: 1.5 } : null
+                  ]} 
+                  onPress={toggleRecurrence}
+                >
+                  {recurrenceType !== 'Não recorrente' ? (
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      <RefreshCw size={20} color={theme.primary} style={{marginRight: 10}} />
+                      <Text style={[styles.selectPlaceholder, { color: theme.primary, fontFamily: fontFallbacks.Poppins_500Medium }]}>
+                        {recurrenceType}
+                      </Text>
+                    </View>
+                  ) : (
+                    <Text style={styles.selectPlaceholder}>{recurrenceType}</Text>
+                  )}
+                  <ChevronRight size={20} color="#666" style={{ transform: [{ rotate: '90deg' }] as any }} />
+                </TouchableOpacity>
+                
+                {recurrenceVisible && (
+                  <View style={[styles.paymentMethodsDropdown, { zIndex: 58 }]}>
+                    <TouchableOpacity 
+                      style={[
+                        styles.paymentMethodOption,
+                        recurrenceType === 'Não recorrente' && styles.paymentMethodOptionSelected
+                      ]} 
+                      onPress={() => selectRecurrenceType('Não recorrente')}
+                    >
+                      <X size={20} color={recurrenceType === 'Não recorrente' ? theme.primary : '#666'} />
+                      <Text style={[
+                        styles.paymentMethodOptionText,
+                        recurrenceType === 'Não recorrente' && styles.paymentMethodOptionTextSelected
+                      ]}>Não recorrente</Text>
+                    </TouchableOpacity>
+                    
+                    <TouchableOpacity 
+                      style={[
+                        styles.paymentMethodOption,
+                        recurrenceType === 'Mensal' && styles.paymentMethodOptionSelected,
+                        {borderBottomWidth: 0}
+                      ]} 
+                      onPress={() => selectRecurrenceType('Mensal')}
+                    >
+                      <RefreshCw size={20} color={recurrenceType === 'Mensal' ? theme.primary : '#666'} />
+                      <Text style={[
+                        styles.paymentMethodOptionText,
+                        recurrenceType === 'Mensal' && styles.paymentMethodOptionTextSelected
+                      ]}>Mensal</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
+
+              {/* Campo de Data de Fim da Recorrência - só aparece se for recorrente */}
+              {isRecurrent && (
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>Data de Fim da Recorrência</Text>
+                  <TouchableOpacity style={styles.dateInput} onPress={toggleRecurrenceEndCalendar}>
+                    <Calendar size={20} color="#666" style={styles.inputIcon} />
+                    <Text style={[styles.dateText, !recurrenceEndDate && { color: '#999' }]}>
+                      {recurrenceEndDate || 'Selecione a data de fim'}
+                    </Text>
+                    <TouchableOpacity style={styles.calendarButton} onPress={toggleRecurrenceEndCalendar}>
+                      <Calendar size={20} color="#666" />
+                    </TouchableOpacity>
+                  </TouchableOpacity>
+                  
+                  {recurrenceEndDateVisible && (
+                    <View style={styles.calendarPickerContainer}>
+                      <View
+                        style={[styles.calendarPickerHeader, { backgroundColor: theme.primary }]}
+                      >
+                        <View style={styles.calendarPickerMonthSelector}>
+                          <TouchableOpacity onPress={goToPreviousRecurrenceEndPickerMonth} style={styles.calendarPickerArrow}>
+                            <ChevronLeft size={24} color="#FFF" />
+                          </TouchableOpacity>
+                          
+                          <Text style={styles.calendarPickerMonthText}>
+                            {months[recurrenceEndPickerMonth]} {recurrenceEndPickerYear}
+                          </Text>
+                          
+                          <TouchableOpacity onPress={goToNextRecurrenceEndPickerMonth} style={styles.calendarPickerArrow}>
+                            <ChevronRight size={24} color="#FFF" />
+                          </TouchableOpacity>
+                        </View>
+
+                        <View style={styles.pickerCalendarContainer}>
+                          {renderRecurrenceEndPickerCalendarGrid()}
+                        </View>
+                      </View>
+                    </View>
+                  )}
+                </View>
+              )}
 
               {/* Botão de Salvar */}
               <TouchableOpacity 
@@ -2245,5 +2695,84 @@ const createStyles = (theme: any) => StyleSheet.create({
   },
   calendarButton: {
     padding: 4,
+  },
+  // Estilos para recorrência
+  paymentMethodsDropdown: {
+    position: 'absolute',
+    top: '100%',
+    left: 0,
+    right: 0,
+    backgroundColor: 'white',
+    borderRadius: 8,
+    marginTop: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  paymentMethodOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  paymentMethodOptionSelected: {
+    backgroundColor: '#f8f9ff',
+  },
+  paymentMethodOptionText: {
+    fontSize: 16,
+    color: '#333',
+    marginLeft: 12,
+    fontFamily: fontFallbacks.Poppins_400Regular,
+  },
+  paymentMethodOptionTextSelected: {
+    fontFamily: fontFallbacks.Poppins_500Medium,
+  },
+  selectInput: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    backgroundColor: '#fff',
+  },
+  selectPlaceholder: {
+    fontSize: 16,
+    color: '#666',
+    fontFamily: fontFallbacks.Poppins_400Regular,
+  },
+  pickerCalendarCellText: {
+    fontSize: 16,
+    fontFamily: fontFallbacks.Poppins_400Regular,
+    color: '#FFF',
+  },
+  pickerCalendarTodayCell: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 20,
+  },
+  pickerCalendarTodayCellText: {
+    fontFamily: fontFallbacks.Poppins_600SemiBold,
+  },
+  pickerCalendarSelectedCell: {
+    backgroundColor: '#FFF',
+    borderRadius: 20,
+  },
+  pickerCalendarSelectedCellText: {
+    color: theme.primary,
+    fontFamily: fontFallbacks.Poppins_600SemiBold,
+  },
+  pickerCalendarInactiveCell: {
+    opacity: 0.3,
+  },
+  pickerCalendarInactiveCellText: {
+    color: 'rgba(255, 255, 255, 0.4)',
   },
 });

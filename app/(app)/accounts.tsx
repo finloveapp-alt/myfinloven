@@ -121,6 +121,39 @@ export default function Accounts() {
   
   const [savingsAmount, setSavingsAmount] = useState('');
   const [savingsGoal, setSavingsGoal] = useState('');
+  const [selectedSavingsAccount, setSelectedSavingsAccount] = useState('');
+
+  // Função para formatar valor monetário
+  const formatCurrency = (value: string) => {
+    // Remove tudo que não é dígito
+    const numericValue = value.replace(/\D/g, '');
+    
+    // Se não há valor, retorna vazio
+    if (!numericValue) return '';
+    
+    // Converte para número e divide por 100 para ter centavos
+    const floatValue = parseFloat(numericValue) / 100;
+    
+    // Formata como moeda brasileira
+    return floatValue.toLocaleString('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    });
+  };
+
+  // Função para lidar com mudança no valor da poupança
+  const handleSavingsAmountChange = (text: string) => {
+    const formatted = formatCurrency(text);
+    setSavingsAmount(formatted);
+  };
+
+  // Função para lidar com mudança no saldo inicial
+  const handleInitialBalanceChange = (text: string) => {
+    const formatted = formatCurrency(text);
+    setNewAccountInitialBalance(formatted);
+  };
   
   const [shareWithPerson, setShareWithPerson] = useState('');
   const [shareAccount, setShareAccount] = useState('');
@@ -128,6 +161,22 @@ export default function Accounts() {
   // Estado para o modal de detalhes da conta
   const [accountDetailsModalVisible, setAccountDetailsModalVisible] = useState(false);
   const [selectedAccount, setSelectedAccount] = useState<any>(null);
+
+  // Estados para o modal de edição da conta
+  const [editAccountModalVisible, setEditAccountModalVisible] = useState(false);
+  const [editAccountName, setEditAccountName] = useState('');
+  const [editAccountType, setEditAccountType] = useState('');
+  const [editAccountStatus, setEditAccountStatus] = useState('Ativa');
+  const [savingAccount, setSavingAccount] = useState(false);
+
+  // Estado para armazenar dados reais do resumo da conta
+  const [accountSummaryData, setAccountSummaryData] = useState<{[key: string]: any}>({});
+  
+  // Estado para armazenar transações reais da conta
+  const [accountTransactions, setAccountTransactions] = useState<{[key: string]: any[]}>({});
+  
+  // Estado para armazenar avatares
+  const [avatars, setAvatars] = useState<any[]>([]);
 
   // Salvar o tema no AsyncStorage quando ele for alterado
   const saveThemeToStorage = async (themeValue: string) => {
@@ -186,8 +235,129 @@ export default function Accounts() {
     // Buscar informações do usuário atual
     fetchUserTheme();
     fetchUsersAndAccounts();
+    fetchAvatars();
   }, []);
   
+  // Função para buscar avatares criados pelo usuário atual
+  const fetchAvatars = async () => {
+    try {
+      // Obter a sessão atual
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session?.user) {
+        console.log('Usuário não autenticado');
+        return;
+      }
+
+      const { data: avatarsData, error } = await supabase
+        .from('couples')
+        .select('id, avatar_name, avatar_photo_url')
+        .eq('is_avatar', true)
+        .eq('user1_id', session.user.id);
+
+      if (error) throw error;
+
+      setAvatars(avatarsData || []);
+    } catch (error) {
+      console.error('Erro ao buscar avatares:', error);
+    }
+  };
+
+  // Função para buscar últimas transações reais da conta
+  const fetchAccountTransactions = async (accountId: string) => {
+    try {
+      // Buscar últimas 5 transações até a data atual
+      const { data: transactions, error } = await supabase
+        .from('transactions')
+        .select('*')
+        .eq('account_id', accountId)
+        .lte('transaction_date', new Date().toISOString().split('T')[0])
+        .order('transaction_date', { ascending: false })
+        .limit(5);
+
+      if (error) throw error;
+
+      // Armazenar transações no estado
+      setAccountTransactions(prev => ({
+        ...prev,
+        [accountId]: transactions || []
+      }));
+
+    } catch (error) {
+      console.error('Erro ao buscar transações da conta:', error);
+    }
+  };
+
+  // Função para buscar dados reais do resumo da conta
+  const fetchAccountSummary = async (accountId: string) => {
+    try {
+      // Buscar receitas recebidas
+      const { data: incomes, error: incomesError } = await supabase
+        .from('incomes')
+        .select('amount')
+        .eq('account_id', accountId)
+        .eq('is_received', true)
+        .lte('receipt_date', new Date().toISOString().split('T')[0]);
+
+      if (incomesError) throw incomesError;
+
+      // Buscar transações (receitas e despesas)
+      const { data: transactions, error: transactionsError } = await supabase
+        .from('transactions')
+        .select('amount, transaction_type')
+        .eq('account_id', accountId)
+        .lte('transaction_date', new Date().toISOString().split('T')[0]);
+
+      if (transactionsError) throw transactionsError;
+
+      // Buscar poupanças
+      const { data: savings, error: savingsError } = await supabase
+        .from('savings')
+        .select('amount')
+        .eq('account_id', accountId);
+
+      if (savingsError) throw savingsError;
+
+      // Calcular totais
+      let totalIncomes = 0;
+      let totalExpenses = 0;
+      let totalSavings = 0;
+
+      // Somar receitas da tabela incomes
+      incomes?.forEach(income => {
+        totalIncomes += parseFloat(income.amount) || 0;
+      });
+
+      // Somar transações
+      transactions?.forEach(transaction => {
+        const amount = parseFloat(transaction.amount) || 0;
+        if (transaction.transaction_type === 'income') {
+          totalIncomes += amount;
+        } else if (transaction.transaction_type === 'expense') {
+          totalExpenses += Math.abs(amount);
+        }
+      });
+
+      // Somar poupanças
+      savings?.forEach(saving => {
+        totalSavings += parseFloat(saving.amount) || 0;
+      });
+
+      // Armazenar dados no estado
+      setAccountSummaryData(prev => ({
+        ...prev,
+        [accountId]: {
+          income: totalIncomes,
+          expense: totalExpenses,
+          savings: totalSavings
+        }
+      }));
+
+    } catch (error) {
+      console.error('Erro ao buscar resumo da conta:', error);
+    }
+  };
+
   // Função para buscar usuários e suas contas
   const fetchUsersAndAccounts = async () => {
     try {
@@ -272,10 +442,13 @@ export default function Accounts() {
       console.log(`Encontrados ${relatedUsers.length} usuários relacionados`);
       setUsers(relatedUsers);
       
-      // Buscar todas as contas do usuário atual (próprias ou compartilhadas)
+      // Buscar todas as contas do usuário atual (próprias e compartilhadas)
       const { data: accountsData, error: accountsError } = await supabase
         .from('accounts')
-        .select('*')
+        .select(`
+          *,
+          avatar:avatar_id(id, avatar_name)
+        `)
         .or(`owner_id.eq.${currentUserId},partner_id.eq.${currentUserId}`)
         .order('created_at', { ascending: false });
       
@@ -284,8 +457,31 @@ export default function Accounts() {
         setIsLoading(false);
         return;
       }
+
+      // Buscar contas dos avatares do usuário
+      let avatarAccountsData = [];
+      if (avatars.length > 0) {
+        const avatarIds = avatars.map(avatar => avatar.id);
+        const { data: avatarAccounts, error: avatarAccountsError } = await supabase
+          .from('accounts')
+          .select(`
+            *,
+            avatar:avatar_id(id, avatar_name)
+          `)
+          .in('avatar_id', avatarIds)
+          .order('created_at', { ascending: false });
+
+        if (avatarAccountsError) {
+          console.error('Erro ao buscar contas dos avatares:', avatarAccountsError);
+        } else {
+          avatarAccountsData = avatarAccounts || [];
+        }
+      }
+
+      // Combinar todas as contas
+      const allAccountsData = [...(accountsData || []), ...avatarAccountsData];
       
-      console.log('Contas recuperadas:', accountsData);
+      console.log('Contas recuperadas:', allAccountsData);
       
       // Organizar contas por tipo de propriedade (compartilhadas ou individuais)
       const accountsByUser: {[key: string]: any[]} = {
@@ -304,10 +500,17 @@ export default function Accounts() {
           accountsByUser[user.name] = [];
         }
       });
+
+      // Adicionar avatares ao objeto de contas
+      avatars.forEach(avatar => {
+        if (avatar.avatar_name) {
+          accountsByUser[avatar.avatar_name] = [];
+        }
+      });
       
       // Distribuir as contas nas categorias apropriadas
-      if (accountsData) {
-        accountsData.forEach((account: Account) => {
+      if (allAccountsData) {
+        allAccountsData.forEach((account: Account) => {
           // Processar contas para exibição
           const processedAccount = {
             id: account.id,
@@ -317,6 +520,7 @@ export default function Accounts() {
             balance: `R$ ${account.balance.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
             icon: getAccountIcon(account.type),
             color: account.color || getRandomColorForType(account.type),
+            status: account.status || 'Ativa',
             lastTransaction: account.last_transaction_date 
               ? new Date(account.last_transaction_date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })
               : new Date(account.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })
@@ -326,19 +530,30 @@ export default function Accounts() {
             // Adicionar à categoria compartilhadas
             accountsByUser['Compartilhadas'].push(processedAccount);
           } else {
-            // Contas individuais - adicionar ao proprietário
+            // Contas individuais - verificar se pertence a um avatar ou usuário
             const isOwner = account.owner_id === currentUserId;
-            const ownerProfile = isOwner ? currentUserData : relatedUsers.find(u => u.id === account.owner_id);
             
-            if (ownerProfile && ownerProfile.name) {
-              if (!accountsByUser[ownerProfile.name]) {
-                accountsByUser[ownerProfile.name] = [];
+            // Verificar se a conta pertence a um avatar
+            if (account.avatar && account.avatar.avatar_name) {
+              // Conta pertence a um avatar
+              if (!accountsByUser[account.avatar.avatar_name]) {
+                accountsByUser[account.avatar.avatar_name] = [];
               }
-              accountsByUser[ownerProfile.name].push(processedAccount);
+              accountsByUser[account.avatar.avatar_name].push(processedAccount);
+            } else {
+              // Conta pertence a um usuário
+              const ownerProfile = isOwner ? currentUserData : relatedUsers.find(u => u.id === account.owner_id);
               
-              // Se a conta pertence ao usuário atual, adicionar também na categoria "Pessoal"
-              if (isOwner) {
-                accountsByUser['Pessoal'].push(processedAccount);
+              if (ownerProfile && ownerProfile.name) {
+                if (!accountsByUser[ownerProfile.name]) {
+                  accountsByUser[ownerProfile.name] = [];
+                }
+                accountsByUser[ownerProfile.name].push(processedAccount);
+                
+                // Se a conta pertence ao usuário atual, adicionar também na categoria "Pessoal"
+                if (isOwner) {
+                  accountsByUser['Pessoal'].push(processedAccount);
+                }
               }
             }
           }
@@ -624,16 +839,17 @@ export default function Accounts() {
       // Converter valor do saldo para número
       let initialBalance = 0;
       if (newAccountInitialBalance) {
-        // Remover formatação e converter para número
-        initialBalance = parseFloat(newAccountInitialBalance.replace(',', '.'));
-        if (isNaN(initialBalance)) {
-          initialBalance = 0;
-        }
+        // Remover formatação de moeda e converter para número
+        initialBalance = parseFloat(newAccountInitialBalance.replace(/[^\d,]/g, '').replace(',', '.')) || 0;
       }
       
-      // Determinar o tipo de propriedade com base na aba selecionada
+      // Determinar o tipo de propriedade e avatar com base na aba selecionada
       let ownershipType = 'individual';
       let partnerId = null;
+      let avatarId = null;
+      
+      // Verificar se é um avatar selecionado
+      const selectedAvatar = avatars.find(avatar => avatar.avatar_name === activeTab);
       
       if (activeTab === 'Compartilhadas') {
         ownershipType = 'compartilhada';
@@ -645,6 +861,10 @@ export default function Accounts() {
         // Explicitamente definir como conta individual pessoal
         ownershipType = 'individual';
         partnerId = null;
+      } else if (selectedAvatar) {
+        // Conta será vinculada ao avatar
+        ownershipType = 'individual';
+        avatarId = selectedAvatar.id;
       }
       
       // Obter sessão atual para ID do usuário
@@ -672,7 +892,8 @@ export default function Accounts() {
           ownership_type: ownershipType,
           color: color,
           owner_id: ownerId,
-          partner_id: partnerId
+          partner_id: partnerId,
+          avatar_id: avatarId
         })
         .select()
         .single();
@@ -686,26 +907,15 @@ export default function Accounts() {
       
       console.log('Conta criada com sucesso:', data);
       
-      // Recarregar contas
-      await fetchUsersAndAccounts();
+      // Limpar o formulário e fechar o modal imediatamente
+      setNewAccountName('');
+      setNewAccountType('');
+      setNewAccountBank('');
+      setNewAccountInitialBalance('');
+      setNewAccountModalVisible(false);
       
-      Alert.alert(
-        'Sucesso',
-        `Conta "${newAccountName}" criada com sucesso!`,
-        [
-          {
-            text: 'OK',
-            onPress: () => {
-              // Limpar o formulário e fechar o modal
-              setNewAccountName('');
-              setNewAccountType('');
-              setNewAccountBank('');
-              setNewAccountInitialBalance('');
-              setNewAccountModalVisible(false);
-            }
-          }
-        ]
-      );
+      // Recarregar contas para mostrar a nova conta
+      await fetchUsersAndAccounts();
       
       setIsLoading(false);
     } catch (error: any) {
@@ -739,26 +949,105 @@ export default function Accounts() {
   };
 
   // Função para criar poupança ou transferir para poupança
-  const handleSavings = () => {
+  const handleSavings = async () => {
     if (!savingsAmount) {
       Alert.alert('Erro', 'Por favor informe o valor que deseja poupar.');
       return;
     }
 
-    Alert.alert(
-      'Poupança Registrada',
-      `Valor de R$ ${savingsAmount} transferido para poupança${savingsGoal ? ` com objetivo: ${savingsGoal}` : ''}.`,
-      [
-        {
-          text: 'OK',
-          onPress: () => {
-            setSavingsAmount('');
-            setSavingsGoal('');
-            setSavingsModalVisible(false);
-          }
-        }
-      ]
-    );
+    if (!selectedSavingsAccount) {
+      Alert.alert('Erro', 'Por favor selecione uma conta para vincular a poupança.');
+      return;
+    }
+
+    try {
+      // Obter a sessão atual
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session?.user) {
+        Alert.alert('Erro', 'Usuário não autenticado');
+        return;
+      }
+
+      // Encontrar a conta selecionada
+      const allAccounts = displayAccounts();
+      const selectedAccountDisplay = allAccounts.find(account => account.name === selectedSavingsAccount);
+      
+      if (!selectedAccountDisplay) {
+        Alert.alert('Erro', 'Conta selecionada não encontrada');
+        return;
+      }
+
+      // Buscar o saldo atual real da conta no banco de dados
+      const { data: accountData, error: accountError } = await supabase
+        .from('accounts')
+        .select('balance')
+        .eq('id', selectedAccountDisplay.id)
+        .single();
+
+      if (accountError || !accountData) {
+        Alert.alert('Erro', 'Não foi possível obter o saldo atual da conta');
+        return;
+      }
+
+      const currentBalance = parseFloat(accountData.balance) || 0;
+
+      // Converter valor para número
+      const amount = parseFloat(savingsAmount.replace(/[^\d,]/g, '').replace(',', '.')) || 0;
+      
+      if (amount <= 0) {
+        Alert.alert('Erro', 'Valor inválido');
+        return;
+      }
+
+      // Verificar se há saldo suficiente
+      if (currentBalance < amount) {
+        Alert.alert('Erro', 'Saldo insuficiente na conta selecionada');
+        return;
+      }
+
+      // Calcular novo saldo
+      const newBalance = currentBalance - amount;
+
+      // Salvar poupança no banco
+      const { error: savingsError } = await supabase
+        .from('savings')
+        .insert({
+          account_id: selectedAccountDisplay.id,
+          amount: amount,
+          goal: savingsGoal || null,
+          owner_id: session.user.id
+        });
+
+      if (savingsError) {
+        throw savingsError;
+      }
+
+      // Atualizar o saldo da conta (subtraindo o valor poupado)
+      const { error: updateError } = await supabase
+        .from('accounts')
+        .update({
+          balance: newBalance,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', selectedAccountDisplay.id);
+
+      if (updateError) {
+        throw updateError;
+      }
+
+      // Fechar modal imediatamente
+      setSavingsAmount('');
+      setSavingsGoal('');
+      setSelectedSavingsAccount('');
+      setSavingsModalVisible(false);
+      
+      // Recarregar as contas para refletir mudanças
+      fetchUsersAndAccounts();
+    } catch (error) {
+      console.error('Erro ao salvar poupança:', error);
+      Alert.alert('Erro', 'Não foi possível salvar a poupança');
+    }
   };
 
   // Função para compartilhar conta
@@ -799,8 +1088,28 @@ export default function Accounts() {
     return users[0].name || 'Parceiro';
   };
 
-  // Dados fictícios de transações para cada conta
+  // Buscar transações da conta (reais ou fictícias)
   const getAccountTransactions = (accountId: string) => {
+    // Verificar se temos transações reais para esta conta
+    if (accountTransactions[accountId] && accountTransactions[accountId].length > 0) {
+      return accountTransactions[accountId].map(transaction => ({
+        id: transaction.id,
+        title: transaction.description,
+        category: transaction.category || 'Geral',
+        date: new Date(transaction.transaction_date).toLocaleDateString('pt-BR', {
+          day: '2-digit',
+          month: 'long',
+          year: 'numeric'
+        }),
+        amount: parseFloat(transaction.amount),
+        type: transaction.transaction_type,
+        icon: transaction.icon ? <Text>{transaction.icon}</Text> : <DollarSign size={20} color="#fff" />,
+        iconBg: transaction.transaction_type === 'income' ? '#4CD964' : '#FF3B30',
+        person: 'Você'
+      }));
+    }
+
+    // Fallback para dados fictícios se não houver dados reais
     // Nomes dos usuários para as transações
     const mainUserName = currentUser?.name || 'Você';
     const partnerName = users.length > 0 ? users[0].name : 'Parceiro';
@@ -839,6 +1148,12 @@ export default function Accounts() {
   
   // Calcular totais para o resumo financeiro
   const getAccountSummary = (accountId: string) => {
+    // Verificar se temos dados reais para esta conta
+    if (accountSummaryData[accountId]) {
+      return accountSummaryData[accountId];
+    }
+
+    // Fallback para dados mock se não houver dados reais
     const transactions = getAccountTransactions(accountId);
     
     let income = 0;
@@ -888,6 +1203,87 @@ export default function Accounts() {
   const handleOpenAccountDetails = (account: any) => {
     setSelectedAccount(account);
     setAccountDetailsModalVisible(true);
+    // Buscar dados reais do resumo da conta
+    fetchAccountSummary(account.id);
+    // Buscar últimas transações da conta
+    fetchAccountTransactions(account.id);
+  };
+
+  const handleOpenEditAccount = () => {
+    if (selectedAccount) {
+      setEditAccountName(selectedAccount.name);
+      setEditAccountType(selectedAccount.type);
+      setEditAccountStatus(selectedAccount.status || 'Ativa');
+      setEditAccountModalVisible(true);
+    }
+  };
+
+  const handleSaveAccountChanges = async () => {
+    console.log('handleSaveAccountChanges chamada');
+    console.log('selectedAccount:', selectedAccount);
+    console.log('editAccountName:', editAccountName);
+    console.log('editAccountType:', editAccountType);
+    
+    if (!selectedAccount) {
+      Alert.alert('Erro', 'Nenhuma conta selecionada');
+      return;
+    }
+
+    if (!editAccountName.trim()) {
+      Alert.alert('Atenção', 'Por favor, preencha o nome da conta');
+      return;
+    }
+
+    if (!editAccountType.trim()) {
+      Alert.alert('Atenção', 'Por favor, selecione o tipo da conta');
+      return;
+    }
+
+    setSavingAccount(true);
+
+    try {
+      console.log('Tentando atualizar conta no Supabase...');
+      
+      // Atualizar a conta no Supabase
+      const { data, error } = await supabase
+        .from('accounts')
+        .update({
+          name: editAccountName.trim(),
+          type: editAccountType,
+          status: editAccountStatus,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', selectedAccount.id)
+        .select();
+
+      console.log('Resposta do Supabase:', { data, error });
+
+      if (error) {
+        throw error;
+      }
+
+      console.log('Conta atualizada com sucesso!');
+
+      // Fechar modais imediatamente
+      setEditAccountModalVisible(false);
+      setAccountDetailsModalVisible(false);
+      
+      // Atualizar as informações localmente
+      setSelectedAccount({
+        ...selectedAccount,
+        name: editAccountName.trim(),
+        type: editAccountType,
+        status: editAccountStatus
+      });
+      
+      // Recarregar as contas
+      fetchUsersAndAccounts();
+    } catch (error) {
+      console.error('Erro ao atualizar conta:', error);
+      Alert.alert('Erro', `Não foi possível atualizar a conta: ${error.message}`);
+    } finally {
+      setSavingAccount(false);
+    }
   };
   
   // Função utilitária para criar uma cor de fundo semitransparente com base na cor do tema
@@ -1060,6 +1456,34 @@ export default function Accounts() {
                 Você ainda não tem relacionamentos.
               </Text>
             </View>
+          )}
+
+          {/* Renderização dinâmica das abas de avatares */}
+          {!isLoading && avatars.length > 0 && (
+            avatars.map((avatar) => (
+              <TouchableOpacity 
+                key={avatar.id}
+                style={[
+                  styles.tab, 
+                  activeTab === avatar.avatar_name && [
+                    styles.activeTab,
+                    { backgroundColor: `rgba(${parseInt(theme.primary.slice(1, 3), 16)}, ${parseInt(theme.primary.slice(3, 5), 16)}, ${parseInt(theme.primary.slice(5, 7), 16)}, 0.1)` }
+                  ]
+                ]}
+                onPress={() => setActiveTab(avatar.avatar_name)}
+              >
+                <Image 
+                  source={{ 
+                    uri: avatar.avatar_photo_url || 'https://randomuser.me/api/portraits/lego/1.jpg'
+                  }}
+                  style={styles.tabAvatar}
+                />
+                <Text style={[
+                  styles.tabText,
+                  activeTab === avatar.avatar_name && { color: theme.primary }
+                ]}>{avatar.avatar_name}</Text>
+              </TouchableOpacity>
+            ))
           )}
         </ScrollView>
       </View>
@@ -1252,7 +1676,7 @@ export default function Accounts() {
               style={styles.input}
               placeholder="Saldo Inicial (R$)"
               value={newAccountInitialBalance}
-              onChangeText={setNewAccountInitialBalance}
+              onChangeText={handleInitialBalanceChange}
               keyboardType="numeric"
               placeholderTextColor="#999"
             />
@@ -1260,7 +1684,12 @@ export default function Accounts() {
             <View style={styles.pickerContainer}>
               <Text style={styles.pickerLabel}>Proprietário</Text>
               <View style={styles.pickerOptions}>
-                {['Pessoal', 'Compartilhadas', ...(users.length > 0 ? users.map(user => user.name || 'Avatar') : [currentUser?.name || 'Avatar'])].map((owner) => (
+                {[
+                  'Pessoal', 
+                  'Compartilhadas', 
+                  ...(users.length > 0 ? users.map(user => user.name || 'Avatar') : [currentUser?.name || 'Avatar']),
+                  ...avatars.map(avatar => avatar.avatar_name)
+                ].map((owner) => (
                   <TouchableOpacity 
                     key={owner}
                     style={[
@@ -1375,14 +1804,24 @@ export default function Accounts() {
         animationType="slide"
         transparent={true}
         visible={savingsModalVisible}
-        onRequestClose={() => setSavingsModalVisible(false)}
+        onRequestClose={() => {
+          setSavingsAmount('');
+          setSavingsGoal('');
+          setSelectedSavingsAccount('');
+          setSavingsModalVisible(false);
+        }}
       >
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Transferir para Poupança</Text>
               <TouchableOpacity 
-                onPress={() => setSavingsModalVisible(false)}
+                onPress={() => {
+                  setSavingsAmount('');
+                  setSavingsGoal('');
+                  setSelectedSavingsAccount('');
+                  setSavingsModalVisible(false);
+                }}
                 style={styles.closeButton}
               >
                 <X size={24} color="#666" />
@@ -1393,7 +1832,7 @@ export default function Accounts() {
               style={styles.input}
               placeholder="Valor a Poupar (R$)"
               value={savingsAmount}
-              onChangeText={setSavingsAmount}
+              onChangeText={handleSavingsAmountChange}
               keyboardType="numeric"
               placeholderTextColor="#999"
             />
@@ -1406,12 +1845,41 @@ export default function Accounts() {
               placeholderTextColor="#999"
             />
 
-            <View style={styles.infoBox}>
-              <PiggyBank size={20} color="#4CD964" style={{marginRight: 8}} />
-              <Text style={styles.infoText}>
-                Transferir para a Poupança Casal com rendimento de 0,5% ao mês.
-              </Text>
+            <View style={styles.pickerContainer}>
+              <Text style={styles.pickerLabel}>Selecione a Conta para Vincular</Text>
+              <ScrollView style={styles.accountPicker}>
+                {displayAccounts().map((account) => (
+                  <TouchableOpacity 
+                    key={account.id}
+                    style={[
+                      styles.accountPickerItem,
+                      selectedSavingsAccount === account.name && [
+                        styles.accountPickerItemSelected,
+                        { 
+                          backgroundColor: `rgba(${parseInt(theme.primary.slice(1, 3), 16)}, ${parseInt(theme.primary.slice(3, 5), 16)}, ${parseInt(theme.primary.slice(5, 7), 16)}, 0.1)`,
+                          borderWidth: 1,
+                          borderColor: `rgba(${parseInt(theme.primary.slice(1, 3), 16)}, ${parseInt(theme.primary.slice(3, 5), 16)}, ${parseInt(theme.primary.slice(5, 7), 16)}, 0.3)`
+                        }
+                      ]
+                    ]}
+                    onPress={() => setSelectedSavingsAccount(account.name)}
+                  >
+                    <View style={[styles.accountPickerIcon, { backgroundColor: account.color }]}>
+                      {account.icon}
+                    </View>
+                    <View style={styles.accountPickerInfo}>
+                      <Text style={styles.accountPickerName}>{account.name}</Text>
+                      <Text style={styles.accountPickerType}>{account.type}</Text>
+                    </View>
+                    {selectedSavingsAccount === account.name && (
+                      <Check size={20} color={theme.primary} />
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
             </View>
+
+
 
             <TouchableOpacity 
               style={[styles.modalButton, {backgroundColor: theme.primary}]}
@@ -1556,7 +2024,10 @@ export default function Accounts() {
             <Text style={styles.detailsHeaderTitle}>
               {selectedAccount?.name || 'Detalhes da Conta'}
             </Text>
-            <TouchableOpacity style={styles.detailsSettingsButton}>
+            <TouchableOpacity 
+              style={styles.detailsSettingsButton}
+              onPress={handleOpenEditAccount}
+            >
               <Settings size={24} color="#333" />
             </TouchableOpacity>
           </View>
@@ -1750,9 +2221,106 @@ export default function Accounts() {
             )}
           </ScrollView>
         </View>
-      </Modal>
+              </Modal>
 
-      {/* Menu Modal */}
+        {/* Modal: Editar Conta */}
+        <Modal
+          animationType="slide"
+          transparent={true}
+          visible={editAccountModalVisible}
+          onRequestClose={() => setEditAccountModalVisible(false)}
+        >
+          <View style={styles.modalContainer}>
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Editar Conta</Text>
+                <TouchableOpacity 
+                  onPress={() => setEditAccountModalVisible(false)}
+                  style={styles.closeButton}
+                >
+                  <X size={24} color="#333" />
+                </TouchableOpacity>
+              </View>
+
+              <TextInput
+                style={styles.input}
+                placeholder="Nome da Conta"
+                value={editAccountName}
+                onChangeText={setEditAccountName}
+                placeholderTextColor="#999"
+              />
+
+              <View style={styles.pickerContainer}>
+                <Text style={styles.pickerLabel}>Tipo de Conta</Text>
+                <View style={styles.pickerOptions}>
+                  {['Conta Corrente', 'Poupança', 'Investimento', 'Dinheiro Físico'].map((type) => (
+                    <TouchableOpacity
+                      key={type}
+                      style={[
+                        styles.pickerOption,
+                        editAccountType === type && [styles.pickerOptionSelected, { backgroundColor: theme.primary }]
+                      ]}
+                      onPress={() => setEditAccountType(type)}
+                    >
+                      <Text style={[
+                        styles.pickerOptionText,
+                        editAccountType === type && [styles.pickerOptionTextSelected, { color: '#fff' }]
+                      ]}>
+                        {type}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              <View style={styles.pickerContainer}>
+                <Text style={styles.pickerLabel}>Status da Conta</Text>
+                <View style={styles.pickerOptions}>
+                  {['Ativa', 'Inativa'].map((status) => (
+                    <TouchableOpacity
+                      key={status}
+                      style={[
+                        styles.pickerOption,
+                        editAccountStatus === status && [styles.pickerOptionSelected, { backgroundColor: theme.primary }]
+                      ]}
+                      onPress={() => setEditAccountStatus(status)}
+                    >
+                      <Text style={[
+                        styles.pickerOptionText,
+                        editAccountStatus === status && [styles.pickerOptionTextSelected, { color: '#fff' }]
+                      ]}>
+                        {status}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              <TouchableOpacity 
+                style={[
+                  styles.modalButton, 
+                  { 
+                    backgroundColor: savingAccount ? '#ccc' : theme.primary,
+                    opacity: savingAccount ? 0.7 : 1
+                  }
+                ]}
+                onPress={handleSaveAccountChanges}
+                disabled={savingAccount}
+              >
+                {savingAccount ? (
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <ActivityIndicator size="small" color="#fff" style={{ marginRight: 8 }} />
+                    <Text style={styles.modalButtonText}>Salvando...</Text>
+                  </View>
+                ) : (
+                  <Text style={styles.modalButtonText}>Salvar Alterações</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Menu Modal */}
       <MenuModal
         visible={menuModalVisible}
         onClose={() => setMenuModalVisible(false)}

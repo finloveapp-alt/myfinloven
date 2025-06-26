@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Dimensions, Modal, TextInput, KeyboardAvoidingView, Platform, Alert, ActivityIndicator } from 'react-native';
-import { Plus, CreditCard, X, BarChart, Menu, PlusCircle, Receipt, Home, Bell, Info, ExternalLink, Wallet } from 'lucide-react-native';
+import { Plus, CreditCard, X, BarChart, Menu, PlusCircle, Receipt, Home, Bell, Info, ExternalLink, Wallet, User, Diamond, Tag } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
@@ -111,10 +111,10 @@ export default function Cards() {
   const [theme, setTheme] = useState(getInitialTheme());
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [menuModalVisible, setMenuModalVisible] = useState(false);
-  const [cardNumber, setCardNumber] = useState('');
   const [cardName, setCardName] = useState('');
   const [bankName, setBankName] = useState('');
   const [cardLimit, setCardLimit] = useState('');
+  const [cardExpiryDate, setCardExpiryDate] = useState('');
   const [cardType, setCardType] = useState('credit'); // 'credit' ou 'debit'
   const [selectedType, setSelectedType] = useState('');
   const [cardBrand, setCardBrand] = useState(''); // Nova state para bandeira selecionada manualmente
@@ -148,9 +148,9 @@ export default function Cards() {
       const userCards = await cardsService.getUserCards();
       setCards(userCards);
       
-      // Carregar transações do primeiro cartão se existir
+      // Carregar transações de todos os cartões do usuário
       if (userCards.length > 0) {
-        const transactions = await cardsService.getCardTransactions(userCards[0].id);
+        const transactions = await cardsService.getAllUserTransactions();
         setCardTransactions(transactions);
       } else {
         // Se não há cartões, usar transações mock para demonstração
@@ -369,7 +369,7 @@ export default function Cards() {
 
   // Implementar função de adicionar cartão real
   const handleAddCard = async () => {
-    if (!cardNumber || !cardName || !bankName || !cardLimit || !cardType) {
+    if (!cardName || !bankName || !cardLimit || !cardExpiryDate || !cardType) {
       Alert.alert('Atenção', 'Por favor, preencha todos os campos');
       return;
     }
@@ -384,15 +384,15 @@ export default function Cards() {
       
       const newCard = await cardsService.createCard({
         name: `Cartão ${cardBrand.toUpperCase()}`,
-        card_number: cardNumber,
         card_holder_name: cardName,
         bank_name: bankName,
         card_limit: cardLimit,
         card_type: cardBrand,
         is_credit: cardType === 'credit',
-        credit_limit: 1000,
+        credit_limit: parseFloat(cardLimit.replace(/[^\d,]/g, '').replace(',', '.')) || 0,
         primary_color: primaryColor,
         secondary_color: secondaryColor,
+        expiry_date: cardExpiryDate,
       });
       
       Alert.alert('Sucesso', 'Cartão adicionado com sucesso!');
@@ -408,10 +408,10 @@ export default function Cards() {
   };
 
   const resetForm = () => {
-    setCardNumber('');
     setCardName('');
     setBankName('');
     setCardLimit('');
+    setCardExpiryDate('');
     setCardType('credit');
     setSelectedType('');
     setCardBrand('');
@@ -480,7 +480,7 @@ export default function Cards() {
                   <Text style={styles.cardBalance}>
                     R$ {card.available_limit?.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) || '0,00'}
                   </Text>
-                  <Text style={styles.cardNumber}>{cardsService.formatCardNumber(card.card_number)}</Text>
+                  <Text style={styles.cardNumber}>**** **** **** ****</Text>
                   <View style={styles.viewDetailsContainer}>
                     <Text style={styles.viewDetailsText}>Toque para ver detalhes</Text>
                     <View style={styles.viewDetailsIcon}>
@@ -722,14 +722,14 @@ export default function Cards() {
                   style={styles.menuItem}
                   onPress={() => {
                     setMenuModalVisible(false);
-                    router.push('/(app)/accounts');
+                    router.push('/(app)/categories');
                   }}
                 >
                   <View style={[styles.menuIconContainer, { backgroundColor: `${theme.primary}26` }]}>
-                    <Wallet size={28} color={theme.primary} />
+                    <Tag size={28} color={theme.primary} />
                   </View>
-                  <Text style={[styles.menuItemTitle, { color: '#333' }]}>Contas</Text>
-                  <Text style={[styles.menuItemSubtitle, { color: '#666' }]}>Gerenciar contas</Text>
+                  <Text style={[styles.menuItemTitle, { color: '#333' }]}>Categorias</Text>
+                  <Text style={[styles.menuItemSubtitle, { color: '#666' }]}>Gerenciar categorias</Text>
                 </TouchableOpacity>
               </View>
 
@@ -739,28 +739,28 @@ export default function Cards() {
                   style={styles.menuItem}
                   onPress={() => {
                     setMenuModalVisible(false);
-                    // Navegação para sobre
+                    router.push('/(app)/profile');
                   }}
                 >
                   <View style={[styles.menuIconContainer, { backgroundColor: `${theme.primary}26` }]}>
-                    <Info size={28} color={theme.primary} />
+                    <User size={28} color={theme.primary} />
                   </View>
-                  <Text style={[styles.menuItemTitle, { color: '#333' }]}>Sobre</Text>
-                  <Text style={[styles.menuItemSubtitle, { color: '#666' }]}>Informações</Text>
+                  <Text style={[styles.menuItemTitle, { color: '#333' }]}>Perfil</Text>
+                  <Text style={[styles.menuItemSubtitle, { color: '#666' }]}>Configurações</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity 
                   style={styles.menuItem}
                   onPress={() => {
                     setMenuModalVisible(false);
-                    router.replace('/(auth)/login');
+                    router.push('/(app)/subscription');
                   }}
                 >
                   <View style={[styles.menuIconContainer, { backgroundColor: `${theme.primary}26` }]}>
-                    <ExternalLink size={28} color={theme.primary} />
+                    <Diamond size={28} color={theme.primary} />
                   </View>
-                  <Text style={[styles.menuItemTitle, { color: '#333' }]}>Logout</Text>
-                  <Text style={[styles.menuItemSubtitle, { color: '#666' }]}>Sair do aplicativo</Text>
+                  <Text style={[styles.menuItemTitle, { color: '#333' }]}>Assinatura</Text>
+                  <Text style={[styles.menuItemSubtitle, { color: '#666' }]}>Planos e preços</Text>
                 </TouchableOpacity>
 
                 <View style={styles.menuItem}>
@@ -814,27 +814,7 @@ export default function Cards() {
                 placeholderTextColor="#666"
               />
 
-              <TextInput
-                style={styles.input}
-                placeholder="Número do Cartão"
-                value={cardNumber}
-                onChangeText={(text) => {
-                  // Remove tudo que não é número
-                  const numericValue = text.replace(/[^0-9]/g, '');
-                  // Aplica máscara de cartão (XXXX XXXX XXXX XXXX)
-                  let formattedValue = '';
-                  for (let i = 0; i < numericValue.length && i < 16; i++) {
-                    if (i > 0 && i % 4 === 0) {
-                      formattedValue += ' ';
-                    }
-                    formattedValue += numericValue[i];
-                  }
-                  setCardNumber(formattedValue);
-                }}
-                keyboardType="numeric"
-                maxLength={19}
-                placeholderTextColor="#666"
-              />
+
 
               {/* Seletor de Bandeira do Cartão */}
               <View style={styles.cardBrandSection}>
@@ -904,6 +884,28 @@ export default function Cards() {
                 value={cardName}
                 onChangeText={setCardName}
                 autoCapitalize="characters"
+                placeholderTextColor="#666"
+              />
+
+              <TextInput
+                style={styles.input}
+                placeholder="Data de Vencimento (MM/AA)"
+                value={cardExpiryDate}
+                onChangeText={(text) => {
+                  // Remove tudo que não é número
+                  const numericValue = text.replace(/[^0-9]/g, '');
+                  // Aplica máscara MM/AA
+                  let formattedValue = '';
+                  if (numericValue.length >= 1) {
+                    formattedValue = numericValue.substring(0, 2);
+                    if (numericValue.length >= 3) {
+                      formattedValue += '/' + numericValue.substring(2, 4);
+                    }
+                  }
+                  setCardExpiryDate(formattedValue);
+                }}
+                keyboardType="numeric"
+                maxLength={5}
                 placeholderTextColor="#666"
               />
 
@@ -1039,10 +1041,13 @@ export default function Cards() {
                         {cardLimit || 'R$ 0,00'}
                       </Text>
                       <Text style={styles.previewCardNumber}>
-                        {cardNumber || '**** **** **** ****'}
+                        **** **** **** ****
                       </Text>
                       <Text style={styles.previewCardName}>
                         {bankName || 'NOME DO BANCO'}
+                      </Text>
+                      <Text style={styles.previewCardExpiry}>
+                        {cardExpiryDate || 'MM/AA'}
                       </Text>
                     </View>
                   </LinearGradient>
@@ -1572,6 +1577,13 @@ const styles = StyleSheet.create({
     fontSize: 14,
     opacity: 0.9,
     letterSpacing: 2,
+  },
+  previewCardExpiry: {
+    color: '#ffffff',
+    fontSize: 12,
+    opacity: 0.8,
+    letterSpacing: 1,
+    marginTop: 4,
   },
   modalScrollView: {
     flex: 1,

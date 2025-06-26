@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Modal } from 'react-native';
-import { Search, BarChart, Menu, PlusCircle, Receipt, CreditCard, Home, Bell, Info, ExternalLink, Wallet } from 'lucide-react-native';
+import { Search, BarChart, Menu, PlusCircle, Receipt, CreditCard, Home, Bell, Info, ExternalLink, Wallet, User, Diamond, Tag } from 'lucide-react-native';
 import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
 import { fontFallbacks } from '@/utils/styles';
@@ -179,14 +179,14 @@ export default function Notifications() {
                   style={styles.menuItem}
                   onPress={() => {
                     setMenuModalVisible(false);
-                    router.push('/(app)/accounts');
+                    router.push('/(app)/categories');
                   }}
                 >
                   <View style={[styles.menuIconContainer, { backgroundColor: `rgba(182, 135, 254, 0.15)` }]}>
-                    <Wallet size={28} color={theme.primary} />
+                    <Tag size={28} color={theme.primary} />
                   </View>
-                  <Text style={[styles.menuItemTitle, { color: '#333' }]}>Contas</Text>
-                  <Text style={[styles.menuItemSubtitle, { color: '#666' }]}>Gerenciar contas</Text>
+                  <Text style={[styles.menuItemTitle, { color: '#333' }]}>Categorias</Text>
+                  <Text style={[styles.menuItemSubtitle, { color: '#666' }]}>Gerenciar categorias</Text>
                 </TouchableOpacity>
               </View>
 
@@ -196,28 +196,28 @@ export default function Notifications() {
                   style={styles.menuItem}
                   onPress={() => {
                     setMenuModalVisible(false);
-                    // Navegação para sobre
+                    router.push('/(app)/profile');
                   }}
                 >
                   <View style={[styles.menuIconContainer, { backgroundColor: `rgba(182, 135, 254, 0.15)` }]}>
-                    <Info size={28} color={theme.primary} />
+                    <User size={28} color={theme.primary} />
                   </View>
-                  <Text style={[styles.menuItemTitle, { color: '#333' }]}>Sobre</Text>
-                  <Text style={[styles.menuItemSubtitle, { color: '#666' }]}>Informações</Text>
+                  <Text style={[styles.menuItemTitle, { color: '#333' }]}>Perfil</Text>
+                  <Text style={[styles.menuItemSubtitle, { color: '#666' }]}>Configurações</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity 
                   style={styles.menuItem}
                   onPress={() => {
                     setMenuModalVisible(false);
-                    router.replace('/(auth)/login');
+                    router.push('/(app)/subscription');
                   }}
                 >
                   <View style={[styles.menuIconContainer, { backgroundColor: `rgba(182, 135, 254, 0.15)` }]}>
-                    <ExternalLink size={28} color={theme.primary} />
+                    <Diamond size={28} color={theme.primary} />
                   </View>
-                  <Text style={[styles.menuItemTitle, { color: '#333' }]}>Logout</Text>
-                  <Text style={[styles.menuItemSubtitle, { color: '#666' }]}>Sair do aplicativo</Text>
+                  <Text style={[styles.menuItemTitle, { color: '#333' }]}>Assinatura</Text>
+                  <Text style={[styles.menuItemSubtitle, { color: '#666' }]}>Planos e preços</Text>
                 </TouchableOpacity>
 
                 <View style={styles.menuItem}>

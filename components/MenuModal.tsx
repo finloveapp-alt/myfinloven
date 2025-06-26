@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, Modal, TouchableOpacity, Platform } from 'react-native';
-import { Home, PlusCircle, Bell, BarChart, CreditCard, Wallet, ArrowUpCircle, ExternalLink, X } from 'lucide-react-native';
+import { Home, PlusCircle, Bell, BarChart, CreditCard, Wallet, ArrowUpCircle, ExternalLink, X, User, Diamond } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { fontFallbacks } from '@/utils/styles';
 import themes from '@/constants/themes';
@@ -248,28 +248,28 @@ export default function MenuModal({ visible, onClose, theme }: MenuModalProps) {
                 style={styles.menuItem}
                 onPress={() => {
                   onClose();
-                  router.push('/(app)/receitas');
+                  router.push('/(app)/profile');
                 }}
               >
                 <View style={[styles.menuIconContainer, { backgroundColor: `rgba(${theme === themes.feminine ? '182, 135, 254' : '0, 115, 234'}, 0.15)` }]}>
-                  <ArrowUpCircle size={28} color={theme.primary} />
+                  <User size={28} color={theme.primary} />
                 </View>
-                <Text style={[styles.menuItemTitle, { color: '#333' }]}>Receitas</Text>
-                <Text style={[styles.menuItemSubtitle, { color: '#666' }]}>Gerenciar receitas</Text>
+                <Text style={[styles.menuItemTitle, { color: '#333' }]}>Perfil</Text>
+                <Text style={[styles.menuItemSubtitle, { color: '#666' }]}>Configurações</Text>
               </TouchableOpacity>
 
               <TouchableOpacity 
                 style={styles.menuItem}
                 onPress={() => {
                   onClose();
-                  router.replace('/(auth)/login');
+                  router.push('/(app)/subscription');
                 }}
               >
                 <View style={[styles.menuIconContainer, { backgroundColor: `rgba(${theme === themes.feminine ? '182, 135, 254' : '0, 115, 234'}, 0.15)` }]}>
-                  <ExternalLink size={28} color={theme.primary} />
+                  <Diamond size={28} color={theme.primary} />
                 </View>
-                <Text style={[styles.menuItemTitle, { color: '#333' }]}>Logout</Text>
-                <Text style={[styles.menuItemSubtitle, { color: '#666' }]}>Sair do aplicativo</Text>
+                <Text style={[styles.menuItemTitle, { color: '#333' }]}>Assinatura</Text>
+                <Text style={[styles.menuItemSubtitle, { color: '#666' }]}>Planos e preços</Text>
               </TouchableOpacity>
             </View>
           </View>

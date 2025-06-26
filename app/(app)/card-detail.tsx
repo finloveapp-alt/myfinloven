@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Dimensions, ScrollView, Animated, AppState, ActivityIndicator } from 'react-native';
-import { ArrowLeft } from 'lucide-react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Dimensions, ScrollView, Animated, AppState, ActivityIndicator, Modal, TextInput, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import { ArrowLeft, Edit, X, CreditCard } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useRouter, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -8,6 +8,40 @@ import BottomNavigation from '@/components/BottomNavigation';
 import { supabase } from '@/lib/supabase';
 import { cardsService, Card, CardTransaction } from '@/lib/services/cardsService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Svg, { Path, Rect, Circle } from 'react-native-svg';
+
+// Componentes SVG para ícones das bandeiras
+const VisaIcon = () => (
+  <Svg width="24" height="16" viewBox="0 0 24 16">
+    <Rect width="24" height="16" rx="2" fill="#1A1F71"/>
+    <Path d="M4 5h2l1 6h1l1-6h2l-1.5 6h1l1.5-6h2l-2 6h1l2-6h2v6H4V5z" fill="white"/>
+  </Svg>
+);
+
+const MastercardIcon = () => (
+  <Svg width="24" height="16" viewBox="0 0 24 16">
+    <Rect width="24" height="16" rx="2" fill="#000"/>
+    <Circle cx="9" cy="8" r="4" fill="#EB001B"/>
+    <Circle cx="15" cy="8" r="4" fill="#F79E1B"/>
+  </Svg>
+);
+
+const EloIcon = () => (
+  <Svg width="24" height="16" viewBox="0 0 24 16">
+    <Rect width="24" height="16" rx="2" fill="#000"/>
+    <Circle cx="8" cy="8" r="3" fill="#FFD700"/>
+    <Circle cx="16" cy="8" r="3" fill="#FFD700"/>
+    <Rect x="10" y="6" width="4" height="4" fill="#FFD700"/>
+  </Svg>
+);
+
+const AmexIcon = () => (
+  <Svg width="24" height="16" viewBox="0 0 24 16">
+    <Rect width="24" height="16" rx="2" fill="#006FCF"/>
+    <Rect x="2" y="6" width="20" height="4" fill="white"/>
+    <Path d="M4 4h4l2 4-2 4H4V4zm12 0h4v8h-4l-2-4 2-4z" fill="white"/>
+  </Svg>
+);
 
 const { width } = Dimensions.get('window');
 const cardWidth = width - 40;
@@ -66,6 +100,19 @@ export default function CardDetail() {
   const [card, setCard] = useState<Card | null>(null);
   const [transactions, setTransactions] = useState<CardTransaction[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingCard, setEditingCard] = useState(false);
+  
+  // Estados para edição do cartão
+  const [editCardName, setEditCardName] = useState('');
+  const [editBankName, setEditBankName] = useState('');
+  const [editCardLimit, setEditCardLimit] = useState('');
+  const [editCardExpiryDate, setEditCardExpiryDate] = useState('');
+  const [editCardType, setEditCardType] = useState('credit');
+  const [editCardBrand, setEditCardBrand] = useState('');
+  const [editPrimaryColor, setEditPrimaryColor] = useState('#b687fe');
+  const [editSecondaryColor, setEditSecondaryColor] = useState('#8B5CF6');
+  
   const [weekData, setWeekData] = useState([
     { day: 'Seg', value: 0 },
     { day: 'Ter', value: 0 },
@@ -379,6 +426,52 @@ export default function CardDetail() {
     setWeekData(formattedWeekData);
   };
 
+  // Funções para edição do cartão
+  const openEditModal = () => {
+    if (card) {
+      setEditCardName(card.card_holder_name);
+      setEditBankName(card.bank_name);
+      setEditCardLimit(card.credit_limit.toString());
+      setEditCardExpiryDate(card.expiry_date || '');
+      setEditCardType(card.is_credit ? 'credit' : 'debit');
+      setEditCardBrand(card.card_type);
+      setEditPrimaryColor(card.primary_color);
+      setEditSecondaryColor(card.secondary_color);
+      setShowEditModal(true);
+    }
+  };
+
+  const handleEditCard = async () => {
+    if (!card || !editBankName || !editCardName || !editCardLimit || !editCardExpiryDate || !editCardBrand) {
+      Alert.alert('Atenção', 'Por favor, preencha todos os campos');
+      return;
+    }
+
+    try {
+      setEditingCard(true);
+      
+      const updatedCard = await cardsService.updateCard(card.id, {
+        card_holder_name: editCardName,
+        bank_name: editBankName,
+        card_type: editCardBrand,
+        is_credit: editCardType === 'credit',
+        credit_limit: parseFloat(editCardLimit.replace(/[^\d,]/g, '').replace(',', '.')) || 0,
+        primary_color: editPrimaryColor,
+        secondary_color: editSecondaryColor,
+        expiry_date: editCardExpiryDate,
+      });
+
+      setCard(updatedCard);
+      setShowEditModal(false);
+      Alert.alert('Sucesso', 'Cartão atualizado com sucesso!');
+    } catch (error) {
+      console.error('Erro ao atualizar cartão:', error);
+      Alert.alert('Erro', 'Não foi possível atualizar o cartão');
+    } finally {
+      setEditingCard(false);
+    }
+  };
+
   const handleBack = () => {
     router.push('/(app)/cards');
   };
@@ -478,8 +571,310 @@ export default function CardDetail() {
           theme={theme}
           maxValue={maxValue}
           barAnimations={barAnimations}
+          openEditModal={openEditModal}
         />
       )}
+
+      {/* Modal de Edição do Cartão */}
+      <Modal
+        visible={showEditModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowEditModal(false)}
+      >
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={styles.modalContainer}
+        >
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Editar Cartão</Text>
+              <TouchableOpacity 
+                onPress={() => setShowEditModal(false)}
+                style={styles.closeButton}
+              >
+                <X size={24} color="#666" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView 
+              style={styles.modalScrollView}
+              showsVerticalScrollIndicator={false}
+              bounces={false}
+            >
+              <TextInput
+                style={styles.input}
+                placeholder="Nome do Banco"
+                value={editBankName}
+                onChangeText={setEditBankName}
+                autoCapitalize="characters"
+                placeholderTextColor="#666"
+              />
+
+
+
+              {/* Seletor de Bandeira do Cartão */}
+              <View style={styles.cardBrandSection}>
+                <Text style={styles.cardBrandLabel}>Bandeira do Cartão</Text>
+                <View style={styles.cardBrandOptions}>
+                  <TouchableOpacity
+                    style={[
+                      styles.cardBrandOption,
+                      editCardBrand === 'visa' && [styles.selectedCardBrand, { backgroundColor: theme.primary }]
+                    ]}
+                    onPress={() => setEditCardBrand('visa')}
+                  >
+                    <VisaIcon />
+                    <Text style={[
+                      styles.cardBrandText,
+                      editCardBrand === 'visa' && styles.selectedCardBrandText
+                    ]}>Visa</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.cardBrandOption,
+                      editCardBrand === 'mastercard' && [styles.selectedCardBrand, { backgroundColor: theme.primary }]
+                    ]}
+                    onPress={() => setEditCardBrand('mastercard')}
+                  >
+                    <MastercardIcon />
+                    <Text style={[
+                      styles.cardBrandText,
+                      editCardBrand === 'mastercard' && styles.selectedCardBrandText
+                    ]}>Mastercard</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.cardBrandOption,
+                      editCardBrand === 'elo' && [styles.selectedCardBrand, { backgroundColor: theme.primary }]
+                    ]}
+                    onPress={() => setEditCardBrand('elo')}
+                  >
+                    <EloIcon />
+                    <Text style={[
+                      styles.cardBrandText,
+                      editCardBrand === 'elo' && styles.selectedCardBrandText
+                    ]}>Elo</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.cardBrandOption,
+                      editCardBrand === 'american_express' && [styles.selectedCardBrand, { backgroundColor: theme.primary }]
+                    ]}
+                    onPress={() => setEditCardBrand('american_express')}
+                  >
+                    <AmexIcon />
+                    <Text style={[
+                      styles.cardBrandText,
+                      editCardBrand === 'american_express' && styles.selectedCardBrandText
+                    ]}>American Express</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              <TextInput
+                style={styles.input}
+                placeholder="Nome no Cartão"
+                value={editCardName}
+                onChangeText={setEditCardName}
+                autoCapitalize="characters"
+                placeholderTextColor="#666"
+              />
+
+              <TextInput
+                style={styles.input}
+                placeholder="Data de Vencimento (MM/AA)"
+                value={editCardExpiryDate}
+                onChangeText={(text) => {
+                  // Remove tudo que não é número
+                  const numericValue = text.replace(/[^0-9]/g, '');
+                  // Aplica máscara MM/AA
+                  let formattedValue = '';
+                  if (numericValue.length >= 1) {
+                    formattedValue = numericValue.substring(0, 2);
+                    if (numericValue.length >= 3) {
+                      formattedValue += '/' + numericValue.substring(2, 4);
+                    }
+                  }
+                  setEditCardExpiryDate(formattedValue);
+                }}
+                keyboardType="numeric"
+                maxLength={5}
+                placeholderTextColor="#666"
+              />
+
+              <TextInput
+                style={styles.input}
+                placeholder="Limite do Cartão (R$)"
+                value={editCardLimit}
+                onChangeText={(text) => {
+                  // Remove tudo que não é número
+                  const numericValue = text.replace(/[^0-9]/g, '');
+                  // Formata como moeda brasileira
+                  if (numericValue) {
+                    const formattedValue = (parseInt(numericValue) / 100).toLocaleString('pt-BR', {
+                      style: 'currency',
+                      currency: 'BRL'
+                    });
+                    setEditCardLimit(formattedValue);
+                  } else {
+                    setEditCardLimit('');
+                  }
+                }}
+                keyboardType="numeric"
+                placeholderTextColor="#666"
+              />
+
+              <View style={styles.rowInputs}>
+                <TouchableOpacity
+                  style={[
+                    styles.cardTypeOption, 
+                    { flex: 1, marginRight: 8 },
+                    editCardType === 'credit' && [styles.selectedCardType, { backgroundColor: theme.primary }]
+                  ]}
+                  onPress={() => setEditCardType('credit')}
+                >
+                  <Text style={[
+                    styles.cardTypeText,
+                    editCardType === 'credit' && styles.selectedCardTypeText
+                  ]}>Crédito</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.cardTypeOption, 
+                    { flex: 1, marginLeft: 8, width: 0 },
+                    editCardType === 'debit' && [styles.selectedCardType, { backgroundColor: theme.primary }]
+                  ]}
+                  onPress={() => setEditCardType('debit')}
+                >
+                  <Text style={[
+                    styles.cardTypeText,
+                    editCardType === 'debit' && styles.selectedCardTypeText
+                  ]}>Débito</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Seletor de Cores */}
+              <View style={styles.colorSection}>
+                <Text style={styles.colorSectionTitle}>Cores do Cartão</Text>
+                
+                <View style={styles.colorSelectors}>
+                  <View style={styles.colorSelectorContainer}>
+                    <Text style={styles.colorLabel}>Cor Principal</Text>
+                    <View style={styles.colorOptions}>
+                      {[
+                        '#b687fe', '#8B5CF6', '#0073ea', '#3c79e6',
+                        '#FF3B30', '#FF9500', '#34C759', '#00C7BE',
+                        '#5856D6', '#AF52DE', '#FF2D92', '#A2845E'
+                      ].map((color) => (
+                        <TouchableOpacity
+                          key={color}
+                          style={[
+                            styles.colorOption,
+                            { backgroundColor: color },
+                            editPrimaryColor === color && styles.selectedColorOption
+                          ]}
+                          onPress={() => setEditPrimaryColor(color)}
+                        >
+                          {editPrimaryColor === color && (
+                            <View style={styles.colorCheckmark}>
+                              <Text style={styles.colorCheckmarkText}>✓</Text>
+                            </View>
+                          )}
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+
+                  <View style={styles.colorSelectorContainer}>
+                    <Text style={styles.colorLabel}>Cor Secundária</Text>
+                    <View style={styles.colorOptions}>
+                      {[
+                        '#8B5CF6', '#b687fe', '#3c79e6', '#0073ea',
+                        '#FF6B35', '#FFB800', '#30D158', '#40E0D0',
+                        '#7C3AED', '#C77DFF', '#FF69B4', '#D2691E'
+                      ].map((color) => (
+                        <TouchableOpacity
+                          key={color}
+                          style={[
+                            styles.colorOption,
+                            { backgroundColor: color },
+                            editSecondaryColor === color && styles.selectedColorOption
+                          ]}
+                          onPress={() => setEditSecondaryColor(color)}
+                        >
+                          {editSecondaryColor === color && (
+                            <View style={styles.colorCheckmark}>
+                              <Text style={styles.colorCheckmarkText}>✓</Text>
+                            </View>
+                          )}
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+                </View>
+
+                {/* Preview do Gradiente */}
+                <View style={styles.gradientPreviewContainer}>
+                  <Text style={styles.colorLabel}>Preview do Cartão</Text>
+                  <LinearGradient
+                    colors={[editPrimaryColor, editSecondaryColor]}
+                    style={styles.gradientPreview}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                  >
+                    <View style={styles.previewCardContent}>
+                      <View style={styles.previewCardHeader}>
+                        <CreditCard size={20} color="#ffffff" />
+                        <Text style={styles.previewCardType}>
+                          {editCardBrand ? editCardBrand.toUpperCase().replace('_', ' ') : 'CARTÃO'}
+                        </Text>
+                      </View>
+                      <Text style={styles.previewCardBalance}>
+                        {editCardLimit || 'R$ 0,00'}
+                      </Text>
+                      <Text style={styles.previewCardNumber}>
+                        **** **** **** ****
+                      </Text>
+                      <Text style={styles.previewCardName}>
+                        {editBankName || 'NOME DO BANCO'}
+                      </Text>
+                      <Text style={styles.previewCardExpiry}>
+                        {editCardExpiryDate || 'MM/AA'}
+                      </Text>
+                    </View>
+                  </LinearGradient>
+                </View>
+              </View>
+            </ScrollView>
+
+            <TouchableOpacity 
+              style={[
+                styles.addCardModalButton, 
+                { 
+                  backgroundColor: editingCard ? '#ccc' : theme.primary,
+                  opacity: editingCard ? 0.7 : 1
+                }
+              ]}
+              onPress={handleEditCard}
+              disabled={editingCard}
+            >
+              {editingCard ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <ActivityIndicator size="small" color="#fff" style={{ marginRight: 8 }} />
+                  <Text style={styles.addButtonText}>Atualizando...</Text>
+                </View>
+              ) : (
+                <Text style={styles.addButtonText}>Atualizar Cartão</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
 
       <BottomNavigation theme={theme} />
     </View>
@@ -487,12 +882,11 @@ export default function CardDetail() {
 }
 
 // Componente separado para o conteúdo do cartão
-const CardContent = ({ card, transactions, weekData, stats, theme, maxValue, barAnimations }) => {
+const CardContent = ({ card, transactions, weekData, stats, theme, maxValue, barAnimations, openEditModal }) => {
   // Dados do cartão (real ou mock apenas se não há cartões)
   const cardData = card || {
     id: 'mock',
     name: 'Cartão Mock',
-    card_number: '4231 5432 3218 4563',
     card_holder_name: 'Usuário',
     bank_name: 'Banco Mock',
     card_type: 'visa' as const,
@@ -501,6 +895,7 @@ const CardContent = ({ card, transactions, weekData, stats, theme, maxValue, bar
     current_balance: 875.46,
     primary_color: theme.primary,
     secondary_color: theme.secondary,
+    expiry_date: '12/25',
     is_active: true,
     owner_id: '',
     created_at: '',
@@ -520,12 +915,20 @@ const CardContent = ({ card, transactions, weekData, stats, theme, maxValue, bar
         end={{ x: 1, y: 0 }}
         style={styles.card}
       >
-        <Text style={styles.cardLabel}>Limite</Text>
+        <View style={styles.cardHeader}>
+          <Text style={styles.cardLabel}>Limite</Text>
+          <TouchableOpacity 
+            style={styles.editButton}
+            onPress={() => openEditModal()}
+          >
+            <Edit size={18} color="#fff" />
+          </TouchableOpacity>
+        </View>
         <Text style={styles.cardBalance}>
           R$ {cardData.available_limit?.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) || '0,00'}
         </Text>
         <Text style={styles.cardNumber}>
-          {cardsService.formatCardNumber(cardData.card_number)}
+          **** **** **** ****
         </Text>
         <Text style={styles.cardExpiry}>{cardData.bank_name}</Text>
       </LinearGradient>
@@ -533,9 +936,20 @@ const CardContent = ({ card, transactions, weekData, stats, theme, maxValue, bar
       {/* Balance */}
       <View style={styles.balanceSection}>
         <Text style={styles.balanceLabel}>Limite do Cartão</Text>
-        <Text style={[styles.balanceAmount, { color: theme.text }]}>
-          R$ {cardData.available_limit?.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) || '0,00'}
-        </Text>
+        <View style={styles.limitContainer}>
+          <View style={styles.limitItem}>
+            <Text style={styles.limitSubLabel}>Disponível</Text>
+            <Text style={[styles.balanceAmount, { color: theme.text }]}>
+              R$ {cardData.available_limit?.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) || '0,00'}
+            </Text>
+          </View>
+          <View style={styles.limitItem}>
+            <Text style={styles.limitSubLabel}>Utilizado</Text>
+            <Text style={[styles.balanceAmount, { color: theme.expense }]}>
+              R$ {cardData.current_balance?.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) || '0,00'}
+            </Text>
+          </View>
+        </View>
       </View>
 
       {/* Income/Expenditure */}
@@ -701,6 +1115,21 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: '600',
   },
+  limitContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 8,
+  },
+  limitItem: {
+    flex: 1,
+    marginHorizontal: 4,
+  },
+  limitSubLabel: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 4,
+    textAlign: 'center',
+  },
   statsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -848,5 +1277,260 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginTop: 16,
     textAlign: 'center',
+  },
+  // Estilos para o botão de edição
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  editButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  // Estilos para o modal
+  modalContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: '#ffffff',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 24,
+    paddingBottom: Platform.OS === 'ios' ? 40 : 24,
+    maxHeight: '70%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#333',
+  },
+  closeButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#f5f5f5',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalScrollView: {
+    flex: 1,
+    marginBottom: 24,
+  },
+  input: {
+    backgroundColor: '#f5f7fa',
+    borderRadius: 12,
+    padding: 16,
+    fontSize: 16,
+    color: '#131313',
+    marginBottom: 16,
+  },
+  // Estilos para seleção de bandeira do cartão
+  cardBrandSection: {
+    marginBottom: 24,
+  },
+  cardBrandLabel: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#131313',
+    marginBottom: 12,
+  },
+  cardBrandOptions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  cardBrandOption: {
+    width: '48%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 12,
+    borderRadius: 12,
+    backgroundColor: '#f5f7fa',
+    marginBottom: 8,
+  },
+  selectedCardBrand: {
+    backgroundColor: '#b687fe',
+  },
+  cardBrandText: {
+    marginLeft: 8,
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '500',
+  },
+  selectedCardBrandText: {
+    color: '#ffffff',
+  },
+  // Estilos para tipo de cartão
+  rowInputs: {
+    flexDirection: 'row',
+    marginBottom: 24,
+  },
+  cardTypeOption: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+    borderRadius: 12,
+    backgroundColor: '#f5f7fa',
+    marginHorizontal: 8,
+  },
+  selectedCardType: {
+    backgroundColor: '#b687fe',
+  },
+  cardTypeText: {
+    fontSize: 16,
+    color: '#666',
+    fontWeight: '500',
+  },
+  selectedCardTypeText: {
+    color: '#ffffff',
+  },
+  // Estilos para seleção de cores
+  colorSection: {
+    marginBottom: 24,
+  },
+  colorSectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#131313',
+    marginBottom: 8,
+  },
+  colorSelectors: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  colorSelectorContainer: {
+    width: '48%',
+    marginBottom: 16,
+  },
+  colorLabel: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#131313',
+    marginBottom: 12,
+  },
+  colorOptions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'flex-start',
+    gap: 4,
+  },
+  colorOption: {
+    width: 30,
+    height: 30,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 6,
+    marginRight: 4,
+  },
+  selectedColorOption: {
+    borderWidth: 3,
+    borderColor: '#ffffff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  colorCheckmark: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  colorCheckmarkText: {
+    fontSize: 9,
+    fontWeight: '600',
+    color: '#333',
+  },
+  // Estilos para preview do cartão
+  gradientPreviewContainer: {
+    marginBottom: 24,
+  },
+  gradientPreview: {
+    height: 190,
+    borderRadius: 16,
+    padding: 16,
+    paddingBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  previewCardContent: {
+    flex: 1,
+    justifyContent: 'space-between',
+  },
+  previewCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  previewCardType: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  previewCardBalance: {
+    color: '#ffffff',
+    fontSize: 22,
+    fontWeight: '600',
+    marginVertical: 8,
+    letterSpacing: 0.5,
+  },
+  previewCardNumber: {
+    color: '#ffffff',
+    fontSize: 14,
+    opacity: 0.9,
+    letterSpacing: 2,
+  },
+  previewCardName: {
+    color: '#ffffff',
+    fontSize: 14,
+    opacity: 0.9,
+    letterSpacing: 2,
+  },
+  previewCardExpiry: {
+    color: '#ffffff',
+    fontSize: 12,
+    opacity: 0.8,
+    letterSpacing: 1,
+    marginTop: 4,
+  },
+  addCardModalButton: {
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+    marginTop: 20,
+  },
+  addButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
   },
 }); 

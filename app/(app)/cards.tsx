@@ -153,53 +153,15 @@ export default function Cards() {
         const transactions = await cardsService.getAllUserTransactions();
         setCardTransactions(transactions);
       } else {
-        // Se não há cartões, usar transações mock para demonstração
-        setCardTransactions(mockTransactions);
+        setCardTransactions([]);
       }
     } catch (error) {
       console.error('Erro ao carregar cartões:', error);
-      // Em caso de erro, usar dados mock para não quebrar a interface
-      setCardTransactions(mockTransactions);
+      setCardTransactions([]);
     } finally {
       setLoading(false);
     }
   };
-
-  // Dados mock para transações (mantido para quando não há cartões)
-  const mockTransactions = [
-    {
-      id: '1',
-      description: 'Apartamento',
-      transaction_date: '2021-04-21',
-      amount: 120,
-      transaction_type: 'expense' as const,
-      icon: '🏢'
-    },
-    {
-      id: '2',
-      description: 'Pagamento',
-      transaction_date: '2021-04-18',
-      amount: 150,
-      transaction_type: 'income' as const,
-      icon: '💳'
-    },
-    {
-      id: '3',
-      description: 'Compra Online',
-      transaction_date: '2021-04-19',
-      amount: 75,
-      transaction_type: 'expense' as const,
-      icon: '🛍️'
-    },
-    {
-      id: '4',
-      description: 'Pagamento',
-      transaction_date: '2021-04-18',
-      amount: 150,
-      transaction_type: 'income' as const,
-      icon: '💳'
-    }
-  ];
 
   // Função para buscar o tema baseado no perfil do usuário
   const fetchUserTheme = async () => {
@@ -492,60 +454,7 @@ export default function Cards() {
             ))
           )}
 
-          {/* Cartões mock para demonstração quando não há cartões reais */}
-          {!loading && cards.length === 0 && (
-            <>
-              <LinearGradient
-                colors={[theme.primary, theme.secondary]}
-                style={styles.card}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-              >
-                <TouchableOpacity 
-                  style={styles.cardContent}
-                  onPress={() => router.push('/(app)/card-detail')}
-                >
-                  <View style={styles.cardHeader}>
-                    <CreditCard size={24} color="#ffffff" />
-                    <Text style={styles.cardType}>mastercard</Text>
-                  </View>
-                  <Text style={styles.cardBalance}>R$ 875,46</Text>
-                  <Text style={styles.cardNumber}>124 987 324 ***</Text>
-                  <View style={styles.viewDetailsContainer}>
-                    <Text style={styles.viewDetailsText}>Toque para ver detalhes</Text>
-                    <View style={styles.viewDetailsIcon}>
-                      <Text style={styles.viewDetailsIconText}>👆</Text>
-                    </View>
-                  </View>
-                </TouchableOpacity>
-              </LinearGradient>
 
-              <LinearGradient
-                colors={theme === themes.masculine ? [theme.shared, '#0056b3'] : ['#0073ea', '#0056b3']}
-                style={styles.card}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-              >
-                <TouchableOpacity 
-                  style={styles.cardContent}
-                  onPress={() => router.push('/(app)/card-detail')}
-                >
-                  <View style={styles.cardHeader}>
-                    <CreditCard size={24} color="#ffffff" />
-                    <Text style={styles.cardType}>VISA</Text>
-                  </View>
-                  <Text style={styles.cardBalance}>R$ 560,00</Text>
-                  <Text style={styles.cardNumber}>753 926 768 ***</Text>
-                  <View style={styles.viewDetailsContainer}>
-                    <Text style={styles.viewDetailsText}>Toque para ver detalhes</Text>
-                    <View style={styles.viewDetailsIcon}>
-                      <Text style={styles.viewDetailsIconText}>👆</Text>
-                    </View>
-                  </View>
-                </TouchableOpacity>
-              </LinearGradient>
-            </>
-          )}
         </ScrollView>
 
         <View style={styles.transactionSection}>

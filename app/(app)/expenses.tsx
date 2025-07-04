@@ -505,6 +505,14 @@ export default function Expenses() {
     loadData();
   }, []);
 
+  // Recarregar despesas quando o mês mudar
+  useEffect(() => {
+    if (expenses.length > 0) {
+      // As despesas já estão carregadas, apenas o filtro será aplicado automaticamente
+      // Não precisamos recarregar do banco, pois o filtro é feito no frontend
+    }
+  }, [currentMonth, currentYear]);
+
 
 
 
@@ -609,7 +617,12 @@ export default function Expenses() {
   };
 
   // Filtrar e organizar as despesas
-  const sortedExpenses = [...expenses].sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
+  const sortedExpenses = [...expenses]
+    .filter((expense) => {
+      const expenseDate = new Date(expense.dueDate);
+      return expenseDate.getMonth() === currentMonth && expenseDate.getFullYear() === currentYear;
+    })
+    .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
 
   // Cor para despesas atrasadas (vermelho)
   const OVERDUE_COLOR = '#FF3B30';

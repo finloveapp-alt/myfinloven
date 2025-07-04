@@ -177,6 +177,9 @@ export default function Accounts() {
   
   // Estado para armazenar avatares
   const [avatars, setAvatars] = useState<any[]>([]);
+  
+  // Estado para armazenar dados do gráfico
+  const [chartData, setChartData] = useState<{[key: string]: any[]}>({});
 
   // Salvar o tema no AsyncStorage quando ele for alterado
   const saveThemeToStorage = async (themeValue: string) => {
@@ -260,6 +263,19 @@ export default function Accounts() {
       setAvatars(avatarsData || []);
     } catch (error) {
       console.error('Erro ao buscar avatares:', error);
+    }
+  };
+
+  // Função para buscar dados do gráfico para uma conta específica
+  const fetchAccountChartData = async (accountId: string) => {
+    try {
+      const data = await generateChartData(accountId);
+      setChartData(prev => ({
+        ...prev,
+        [accountId]: data
+      }));
+    } catch (error) {
+      console.error('Erro ao buscar dados do gráfico:', error);
     }
   };
 
@@ -1198,6 +1214,19 @@ export default function Accounts() {
     
     return expenseData;
   };
+
+  // Função para obter dados do gráfico de uma conta específica
+  const getAccountChartData = (accountId: string) => {
+    return chartData[accountId] || [
+      { day: 'Sáb', debit: 0, credit: 0 },
+      { day: 'Dom', debit: 0, credit: 0 },
+      { day: 'Seg', debit: 0, credit: 0 },
+      { day: 'Ter', debit: 0, credit: 0 },
+      { day: 'Qua', debit: 0, credit: 0 },
+      { day: 'Qui', debit: 0, credit: 0 },
+      { day: 'Sex', debit: 0, credit: 0 }
+    ];
+  };
   
   // Abrir modal de detalhes da conta
   const handleOpenAccountDetails = (account: any) => {
@@ -1207,6 +1236,8 @@ export default function Accounts() {
     fetchAccountSummary(account.id);
     // Buscar últimas transações da conta
     fetchAccountTransactions(account.id);
+    // Buscar dados do gráfico da conta
+    fetchAccountChartData(account.id);
   };
 
   const handleOpenEditAccount = () => {
@@ -1294,21 +1325,88 @@ export default function Accounts() {
     return `rgba(${r}, ${g}, ${b}, ${opacity})`;
   };
   
-  // Gerar dados para o gráfico de débito e crédito
-  const generateChartData = () => {
-    return [
-      { day: 'Sáb', debit: 75, credit: 95 },
-      { day: 'Dom', debit: 45, credit: 70 },
-      { day: 'Seg', debit: 35, credit: 45 },
-      { day: 'Ter', debit: 80, credit: 40 },
-      { day: 'Qua', debit: 50, credit: 80 },
-      { day: 'Qui', debit: 60, credit: 35 },
-      { day: 'Sex', debit: 40, credit: 85 }
-    ];
+  // Gerar dados para o gráfico de débito e crédito a partir do Supabase
+  const generateChartData = async (accountId: string) => {
+    try {
+      // Buscar transações dos últimos 7 dias para a conta específica
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      
+      const { data: transactions, error } = await supabase
+        .from('transactions')
+        .select('*')
+        .eq('account_id', accountId)
+        .gte('transaction_date', sevenDaysAgo.toISOString())
+        .order('transaction_date', { ascending: true });
+
+      if (error) {
+        console.error('Erro ao buscar transações para o gráfico:', error);
+        // Retornar dados padrão em caso de erro
+        return [
+          { day: 'Sáb', debit: 0, credit: 0 },
+          { day: 'Dom', debit: 0, credit: 0 },
+          { day: 'Seg', debit: 0, credit: 0 },
+          { day: 'Ter', debit: 0, credit: 0 },
+          { day: 'Qua', debit: 0, credit: 0 },
+          { day: 'Qui', debit: 0, credit: 0 },
+          { day: 'Sex', debit: 0, credit: 0 }
+        ];
+      }
+
+      // Criar um mapeamento dos últimos 7 dias
+      const daysOfWeek = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+      const chartData = [];
+      
+      for (let i = 6; i >= 0; i--) {
+        const date = new Date();
+        date.setDate(date.getDate() - i);
+        const dayName = daysOfWeek[date.getDay()];
+        
+        // Filtrar transações do dia específico
+        const dayTransactions = transactions?.filter(transaction => {
+          const transactionDate = new Date(transaction.transaction_date);
+          return transactionDate.toDateString() === date.toDateString();
+        }) || [];
+        
+        // Calcular débito e crédito do dia
+        let debitTotal = 0;
+        let creditTotal = 0;
+        
+        dayTransactions.forEach(transaction => {
+          const amount = Math.abs(parseFloat(transaction.amount));
+          if (transaction.payment_method === 'Débito') {
+            debitTotal += amount;
+          } else if (transaction.payment_method === 'Crédito') {
+            creditTotal += amount;
+          }
+        });
+        
+        chartData.push({
+          day: dayName,
+          debit: debitTotal,
+          credit: creditTotal
+        });
+      }
+      
+      return chartData;
+    } catch (error) {
+      console.error('Erro ao gerar dados do gráfico:', error);
+      // Retornar dados padrão em caso de erro
+      return [
+        { day: 'Sáb', debit: 0, credit: 0 },
+        { day: 'Dom', debit: 0, credit: 0 },
+        { day: 'Seg', debit: 0, credit: 0 },
+        { day: 'Ter', debit: 0, credit: 0 },
+        { day: 'Qua', debit: 0, credit: 0 },
+        { day: 'Qui', debit: 0, credit: 0 },
+        { day: 'Sex', debit: 0, credit: 0 }
+      ];
+    }
   };
   
-  const chartData = generateChartData();
-  const maxChartValue = Math.max(...chartData.map(item => Math.max(item.debit, item.credit)));
+  // Obter dados do gráfico para a conta selecionada
+  const accountChartData = selectedAccount ? getAccountChartData(selectedAccount.id) : [];
+  const maxChartValue = Math.max(...accountChartData.map(item => Math.max(item.debit, item.credit)), 1);
 
   // Função auxiliar para obter ícone com base no tipo de conta
   const getAccountIcon = (type: string) => {
@@ -2157,7 +2255,7 @@ export default function Accounts() {
                 </View>
 
                 <View style={styles.chartContainer}>
-                  {chartData.map((item, index) => (
+                  {accountChartData.map((item, index) => (
                     <View key={index} style={styles.chartColumn}>
                       <View style={styles.chartBars}>
                         <View style={styles.barContainer}>

@@ -339,8 +339,8 @@ export default function CardDetail() {
         if (selectedCard) {
           setCard(selectedCard);
           
-          // Buscar transações do cartão
-          const cardTransactions = await cardsService.getCardTransactions(cardId, 20);
+          // Buscar transações do cartão (aumentar limite para capturar mais dados)
+          const cardTransactions = await cardsService.getCardTransactions(cardId, 50);
           setTransactions(cardTransactions);
           
           // Processar dados da semana baseado nas transações
@@ -354,41 +354,25 @@ export default function CardDetail() {
           const firstCard = userCards[0];
           setCard(firstCard);
           
-          // Buscar transações do primeiro cartão
-          const cardTransactions = await cardsService.getCardTransactions(firstCard.id, 20);
+          // Buscar transações do primeiro cartão (aumentar limite para capturar mais dados)
+          const cardTransactions = await cardsService.getCardTransactions(firstCard.id, 50);
           setTransactions(cardTransactions);
           
           // Processar dados da semana baseado nas transações
           processWeeklyData(cardTransactions);
         } else {
-          // Se não há cartões, usar dados mock
+          // Se não há cartões, usar dados vazios
           setCard(null);
           setTransactions([]);
-          setWeekData([
-            { day: 'Seg', value: 31 },
-            { day: 'Ter', value: 27 },
-            { day: 'Qua', value: 39 },
-            { day: 'Qui', value: 14 },
-            { day: 'Sex', value: 28 },
-            { day: 'Sáb', value: 24 },
-            { day: 'Dom', value: 33 },
-          ]);
+          processWeeklyData([]);
         }
       }
     } catch (error) {
       console.error('Erro ao carregar dados do cartão:', error);
-      // Em caso de erro, usar dados mock
+      // Em caso de erro, usar dados vazios
       setCard(null);
       setTransactions([]);
-      setWeekData([
-        { day: 'Seg', value: 31 },
-        { day: 'Ter', value: 27 },
-        { day: 'Qua', value: 39 },
-        { day: 'Qui', value: 14 },
-        { day: 'Sex', value: 28 },
-        { day: 'Sáb', value: 24 },
-        { day: 'Dom', value: 33 },
-      ]);
+      processWeeklyData([]);
     } finally {
       setLoading(false);
     }
@@ -396,7 +380,6 @@ export default function CardDetail() {
 
   // Processar dados semanais baseado nas transações
   const processWeeklyData = (transactions: CardTransaction[]) => {
-    const weekDays = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
     const weeklyExpenses = [0, 0, 0, 0, 0, 0, 0]; // Dom a Sáb
     
     // Filtrar transações da última semana
@@ -406,9 +389,11 @@ export default function CardDetail() {
     transactions.forEach(transaction => {
       const transactionDate = new Date(transaction.transaction_date);
       
+      // Para despesas, o valor vem negativo do banco, então usamos Math.abs para obter o valor positivo
       if (transactionDate >= oneWeekAgo && transaction.transaction_type === 'expense') {
         const dayOfWeek = transactionDate.getDay(); // 0 = Dom, 1 = Seg, etc.
-        weeklyExpenses[dayOfWeek] += transaction.amount;
+        const expenseValue = Math.abs(transaction.amount); // Garantir valor positivo para o gráfico
+        weeklyExpenses[dayOfWeek] += expenseValue;
       }
     });
     

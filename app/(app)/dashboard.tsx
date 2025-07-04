@@ -205,6 +205,13 @@ export default function Dashboard() {
       }
     };
   }, []);
+
+  // Recarregar dados quando o mês mudar
+  useEffect(() => {
+    fetchSummaryData();
+  }, [currentMonth]);
+
+
   
   // Função para buscar o usuário atual e seus parceiros
   const fetchUserAndPartner = async () => {
@@ -644,7 +651,8 @@ export default function Dashboard() {
       
       const userId = session.user.id;
       
-      // Buscar as 10 transações mais recentes do usuário
+      // Buscar as 10 transações mais recentes do usuário (apenas do dia atual para trás)
+      const currentDate = new Date();
       const { data: transactions, error: transactionsError } = await supabase
         .from('transactions')
         .select(`
@@ -659,6 +667,7 @@ export default function Dashboard() {
           accounts!transactions_account_id_fkey(name)
         `)
         .eq('owner_id', userId)
+        .lte('transaction_date', currentDate.toISOString())
         .order('transaction_date', { ascending: false })
         .limit(10);
       
@@ -955,9 +964,19 @@ export default function Dashboard() {
         .select('*')
         .eq('owner_id', userId)
         .eq('is_paid', false)
-        .gte('due_date', thirtyDaysAgo.toISOString()) // Incluir contas vencidas dos últimos 30 dias
-        .order('due_date', { ascending: true })
-        .limit(8); // Aumentar limite para mais contas
+        .lte('due_date', currentDate.toISOString()) // Apenas até o dia atual
+        .order('due_date', { ascending: false })
+        .limit(5);
+      
+      // Buscar despesas da tabela transactions (apenas do dia atual para trás)
+      const { data: transactionExpenses, error: transactionError } = await supabase
+        .from('transactions')
+        .select('*')
+        .eq('owner_id', userId)
+        .eq('transaction_type', 'expense')
+        .lte('transaction_date', currentDate.toISOString()) // Apenas até o dia atual
+        .order('transaction_date', { ascending: false })
+        .limit(5);
       
       // Buscar cartões de crédito com saldo pendente (negativos)
       const { data: creditCards, error: cardsError } = await supabase
@@ -989,29 +1008,13 @@ export default function Dashboard() {
           
           if (diffDays < 0) {
             const overdueDays = Math.abs(diffDays);
-            dateText = overdueDays === 1 ? 'Venceu ontem' : `Venceu há ${overdueDays} dias`;
+            dateText = overdueDays === 1 ? 'Ontem' : `Há ${overdueDays} dias`;
             backgroundColor = '#FFE2E6';
             iconColor = '#FF3B30';
           } else if (diffDays === 0) {
-            dateText = 'Vence hoje';
-            backgroundColor = '#FFE2E6';
-            iconColor = '#FF5A6E';
-          } else if (diffDays === 1) {
-            dateText = 'Vence amanhã';
-            backgroundColor = '#FFF6E3';
-            iconColor = '#FFB627';
-          } else if (diffDays <= 7) {
-            dateText = `Vence em ${diffDays} dias`;
-            backgroundColor = '#FFF6E3';
-            iconColor = '#FFB627';
-          } else if (diffDays <= 30) {
-            dateText = `Vence em ${dueDate.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}`;
-            backgroundColor = '#E3F5FF';
-            iconColor = '#0095FF';
-          } else {
-            dateText = `Vence em ${dueDate.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}`;
-            backgroundColor = '#F0F0F0';
-            iconColor = '#666666';
+            dateText = 'Hoje';
+            backgroundColor = '#E8F9E8';
+            iconColor = '#28A745';
           }
           
           // Definir ícone baseado na categoria ou tipo de despesa
@@ -1042,6 +1045,67 @@ export default function Dashboard() {
             icon,
             dueDate: expense.due_date,
             category: expense.category,
+            isOverdue: diffDays < 0
+          });
+        });
+      }
+      
+      // Processar despesas da tabela transactions (contas a pagar)
+      if (transactionExpenses && !transactionError) {
+        transactionExpenses.forEach(transaction => {
+          const transactionDate = new Date(transaction.transaction_date);
+          const today = new Date();
+          today.setHours(0, 0, 0, 0); // Zerar horas para comparação precisa
+          transactionDate.setHours(0, 0, 0, 0);
+          
+          const diffTime = transactionDate.getTime() - today.getTime();
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          
+          let dateText = '';
+          let backgroundColor = '#E3F5FF';
+          let iconColor = '#0095FF';
+          
+                     if (diffDays < 0) {
+             const overdueDays = Math.abs(diffDays);
+             dateText = overdueDays === 1 ? 'Ontem' : `Há ${overdueDays} dias`;
+             backgroundColor = '#FFE2E6';
+             iconColor = '#FF3B30';
+           } else if (diffDays === 0) {
+             dateText = 'Hoje';
+             backgroundColor = '#E8F9E8';
+             iconColor = '#28A745';
+           }
+          
+          // Definir ícone baseado na categoria ou tipo de despesa
+          let icon = Receipt;
+          const category = transaction.category?.toLowerCase() || '';
+          const description = transaction.description?.toLowerCase() || '';
+          
+          if (category.includes('cartão') || category.includes('crédito') || description.includes('cartão')) {
+            icon = CreditCard;
+          } else if (category.includes('energia') || category.includes('luz') || description.includes('energia') || description.includes('luz')) {
+            icon = Receipt;
+          } else if (category.includes('água') || description.includes('água')) {
+            icon = Receipt;
+          } else if (category.includes('internet') || category.includes('telefone') || description.includes('internet') || description.includes('telefone') || description.includes('wifi')) {
+            icon = Receipt;
+          } else if (category.includes('aluguel') || description.includes('aluguel')) {
+            icon = Receipt;
+          } else if (category.includes('mercado') || description.includes('mercado')) {
+            icon = Receipt;
+          }
+          
+          combinedData.push({
+            id: `transaction_${transaction.id}`,
+            type: 'transaction_expense',
+            title: transaction.description || 'Despesa',
+            subtitle: dateText,
+            amount: Math.abs(parseFloat(transaction.amount)), // Usar valor absoluto
+            backgroundColor,
+            iconColor,
+            icon,
+            dueDate: transaction.transaction_date,
+            category: transaction.category,
             isOverdue: diffDays < 0
           });
         });
@@ -1097,17 +1161,18 @@ export default function Dashboard() {
         });
       }
       
-      // Ordenar por urgência (contas vencidas primeiro, depois por vencimento, depois cartões)
+      // Ordenar por data mais recente primeiro (despesas e transações)
       combinedData.sort((a, b) => {
-        // Priorizar contas vencidas
-        if (a.type === 'expense' && b.type === 'expense') {
-          if (a.isOverdue && !b.isOverdue) return -1;
-          if (!a.isOverdue && b.isOverdue) return 1;
-          return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+        // Primeiro, separar despesas/transações de cartões
+        if ((a.type === 'expense' || a.type === 'transaction_expense') && b.type === 'card') return -1;
+        if (a.type === 'card' && (b.type === 'expense' || b.type === 'transaction_expense')) return 1;
+        
+        // Entre despesas e transações, ordenar por data mais recente
+        if ((a.type === 'expense' || a.type === 'transaction_expense') && 
+            (b.type === 'expense' || b.type === 'transaction_expense')) {
+          return new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime();
         }
-        // Despesas sempre antes de cartões
-        if (a.type === 'expense' && b.type === 'card') return -1;
-        if (a.type === 'card' && b.type === 'expense') return 1;
+        
         // Entre cartões, ordenar por saldo
         if (a.type === 'card' && b.type === 'card') {
           return Number(b.amount) - Number(a.amount);
@@ -1116,10 +1181,11 @@ export default function Dashboard() {
       });
       
       console.log('Contas a pagar encontradas:', unpaidExpenses?.length || 0);
+      console.log('Despesas de transações encontradas:', transactionExpenses?.length || 0);
       console.log('Cartões encontrados:', creditCards?.length || 0);
       console.log('Total combinado:', combinedData.length);
       
-      setBillsAndCards(combinedData.slice(0, 8)); // Aumentar limite para 8 itens
+      setBillsAndCards(combinedData.slice(0, 5)); // Limitar a 5 itens
       
     } catch (error) {
       console.error('Erro ao buscar contas a pagar e cartões:', error);
@@ -1145,12 +1211,14 @@ export default function Dashboard() {
       
       const userId = session.user.id;
       
-      // Buscar receitas não recebidas (contas a receber)
+      // Buscar receitas não recebidas (contas a receber) - apenas do dia atual para trás
+      const currentDate = new Date();
       const { data: unpaidIncomes, error: incomesError } = await supabase
         .from('incomes')
         .select('*')
         .eq('owner_id', userId)
         .eq('is_received', false)
+        .lte('receipt_date', currentDate.toISOString())
         .order('receipt_date', { ascending: false })
         .limit(3);
       
@@ -1174,30 +1242,16 @@ export default function Dashboard() {
           if (diffDays < 0) {
             const overdueDays = Math.abs(diffDays);
             if (overdueDays === 1) {
-              dateText = 'Atrasou ontem';
-            } else if (overdueDays <= 30) {
-              dateText = `Atrasou há ${overdueDays} dias`;
+              dateText = 'Ontem';
             } else {
-              dateText = `Atrasou em ${receiptDate.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}`;
+              dateText = `Há ${overdueDays} dias`;
             }
             backgroundColor = '#FFF6E3';
             iconColor = '#FFB627';
           } else if (diffDays === 0) {
-            dateText = 'Recebe hoje';
+            dateText = 'Hoje';
             backgroundColor = '#E8F9E8';
             iconColor = '#28A745';
-          } else if (diffDays === 1) {
-            dateText = 'Recebe amanhã';
-            backgroundColor = '#E8F9E8';
-            iconColor = '#28A745';
-          } else if (diffDays <= 7) {
-            dateText = `Recebe em ${diffDays} dias`;
-            backgroundColor = '#E8F9E8';
-            iconColor = '#28A745';
-          } else {
-            dateText = `Previsto para ${receiptDate.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}`;
-            backgroundColor = '#E3F5FF';
-            iconColor = '#0095FF';
           }
           
           // Definir categoria baseada na descrição
@@ -1387,8 +1441,8 @@ export default function Dashboard() {
     }
   };
 
-  // Função para buscar saldo previsto (receitas - gastos do próximo mês)
-  const fetchPredictedBalance = async () => {
+  // Função para calcular saldo previsto usando um saldo específico
+  const calculatePredictedBalance = async (currentSaldo: number) => {
     try {
       // Obter a sessão atual
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
@@ -1399,15 +1453,16 @@ export default function Dashboard() {
       }
       
       const userId = session.user.id;
-      const currentDate = new Date();
       
-      // Calcular o próximo mês
-      const nextMonth = currentDate.getMonth() + 1;
-      const nextYear = nextMonth > 11 ? currentDate.getFullYear() + 1 : currentDate.getFullYear();
-      const adjustedMonth = nextMonth > 11 ? 0 : nextMonth;
+      // Calcular o próximo mês baseado no mês selecionado
+      const selectedMonth = currentMonth.getMonth() + 1;
+      const selectedYear = currentMonth.getFullYear();
+      const nextMonth = selectedMonth + 1;
+      const nextYear = nextMonth > 12 ? selectedYear + 1 : selectedYear;
+      const adjustedMonth = nextMonth > 12 ? 1 : nextMonth;
       
-      const startOfNextMonth = new Date(nextYear, adjustedMonth, 1);
-      const endOfNextMonth = new Date(nextYear, adjustedMonth + 1, 0);
+      const startOfNextMonth = new Date(nextYear, adjustedMonth - 1, 1);
+      const endOfNextMonth = new Date(nextYear, adjustedMonth, 0);
       
       // Buscar receitas do próximo mês na tabela incomes
       const { data: incomes, error: incomesError } = await supabase
@@ -1467,15 +1522,114 @@ export default function Dashboard() {
       const totalNextMonthIncomes = totalIncomes + transactionIncomes;
       const totalNextMonthExpenses = totalExpenses + transactionExpenses;
       
-      // Saldo previsto = saldo atual + (receitas - despesas do próximo mês)
-      const predicted = currentBalance + (totalNextMonthIncomes - totalNextMonthExpenses);
+      // Saldo previsto = saldo fornecido + (receitas - despesas do próximo mês)
+      const predicted = currentSaldo + (totalNextMonthIncomes - totalNextMonthExpenses);
       
       console.log('Cálculo do Saldo Previsto:', {
-        saldoAtual: currentBalance,
+        saldoMesSelecionado: currentSaldo,
         receitasProximoMes: totalNextMonthIncomes,
         despesasProximoMes: totalNextMonthExpenses,
         saldoPrevisto: predicted,
-        proximoMes: `${adjustedMonth + 1}/${nextYear}`
+        proximoMes: `${adjustedMonth}/${nextYear}`
+      });
+      
+      setPredictedBalance(predicted);
+      
+    } catch (error) {
+      console.error('Erro ao buscar saldo previsto:', error);
+    }
+  };
+
+  // Função para buscar saldo previsto (receitas - gastos do próximo mês)
+  const fetchPredictedBalance = async () => {
+    try {
+      // Obter a sessão atual
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session?.user) {
+        console.error('Erro ao obter sessão:', sessionError);
+        return;
+      }
+      
+      const userId = session.user.id;
+      
+      // Calcular o próximo mês baseado no mês selecionado
+      const selectedMonth = currentMonth.getMonth() + 1;
+      const selectedYear = currentMonth.getFullYear();
+      const nextMonth = selectedMonth + 1;
+      const nextYear = nextMonth > 12 ? selectedYear + 1 : selectedYear;
+      const adjustedMonth = nextMonth > 12 ? 1 : nextMonth;
+      
+      const startOfNextMonth = new Date(nextYear, adjustedMonth - 1, 1);
+      const endOfNextMonth = new Date(nextYear, adjustedMonth, 0);
+      
+      // Buscar receitas do próximo mês na tabela incomes
+      const { data: incomes, error: incomesError } = await supabase
+        .from('incomes')
+        .select('amount')
+        .eq('owner_id', userId)
+        .gte('receipt_date', startOfNextMonth.toISOString())
+        .lte('receipt_date', endOfNextMonth.toISOString());
+      
+      // Buscar despesas do próximo mês na tabela expenses
+      const { data: expenses, error: expensesError } = await supabase
+        .from('expenses')
+        .select('amount')
+        .eq('owner_id', userId)
+        .gte('due_date', startOfNextMonth.toISOString())
+        .lte('due_date', endOfNextMonth.toISOString());
+      
+      // Buscar transações do próximo mês na tabela transactions
+      const { data: transactions, error: transactionsError } = await supabase
+        .from('transactions')
+        .select('amount, transaction_type')
+        .eq('owner_id', userId)
+        .gte('transaction_date', startOfNextMonth.toISOString())
+        .lte('transaction_date', endOfNextMonth.toISOString());
+      
+      if (incomesError || expensesError || transactionsError) {
+        console.error('Erro ao buscar dados do próximo mês:', incomesError || expensesError || transactionsError);
+        return;
+      }
+      
+      // Somar receitas do próximo mês da tabela incomes
+      const totalIncomes = incomes?.reduce((total, income) => {
+        return total + (Number(income.amount) || 0);
+      }, 0) || 0;
+      
+      // Somar despesas do próximo mês da tabela expenses
+      const totalExpenses = expenses?.reduce((total, expense) => {
+        return total + (Number(expense.amount) || 0);
+      }, 0) || 0;
+      
+      // Somar transações do próximo mês da tabela transactions
+      const transactionIncomes = transactions?.reduce((total, transaction) => {
+        if (transaction.transaction_type === 'income') {
+          return total + (Number(transaction.amount) || 0);
+        }
+        return total;
+      }, 0) || 0;
+      
+      const transactionExpenses = transactions?.reduce((total, transaction) => {
+        if (transaction.transaction_type === 'expense') {
+          return total + Math.abs(Number(transaction.amount) || 0);
+        }
+        return total;
+      }, 0) || 0;
+      
+      // Somar todas as receitas e despesas do próximo mês
+      const totalNextMonthIncomes = totalIncomes + transactionIncomes;
+      const totalNextMonthExpenses = totalExpenses + transactionExpenses;
+      
+      // Saldo previsto = saldo do mês selecionado + (receitas - despesas do próximo mês)
+      const predicted = summaryData.saldoTotal + (totalNextMonthIncomes - totalNextMonthExpenses);
+      
+      console.log('Cálculo do Saldo Previsto:', {
+        saldoMesSelecionado: summaryData.saldoTotal,
+        receitasProximoMes: totalNextMonthIncomes,
+        despesasProximoMes: totalNextMonthExpenses,
+        saldoPrevisto: predicted,
+        proximoMes: `${adjustedMonth}/${nextYear}`
       });
       
       setPredictedBalance(predicted);
@@ -2329,9 +2483,8 @@ export default function Dashboard() {
       }
       
       const userId = session.user.id;
-      const currentDate = new Date();
-      const currentMonth = currentDate.getMonth() + 1;
-      const currentYear = currentDate.getFullYear();
+      const selectedMonth = currentMonth.getMonth() + 1;
+      const selectedYear = currentMonth.getFullYear();
       
       // Buscar contas com saldo inicial
       const { data: accounts, error: accountsError } = await supabase
@@ -2347,39 +2500,39 @@ export default function Dashboard() {
       // Saldo será calculado após obter receitas e despesas
       let saldoTotal = 0;
       
-      // Buscar receitas do mês atual da tabela incomes
+      // Buscar receitas do mês selecionado da tabela incomes
       const { data: monthlyIncomes, error: monthlyIncomesError } = await supabase
         .from('incomes')
         .select('amount')
         .eq('owner_id', userId)
-        .gte('receipt_date', `${currentYear}-${currentMonth.toString().padStart(2, '0')}-01`)
-        .lt('receipt_date', `${currentYear}-${(currentMonth + 1).toString().padStart(2, '0')}-01`);
+        .gte('receipt_date', `${selectedYear}-${selectedMonth.toString().padStart(2, '0')}-01`)
+        .lt('receipt_date', `${selectedYear}-${(selectedMonth + 1).toString().padStart(2, '0')}-01`);
       
-      // Buscar transações de receita do mês atual
+      // Buscar transações de receita do mês selecionado
       const { data: monthlyTransactionIncomes, error: monthlyTransactionIncomesError } = await supabase
         .from('transactions')
         .select('amount')
         .eq('owner_id', userId)
         .eq('transaction_type', 'income')
-        .gte('transaction_date', `${currentYear}-${currentMonth.toString().padStart(2, '0')}-01`)
-        .lt('transaction_date', `${currentYear}-${(currentMonth + 1).toString().padStart(2, '0')}-01`);
+        .gte('transaction_date', `${selectedYear}-${selectedMonth.toString().padStart(2, '0')}-01`)
+        .lt('transaction_date', `${selectedYear}-${(selectedMonth + 1).toString().padStart(2, '0')}-01`);
       
-      // Buscar despesas do mês atual da tabela expenses
+      // Buscar despesas do mês selecionado da tabela expenses
       const { data: monthlyExpenses, error: monthlyExpensesError } = await supabase
         .from('expenses')
         .select('amount')
         .eq('owner_id', userId)
-        .gte('due_date', `${currentYear}-${currentMonth.toString().padStart(2, '0')}-01`)
-        .lt('due_date', `${currentYear}-${(currentMonth + 1).toString().padStart(2, '0')}-01`);
+        .gte('due_date', `${selectedYear}-${selectedMonth.toString().padStart(2, '0')}-01`)
+        .lt('due_date', `${selectedYear}-${(selectedMonth + 1).toString().padStart(2, '0')}-01`);
       
-      // Buscar transações de despesa do mês atual
+      // Buscar transações de despesa do mês selecionado
       const { data: monthlyExpenseTransactions, error: monthlyExpenseTransactionsError } = await supabase
         .from('transactions')
         .select('amount')
         .eq('owner_id', userId)
         .eq('transaction_type', 'expense')
-        .gte('transaction_date', `${currentYear}-${currentMonth.toString().padStart(2, '0')}-01`)
-        .lt('transaction_date', `${currentYear}-${(currentMonth + 1).toString().padStart(2, '0')}-01`);
+        .gte('transaction_date', `${selectedYear}-${selectedMonth.toString().padStart(2, '0')}-01`)
+        .lt('transaction_date', `${selectedYear}-${(selectedMonth + 1).toString().padStart(2, '0')}-01`);
       
       // Calcular totais
       const receitasMesIncomes = monthlyIncomes?.reduce((sum, income) => sum + Number(income.amount), 0) || 0;
@@ -2399,6 +2552,9 @@ export default function Dashboard() {
         receitasMes,
         despesasMes
       });
+      
+      // Calcular saldo previsto usando os valores recém-calculados
+      await calculatePredictedBalance(saldoTotal);
       
     } catch (error) {
       console.error('Erro ao buscar dados do resumo:', error);
@@ -2478,7 +2634,11 @@ export default function Dashboard() {
                   <Text style={styles.balanceAmountSmall}>{formatCurrency(initialBalance)}</Text>
                 </View>
                 <View style={[styles.balanceValueItem, styles.balanceValueCenterItem]}>
-                  <Text style={styles.balanceAmountLarge}>{formatCurrency(summaryData.saldoTotal)}</Text>
+                  <Text style={[
+                    styles.balanceAmountLarge,
+                    summaryData.saldoTotal < 0 && Math.abs(summaryData.saldoTotal) >= 1000 && { fontSize: 20 },
+                    summaryData.saldoTotal < 0 && Math.abs(summaryData.saldoTotal) < 1000 && { fontSize: 24 }
+                  ]}>{formatCurrency(summaryData.saldoTotal)}</Text>
                 </View>
                 <View style={styles.balanceValueItem}>
                   <Text style={styles.balanceAmountSmall}>{formatCurrency(predictedBalance)}</Text>

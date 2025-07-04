@@ -143,6 +143,15 @@ export default function ReceitasScreen() {
   const [recurrenceEndPickerYear, setRecurrenceEndPickerYear] = useState(new Date().getFullYear());
   const [recurrenceEndPickerDay, setRecurrenceEndPickerDay] = useState(new Date().getDate());
 
+  // Estados para modais de edição e outras funcionalidades
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [changeValueModalVisible, setChangeValueModalVisible] = useState(false);
+  const [cardIncomeModalVisible, setCardIncomeModalVisible] = useState(false);
+  const [partialReceiveModalVisible, setPartialReceiveModalVisible] = useState(false);
+  const [editingIncome, setEditingIncome] = useState<Income | null>(null);
+  const [newAmount, setNewAmount] = useState('');
+  const [partialAmount, setPartialAmount] = useState('');
+
   // Constantes para o calendário
   const weekDays = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
 
@@ -219,6 +228,15 @@ export default function ReceitasScreen() {
     loadIncomes();
     loadUserAccounts();
   }, []);
+
+  // Recarregar receitas quando o mês/ano mudar
+  useEffect(() => {
+    // Não recarregar na primeira renderização
+    if (incomes.length > 0) {
+      // O filtro é aplicado automaticamente no render
+      console.log(`Filtrando receitas para ${months[currentMonth]} de ${currentYear}`);
+    }
+  }, [currentMonth, currentYear]);
 
   // Carregar contas do usuário
   const loadUserAccounts = async () => {
@@ -1047,6 +1065,288 @@ export default function ReceitasScreen() {
     setModalVisible(true);
   };
 
+  // Função para editar receita (Opção 1)
+  const openEditModal = () => {
+    const income = incomes.find(inc => inc.id === selectedIncomeId);
+    if (income) {
+      setEditingIncome(income);
+      setEditModalVisible(true);
+    }
+    setOptionsModalVisible(false);
+  };
+
+  const saveEditedIncome = async () => {
+    if (!editingIncome) return;
+    
+    try {
+      const { error } = await supabase
+        .from('incomes')
+        .update({
+          description: editingIncome.description,
+          amount: editingIncome.amount,
+          receipt_date: editingIncome.receiptDate.toISOString(),
+          category: editingIncome.category,
+          account_name: editingIncome.account
+        })
+        .eq('id', editingIncome.id);
+
+      if (error) {
+        console.error('Erro ao editar receita:', error);
+        Alert.alert('Erro', 'Erro ao editar receita');
+        return;
+      }
+
+      // Atualizar lista local
+      setIncomes(prev => prev.map(inc => 
+        inc.id === editingIncome.id ? {
+          ...inc,
+          description: editingIncome.description,
+          amount: editingIncome.amount,
+          receiptDate: editingIncome.receiptDate
+        } : inc
+      ));
+
+      setEditModalVisible(false);
+      setEditingIncome(null);
+      Alert.alert('Sucesso', 'Receita editada com sucesso!');
+    } catch (error) {
+      console.error('Erro ao editar receita:', error);
+      Alert.alert('Erro', 'Erro inesperado ao editar receita');
+    }
+  };
+
+  // Função para alterar valor (Opção 3)
+  const openChangeValueModal = () => {
+    const income = incomes.find(inc => inc.id === selectedIncomeId);
+    if (income) {
+      setNewAmount(income.amount.toString());
+      setChangeValueModalVisible(true);
+    }
+    setOptionsModalVisible(false);
+  };
+
+  const saveNewValue = async () => {
+    if (!selectedIncomeId || !newAmount) return;
+    
+    const numericAmount = parseFloat(newAmount.replace(/\./g, '').replace(',', '.'));
+    if (isNaN(numericAmount) || numericAmount <= 0) {
+      Alert.alert('Erro', 'Por favor, insira um valor válido');
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('incomes')
+        .update({ amount: numericAmount })
+        .eq('id', selectedIncomeId);
+
+      if (error) {
+        console.error('Erro ao alterar valor:', error);
+        Alert.alert('Erro', 'Erro ao alterar valor da receita');
+        return;
+      }
+
+      // Atualizar lista local
+      setIncomes(prev => prev.map(inc => 
+        inc.id === selectedIncomeId ? { ...inc, amount: numericAmount } : inc
+      ));
+
+      setChangeValueModalVisible(false);
+      setNewAmount('');
+      Alert.alert('Sucesso', 'Valor alterado com sucesso!');
+    } catch (error) {
+      console.error('Erro ao alterar valor:', error);
+      Alert.alert('Erro', 'Erro inesperado ao alterar valor');
+    }
+  };
+
+  // Função para duplicar receita (Opção 4)
+  const duplicateIncome = async () => {
+    const income = incomes.find(inc => inc.id === selectedIncomeId);
+    if (!income) return;
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) return;
+
+      const { data, error } = await supabase
+        .from('incomes')
+        .insert([{
+          description: `${income.description} (Cópia)`,
+          amount: income.amount,
+          receipt_date: new Date().toISOString(),
+          is_received: false,
+          is_shared: income.isShared,
+          is_recurring: income.isRecurring,
+          category: income.category,
+          account_name: income.account,
+          owner_id: session.user.id
+        }])
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Erro ao duplicar receita:', error);
+        Alert.alert('Erro', 'Erro ao duplicar receita');
+        return;
+      }
+
+      if (data) {
+        const newIncome: Income = {
+          id: data.id,
+          description: data.description,
+          amount: parseFloat(data.amount),
+          receiptDate: new Date(data.receipt_date),
+          isReceived: data.is_received,
+          isShared: data.is_shared,
+          isRecurring: data.is_recurring,
+          createdAt: new Date(data.created_at),
+          category: data.category,
+          account: data.account
+        };
+
+        setIncomes(prev => [newIncome, ...prev]);
+        Alert.alert('Sucesso', 'Receita duplicada com sucesso!');
+      }
+    } catch (error) {
+      console.error('Erro ao duplicar receita:', error);
+      Alert.alert('Erro', 'Erro inesperado ao duplicar receita');
+    }
+    setOptionsModalVisible(false);
+  };
+
+  // Função para receita cartão (Opção 5)
+  const openCardIncomeModal = () => {
+    setCardIncomeModalVisible(true);
+    setOptionsModalVisible(false);
+  };
+
+  const saveCardIncome = async () => {
+    const income = incomes.find(inc => inc.id === selectedIncomeId);
+    if (!income) return;
+
+    try {
+      const { error } = await supabase
+        .from('incomes')
+        .update({
+          category: 'Cartão de Crédito',
+          account_name: 'Cartão'
+        })
+        .eq('id', selectedIncomeId);
+
+      if (error) {
+        console.error('Erro ao marcar como receita cartão:', error);
+        Alert.alert('Erro', 'Erro ao marcar como receita cartão');
+        return;
+      }
+
+      // Atualizar lista local
+      setIncomes(prev => prev.map(inc => 
+        inc.id === selectedIncomeId ? { ...inc, category: 'Cartão de Crédito', account: 'Cartão' } : inc
+      ));
+
+      setCardIncomeModalVisible(false);
+      Alert.alert('Sucesso', 'Receita marcada como receita cartão!');
+    } catch (error) {
+      console.error('Erro ao marcar como receita cartão:', error);
+      Alert.alert('Erro', 'Erro inesperado');
+    }
+  };
+
+  // Função para receber parcial (Opção 6)
+  const openPartialReceiveModal = () => {
+    const income = incomes.find(inc => inc.id === selectedIncomeId);
+    if (income) {
+      setPartialAmount('');
+      setPartialReceiveModalVisible(true);
+    }
+    setOptionsModalVisible(false);
+  };
+
+  const savePartialReceive = async () => {
+    if (!selectedIncomeId || !partialAmount) return;
+    
+    const numericAmount = parseFloat(partialAmount.replace(/\./g, '').replace(',', '.'));
+    const income = incomes.find(inc => inc.id === selectedIncomeId);
+    
+    if (!income || isNaN(numericAmount) || numericAmount <= 0 || numericAmount >= income.amount) {
+      Alert.alert('Erro', 'Por favor, insira um valor válido menor que o total');
+      return;
+    }
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) return;
+
+      // Criar nova receita com o valor restante
+      const remainingAmount = income.amount - numericAmount;
+      
+      const { error: insertError } = await supabase
+        .from('incomes')
+        .insert([{
+          description: `${income.description} (Restante)`,
+          amount: remainingAmount,
+          receipt_date: income.receiptDate.toISOString(),
+          is_received: false,
+          is_shared: income.isShared,
+          is_recurring: false,
+          category: income.category,
+          account_name: income.account,
+          owner_id: session.user.id
+        }]);
+
+      if (insertError) {
+        console.error('Erro ao criar receita restante:', insertError);
+        Alert.alert('Erro', 'Erro ao criar receita restante');
+        return;
+      }
+
+      // Atualizar a receita original com o valor parcial e marcar como recebida
+      const { error: updateError } = await supabase
+        .from('incomes')
+        .update({
+          amount: numericAmount,
+          is_received: true
+        })
+        .eq('id', selectedIncomeId);
+
+      if (updateError) {
+        console.error('Erro ao atualizar receita original:', updateError);
+        Alert.alert('Erro', 'Erro ao atualizar receita original');
+        return;
+      }
+
+      // Recarregar receitas
+      const { data: updatedIncomes } = await supabase
+        .from('incomes')
+        .select('*')
+        .order('receipt_date', { ascending: false });
+
+      if (updatedIncomes) {
+        const formattedIncomes = updatedIncomes.map((income: any) => ({
+          id: income.id,
+          description: income.description,
+          amount: parseFloat(income.amount),
+          receiptDate: new Date(income.receipt_date),
+          isReceived: income.is_received,
+          isShared: income.is_shared,
+          isRecurring: income.is_recurring,
+          createdAt: new Date(income.created_at),
+          category: income.category,
+          account: income.account
+        }));
+        setIncomes(formattedIncomes);
+      }
+
+      setPartialReceiveModalVisible(false);
+      setPartialAmount('');
+      Alert.alert('Sucesso', 'Recebimento parcial processado com sucesso!');
+    } catch (error) {
+      console.error('Erro ao processar recebimento parcial:', error);
+      Alert.alert('Erro', 'Erro inesperado ao processar recebimento parcial');
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar style="light" />
@@ -1165,7 +1465,12 @@ export default function ReceitasScreen() {
                 </View>
               </View>
 
-              {incomes.map((income) => {
+              {incomes
+                .filter((income) => {
+                  const incomeDate = new Date(income.receiptDate);
+                  return incomeDate.getMonth() === currentMonth && incomeDate.getFullYear() === currentYear;
+                })
+                .map((income) => {
                 const statusColor = income.isReceived 
                   ? theme.positive
                   : theme.primary;
@@ -1299,11 +1604,7 @@ export default function ReceitasScreen() {
           onPress={() => setOptionsModalVisible(false)}
         >
           <View style={styles.optionsModalContent}>
-            <TouchableOpacity style={styles.optionItem} onPress={() => {
-              setOptionsModalVisible(false);
-              // Lógica para editar
-              Alert.alert('Editar', 'Função de editar receita');
-            }}>
+            <TouchableOpacity style={styles.optionItem} onPress={openEditModal}>
               <Edit size={20} color="#333" />
               <Text style={styles.optionText}>Editar</Text>
             </TouchableOpacity>
@@ -1313,38 +1614,22 @@ export default function ReceitasScreen() {
               <Text style={styles.optionText}>Excluir</Text>
             </TouchableOpacity>
             
-            <TouchableOpacity style={styles.optionItem} onPress={() => {
-              setOptionsModalVisible(false);
-              // Lógica para alterar valor
-              Alert.alert('Alterar valor', 'Função de alterar valor da receita');
-            }}>
+            <TouchableOpacity style={styles.optionItem} onPress={openChangeValueModal}>
               <DollarSign size={20} color="#333" />
               <Text style={styles.optionText}>Alterar valor</Text>
             </TouchableOpacity>
             
-            <TouchableOpacity style={styles.optionItem} onPress={() => {
-              setOptionsModalVisible(false);
-              // Lógica para duplicar
-              Alert.alert('Duplicar', 'Função de duplicar receita');
-            }}>
+            <TouchableOpacity style={styles.optionItem} onPress={duplicateIncome}>
               <Copy size={20} color="#333" />
               <Text style={styles.optionText}>Duplicar</Text>
             </TouchableOpacity>
             
-            <TouchableOpacity style={styles.optionItem} onPress={() => {
-              setOptionsModalVisible(false);
-              // Lógica para receita cartão
-              Alert.alert('Receita cartão', 'Função de receita cartão');
-            }}>
+            <TouchableOpacity style={styles.optionItem} onPress={openCardIncomeModal}>
               <CreditCard size={20} color="#333" />
               <Text style={styles.optionText}>Receita cartão</Text>
             </TouchableOpacity>
             
-            <TouchableOpacity style={styles.optionItem} onPress={() => {
-              setOptionsModalVisible(false);
-              // Lógica para receber parcial
-              Alert.alert('Receber parcial', 'Função de receber parcial');
-            }}>
+            <TouchableOpacity style={styles.optionItem} onPress={openPartialReceiveModal}>
               <DollarSign size={20} color="#4caf50" />
               <Text style={[styles.optionText, {color: '#4caf50'}]}>Receber parcial</Text>
             </TouchableOpacity>
@@ -1850,6 +2135,239 @@ export default function ReceitasScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Modal para editar receita */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={editModalVisible}
+        onRequestClose={() => setEditModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Editar Receita</Text>
+              <TouchableOpacity style={styles.closeButton} onPress={() => setEditModalVisible(false)}>
+                <X size={20} color="#333" />
+              </TouchableOpacity>
+            </View>
+            
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Nome da Receita</Text>
+              <TextInput
+                style={styles.textInput}
+                value={editingIncome?.description || ''}
+                onChangeText={(text) => {
+                  setEditingIncome(prev => prev ? {...prev, description: text} : null);
+                }}
+                placeholder="Digite o nome da receita"
+                placeholderTextColor="#999"
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Valor</Text>
+              <View style={styles.amountInputContainer}>
+                <Text style={styles.currencySymbol}>R$</Text>
+                <TextInput
+                  style={styles.amountInput}
+                  value={editingIncome?.amount ? editingIncome.amount.toLocaleString('pt-BR', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                  }) : ''}
+                  onChangeText={(text) => {
+                    // Remove tudo que não é número
+                    const numericValue = text.replace(/[^0-9]/g, '');
+                    // Formata como moeda brasileira
+                    if (numericValue) {
+                      const formattedValue = (parseInt(numericValue) / 100);
+                      setEditingIncome(prev => prev ? {...prev, amount: formattedValue} : null);
+                    } else {
+                      setEditingIncome(prev => prev ? {...prev, amount: 0} : null);
+                    }
+                  }}
+                  placeholder="0,00"
+                  keyboardType="numeric"
+                  placeholderTextColor="#999"
+                />
+              </View>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Data de Recebimento</Text>
+              <TextInput
+                style={styles.textInput}
+                value={editingIncome?.receiptDate ? editingIncome.receiptDate.toLocaleDateString('pt-BR') : ''}
+                onChangeText={(text) => {
+                  // Converte a data do formato DD/MM/YYYY para Date
+                  const dateParts = text.split('/');
+                  if (dateParts.length === 3) {
+                    const day = parseInt(dateParts[0]);
+                    const month = parseInt(dateParts[1]) - 1; // Mês começa em 0
+                    const year = parseInt(dateParts[2]);
+                    if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
+                      const newDate = new Date(year, month, day);
+                      setEditingIncome(prev => prev ? {...prev, receiptDate: newDate} : null);
+                    }
+                  }
+                }}
+                placeholder="DD/MM/AAAA"
+                placeholderTextColor="#999"
+                keyboardType="numeric"
+              />
+            </View>
+
+            <TouchableOpacity 
+              style={[styles.saveButton, { backgroundColor: theme.primary }]}
+              onPress={saveEditedIncome}
+            >
+              <Text style={styles.saveButtonText}>Salvar Alterações</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal para alterar valor */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={changeValueModalVisible}
+        onRequestClose={() => setChangeValueModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Alterar Valor</Text>
+              <TouchableOpacity style={styles.closeButton} onPress={() => setChangeValueModalVisible(false)}>
+                <X size={20} color="#333" />
+              </TouchableOpacity>
+            </View>
+            
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Novo Valor</Text>
+              <View style={styles.amountInputContainer}>
+                <Text style={styles.currencySymbol}>R$</Text>
+                <TextInput
+                  style={styles.amountInput}
+                  value={newAmount}
+                  onChangeText={(text) => {
+                    // Remove tudo que não é número
+                    const numericValue = text.replace(/[^0-9]/g, '');
+                    // Formata como moeda brasileira
+                    if (numericValue) {
+                      const formattedValue = (parseInt(numericValue) / 100);
+                      setNewAmount(formattedValue.toLocaleString('pt-BR', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                      }));
+                    } else {
+                      setNewAmount('');
+                    }
+                  }}
+                  placeholder="0,00"
+                  keyboardType="numeric"
+                  placeholderTextColor="#999"
+                />
+              </View>
+            </View>
+
+            <TouchableOpacity 
+              style={[styles.saveButton, { backgroundColor: theme.primary }]}
+              onPress={saveNewValue}
+            >
+              <Text style={styles.saveButtonText}>Alterar Valor</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal para receita cartão */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={cardIncomeModalVisible}
+        onRequestClose={() => setCardIncomeModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Receita Cartão</Text>
+              <TouchableOpacity style={styles.closeButton} onPress={() => setCardIncomeModalVisible(false)}>
+                <X size={20} color="#333" />
+              </TouchableOpacity>
+            </View>
+            
+            <Text style={styles.modalDescription}>
+              Esta receita será marcada como "Receita Cartão" e a conta será alterada para "Cartão".
+            </Text>
+
+            <TouchableOpacity 
+              style={[styles.saveButton, { backgroundColor: theme.primary }]}
+              onPress={saveCardIncome}
+            >
+              <Text style={styles.saveButtonText}>Confirmar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal para receber parcial */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={partialReceiveModalVisible}
+        onRequestClose={() => setPartialReceiveModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Receber Parcial</Text>
+              <TouchableOpacity style={styles.closeButton} onPress={() => setPartialReceiveModalVisible(false)}>
+                <X size={20} color="#333" />
+              </TouchableOpacity>
+            </View>
+            
+            <Text style={styles.modalDescription}>
+              Valor total: R$ {incomes.find(inc => inc.id === selectedIncomeId)?.amount.toFixed(2).replace('.', ',') || '0,00'}
+            </Text>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Valor a Receber</Text>
+              <View style={styles.amountInputContainer}>
+                <Text style={styles.currencySymbol}>R$</Text>
+                <TextInput
+                  style={styles.amountInput}
+                  value={partialAmount}
+                  onChangeText={(text) => {
+                    // Remove tudo que não é número
+                    const numericValue = text.replace(/[^0-9]/g, '');
+                    // Formata como moeda brasileira
+                    if (numericValue) {
+                      const formattedValue = (parseInt(numericValue) / 100);
+                      setPartialAmount(formattedValue.toLocaleString('pt-BR', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                      }));
+                    } else {
+                      setPartialAmount('');
+                    }
+                  }}
+                  placeholder="0,00"
+                  keyboardType="numeric"
+                  placeholderTextColor="#999"
+                />
+              </View>
+            </View>
+
+            <TouchableOpacity 
+              style={[styles.saveButton, { backgroundColor: theme.primary }]}
+              onPress={savePartialReceive}
+            >
+              <Text style={styles.saveButtonText}>Receber Parcial</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -2262,6 +2780,13 @@ const createStyles = (theme: any) => StyleSheet.create({
     fontSize: 20,
     fontWeight: '600',
     color: '#333333',
+  },
+  modalDescription: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 20,
+    lineHeight: 20,
+    fontFamily: fontFallbacks.Poppins_400Regular,
   },
   closeButton: {
     padding: 10,

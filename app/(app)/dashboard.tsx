@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Image, TouchableOpacity, ScrollView, Platform, 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StatusBar } from 'expo-status-bar';
 import { BarChart, ArrowLeft, ArrowRight, LogOut, Calendar, DollarSign, Check, Clock, ArrowDownCircle, ArrowUpCircle, ChevronRight, Info, ChevronDown, BookUser, Users, X, FileText, Settings, CreditCard, BarChart3, Bell, Menu, PlusCircle, Wallet, ExternalLink, Target, Receipt, Camera, Upload, ImageIcon, Home, User, Diamond, Tag } from 'lucide-react-native';
-import { LineChart, Line, XAxis, ResponsiveContainer } from 'recharts';
+import { LineChart } from 'react-native-chart-kit';
 import { useRouter } from 'expo-router';
 import { Dimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -2564,7 +2564,7 @@ export default function Dashboard() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
       <StatusBar style="light" />
       <ScrollView>
         {/* Header Section */}
@@ -2653,30 +2653,58 @@ export default function Dashboard() {
                     <Text style={styles.chartLoadingText}>Carregando gráfico...</Text>
                   </View>
                 ) : dailyTransactionsChart && dailyTransactionsChart.length > 0 ? (
-                  <View style={{ width: Dimensions.get('window').width - 80, height: 140 }}>
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart 
-                        data={dailyTransactionsChart}
-                        margin={{ top: 5, right: 20, left: 20, bottom: 5 }}
-                      >
-                        <XAxis 
-                          dataKey="date" 
-                          axisLine={false}
-                          tickLine={false}
-                          tick={{ fontSize: 12, fill: '#ffffff', fontFamily: 'Poppins_400Regular' }}
-                          interval={0}
-                          tickCount={7}
-                        />
-                        <Line 
-                          type="monotone" 
-                          dataKey="value" 
-                          stroke="#FFC107" 
-                          strokeWidth={3}
-                          dot={{ fill: '#FFC107', strokeWidth: 0, r: 5 }}
-                          activeDot={{ r: 6, fill: '#FFC107' }}
-                        />
-                      </LineChart>
-                    </ResponsiveContainer>
+                  <View style={{ width: Dimensions.get('window').width - 80, height: 180 }}>
+                    <LineChart
+                      data={{
+                        labels: dailyTransactionsChart.map(item => item.date),
+                        datasets: [{
+                          data: dailyTransactionsChart.map(item => item.value),
+                          color: (opacity = 1) => `rgba(255, 193, 7, ${opacity})`, // #FFC107
+                          strokeWidth: 3
+                        }]
+                      }}
+                      width={Dimensions.get('window').width - 80}
+                      height={180}
+                      chartConfig={{
+                        backgroundColor: 'rgba(0,0,0,0)',
+                        backgroundGradientFrom: 'rgba(0,0,0,0)',
+                        backgroundGradientTo: 'rgba(0,0,0,0)',
+                        backgroundGradientFromOpacity: 0,
+                        backgroundGradientToOpacity: 0,
+                        decimalPlaces: 0,
+                        color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
+                        labelColor: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
+                        style: {
+                          borderRadius: 0,
+                        },
+                        propsForDots: {
+                          r: "5",
+                          strokeWidth: "0",
+                          stroke: "#FFC107",
+                          fill: "#FFC107"
+                        },
+                        propsForBackgroundLines: {
+                          strokeDasharray: "",
+                          stroke: "rgba(255, 255, 255, 0.1)",
+                          strokeWidth: 1
+                        },
+                        fillShadowGradient: 'rgba(0,0,0,0)',
+                        fillShadowGradientOpacity: 0
+                      }}
+                      bezier
+                      style={{
+                        marginVertical: 8,
+                        borderRadius: 0,
+                      }}
+                      withDots={true}
+                      withShadow={false}
+                      withInnerLines={false}
+                      withOuterLines={false}
+                      withVerticalLines={false}
+                      withHorizontalLines={false}
+                      withVerticalLabels={true}
+                      withHorizontalLabels={false}
+                    />
                   </View>
                 ) : (
                   <View style={styles.chartEmptyContainer}>
@@ -3790,7 +3818,7 @@ export default function Dashboard() {
           </View>
         </View>
       </Modal>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -3850,7 +3878,7 @@ const styles = StyleSheet.create({
     }),
   },
   headerContainer: {
-    paddingTop: Platform.OS === 'android' ? 20 : 0,
+    paddingTop: Platform.OS === 'android' ? 50 : 40,
     paddingBottom: 10,
     paddingHorizontal: 16,
     borderBottomLeftRadius: 0,
@@ -3877,7 +3905,7 @@ const styles = StyleSheet.create({
         shadowRadius: 10,
       },
       android: {
-        elevation: 2,
+        elevation: 0,
       },
       web: {
         boxShadow: '0 2px 10px rgba(255, 255, 255, 0.1)',
@@ -3903,7 +3931,7 @@ const styles = StyleSheet.create({
         shadowRadius: 4,
       },
       android: {
-        elevation: 3,
+        elevation: 0,
       },
       web: {
         boxShadow: '0 2px 4px rgba(255, 255, 255, 0.15)',
@@ -3924,7 +3952,7 @@ const styles = StyleSheet.create({
         shadowRadius: 4,
       },
       android: {
-        elevation: 4,
+        elevation: 0,
       },
       web: {
         boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
@@ -3971,7 +3999,7 @@ const styles = StyleSheet.create({
         shadowRadius: 4,
       },
       android: {
-        elevation: 3,
+        elevation: 0,
       },
       web: {
         boxShadow: '0 2px 4px rgba(255, 255, 255, 0.15)',
@@ -3994,7 +4022,7 @@ const styles = StyleSheet.create({
         shadowRadius: 10,
       },
       android: {
-        elevation: 2,
+        elevation: 0,
       },
       web: {
         boxShadow: '0 2px 10px rgba(255, 255, 255, 0.1)',
@@ -4029,7 +4057,7 @@ const styles = StyleSheet.create({
         shadowRadius: 3,
       },
       android: {
-        elevation: 3,
+        elevation: 0,
       },
       web: {
         boxShadow: '0 2px 6px rgba(0, 0, 0, 0.2)',
@@ -4064,7 +4092,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   balanceAmountLarge: {
-    fontSize: 28,
+    fontSize: 22,
     fontFamily: fontFallbacks.Poppins_600SemiBold,
     color: 'white',
     textAlign: 'center',
@@ -4646,7 +4674,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: 'white',
     paddingVertical: 10,
-    paddingHorizontal: 15,
+    paddingHorizontal: 10,
     borderTopLeftRadius: 25,
     borderTopRightRadius: 25,
     position: 'absolute',
@@ -4667,13 +4695,16 @@ const styles = StyleSheet.create({
   },
   navItem: {
     alignItems: 'center',
-    width: 60,
+    width: 70,
+    flex: 1,
   },
   navText: {
-    fontSize: 12,
+    fontSize: Platform.OS === 'android' ? 10 : 12,
     fontFamily: fontFallbacks.Poppins_400Regular,
     color: '#999',
     marginTop: 4,
+    textAlign: 'center',
+    numberOfLines: 1,
   },
   activeNavText: {
     // Removido referência direta de cor
@@ -4753,7 +4784,7 @@ const styles = StyleSheet.create({
         shadowRadius: 10,
       },
       android: {
-        elevation: 10,
+        elevation: 0,
       },
     }),
   },
@@ -4781,6 +4812,8 @@ const styles = StyleSheet.create({
   menuItem: {
     width: '30%',
     alignItems: 'center',
+    minHeight: 80,
+    justifyContent: 'flex-start',
   },
   menuIconContainer: {
     width: 60,
@@ -4797,15 +4830,17 @@ const styles = StyleSheet.create({
         shadowRadius: 3,
       },
       android: {
-        elevation: 2,
+        elevation: 0,
       },
     }),
   },
   menuItemTitle: {
-    fontSize: 14,
+    fontSize: Platform.OS === 'android' ? 12 : 14,
     fontFamily: fontFallbacks.Poppins_600SemiBold,
     textAlign: 'center',
     marginBottom: 4,
+    numberOfLines: 1,
+    flexWrap: 'wrap',
   },
   menuItemSubtitle: {
     fontSize: 12,
@@ -5269,7 +5304,7 @@ const styles = StyleSheet.create({
   },
   // Estilos do gráfico
   chartContainer: {
-    marginTop: 20,
+    marginTop: 0,
     paddingHorizontal: 20,
     alignItems: 'flex-start',
     marginLeft: -10,

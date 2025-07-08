@@ -722,7 +722,6 @@ const styles = StyleSheet.create({
     padding: 24,
     paddingTop: Platform.OS === 'ios' ? 60 : 40,
     paddingBottom: 36,
-    elevation: 5,
     ...Platform.select({
       ios: {
         shadowColor: '#000',

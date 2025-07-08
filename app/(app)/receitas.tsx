@@ -73,6 +73,7 @@ interface Income {
   createdAt: Date;
   category?: string;
   account?: string;
+  source?: 'incomes' | 'transactions'; // Para identificar a origem dos dados
 }
 
 export default function ReceitasScreen() {
@@ -190,34 +191,73 @@ export default function ReceitasScreen() {
           return;
         }
         
-        // Buscar receitas do usuário
+        const userId = session.user.id;
+        
+        // Buscar receitas da tabela incomes
         const { data: incomesData, error: incomesError } = await supabase
           .from('incomes')
           .select('*')
+          .or(`owner_id.eq.${userId},partner_id.eq.${userId}`)
           .order('receipt_date', { ascending: false });
           
         if (incomesError) {
           console.error('Erro ao buscar receitas:', incomesError);
-          return;
         }
         
-        if (incomesData) {
-          // Converter dados do banco para o formato esperado
-          const formattedIncomes = incomesData.map((income: any) => ({
-            id: income.id,
-            description: income.description,
-            amount: parseFloat(income.amount),
-            receiptDate: new Date(income.receipt_date),
-            isReceived: income.is_received,
-            isShared: income.is_shared,
-            isRecurring: income.is_recurring,
-            createdAt: new Date(income.created_at),
-            category: income.category,
-            account: income.account_name || 'Minha Carteira'
-          }));
+        // Buscar transações do tipo income da tabela transactions
+        const { data: transactionsData, error: transactionsError } = await supabase
+          .from('transactions')
+          .select(`
+            *,
+            accounts!transactions_account_id_fkey (
+              name,
+              type,
+              bank
+            )
+          `)
+          .eq('transaction_type', 'income')
+          .or(`owner_id.eq.${userId},partner_id.eq.${userId}`)
+          .order('transaction_date', { ascending: false });
           
-          setIncomes(formattedIncomes);
+        if (transactionsError) {
+          console.error('Erro ao buscar transações de receita:', transactionsError);
         }
+        
+        // Converter dados da tabela incomes para o formato esperado
+        const formattedIncomes = (incomesData || []).map((income: any) => ({
+          id: income.id,
+          description: income.description,
+          amount: parseFloat(income.amount),
+          receiptDate: new Date(income.receipt_date),
+          isReceived: income.is_received,
+          isShared: income.is_shared,
+          isRecurring: income.is_recurring,
+          createdAt: new Date(income.created_at),
+          category: income.category,
+          account: income.account_name || 'Minha Carteira',
+          source: 'incomes' as const
+        }));
+        
+        // Converter dados da tabela transactions para o formato esperado
+        const formattedTransactions = (transactionsData || []).map((transaction: any) => ({
+          id: transaction.id,
+          description: transaction.description,
+          amount: parseFloat(transaction.amount),
+          receiptDate: new Date(transaction.transaction_date),
+          isReceived: transaction.is_received || false, // Usar a nova coluna is_received
+          isShared: transaction.partner_id !== null,
+          isRecurring: transaction.recurrence_type !== 'Não recorrente',
+          createdAt: new Date(transaction.created_at),
+          category: transaction.category,
+          account: transaction.accounts?.name || 'Conta',
+          source: 'transactions' as const
+        }));
+        
+        // Combinar ambas as listas e ordenar por data (mais recente primeiro)
+        const allIncomes = [...formattedIncomes, ...formattedTransactions]
+          .sort((a, b) => b.receiptDate.getTime() - a.receiptDate.getTime());
+        
+        setIncomes(allIncomes);
       } catch (error) {
         console.error('Erro ao carregar receitas:', error);
       } finally {
@@ -688,9 +728,12 @@ export default function ReceitasScreen() {
     try {
       const newStatus = !income.isReceived;
       
+      // Determinar qual tabela atualizar baseado na fonte dos dados
+      const tableName = income.source === 'transactions' ? 'transactions' : 'incomes';
+      
       // Atualizar no Supabase
       const { error } = await supabase
-        .from('incomes')
+        .from(tableName)
         .update({ is_received: newStatus })
         .eq('id', id);
         
@@ -735,10 +778,16 @@ export default function ReceitasScreen() {
   const deleteThisMonth = async () => {
     if (!selectedIncomeId) return;
     
+    const income = incomes.find(inc => inc.id === selectedIncomeId);
+    if (!income) return;
+    
     try {
+      // Determinar qual tabela usar baseado na fonte dos dados
+      const tableName = income.source === 'transactions' ? 'transactions' : 'incomes';
+      
       // Excluir do Supabase
       const { error } = await supabase
-        .from('incomes')
+        .from(tableName)
         .delete()
         .eq('id', selectedIncomeId);
         
@@ -764,10 +813,16 @@ export default function ReceitasScreen() {
   const deleteFromThisMonth = async () => {
     if (!selectedIncomeId) return;
     
+    const income = incomes.find(inc => inc.id === selectedIncomeId);
+    if (!income) return;
+    
     try {
+      // Determinar qual tabela usar baseado na fonte dos dados
+      const tableName = income.source === 'transactions' ? 'transactions' : 'incomes';
+      
       // Excluir do Supabase
       const { error } = await supabase
-        .from('incomes')
+        .from(tableName)
         .delete()
         .eq('id', selectedIncomeId);
         
@@ -793,10 +848,16 @@ export default function ReceitasScreen() {
   const deleteDefinitively = async () => {
     if (!selectedIncomeId) return;
     
+    const income = incomes.find(inc => inc.id === selectedIncomeId);
+    if (!income) return;
+    
     try {
+      // Determinar qual tabela usar baseado na fonte dos dados
+      const tableName = income.source === 'transactions' ? 'transactions' : 'incomes';
+      
       // Excluir do Supabase
       const { error } = await supabase
-        .from('incomes')
+        .from(tableName)
         .delete()
         .eq('id', selectedIncomeId);
         
@@ -1368,7 +1429,7 @@ export default function ReceitasScreen() {
           <View style={styles.headerActions}>
             <TouchableOpacity 
               style={styles.iconButton}
-              onPress={() => setHistoryModalVisible(true)}
+              onPress={() => router.push('/historico-receitas')}
             >
               <Clock size={20} color="#fff" />
             </TouchableOpacity>

@@ -1457,7 +1457,7 @@ export default function Expenses() {
         <View style={styles.financialSummary}>
           <View style={styles.balanceCard}>
             <Text style={styles.summaryLabel}>Saldo disponível</Text>
-            <Text style={styles.balanceValue}>R$ {userBalance.toFixed(2)}</Text>
+            <Text style={styles.balanceValue}>R$ {userBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
           </View>
           <View style={styles.divider} />
           <View style={styles.payableCard}>

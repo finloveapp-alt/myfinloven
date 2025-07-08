@@ -209,7 +209,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderRadius: 0,
     overflow: 'hidden',
-    elevation: 5,
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -297,7 +296,7 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     ...Platform.select({
       ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4 },
-      android: { elevation: 2 },
+      android: { elevation: 0 },
       web: { boxShadow: '0px 2px 4px rgba(0,0,0,0.1)' },
     }),
   },
@@ -318,7 +317,7 @@ const styles = StyleSheet.create({
     marginRight: 8,
     ...Platform.select({
       ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4 },
-      android: { elevation: 2 },
+      android: { elevation: 0 },
       web: { boxShadow: '0px 2px 4px rgba(0,0,0,0.1)' },
     }),
   },
@@ -337,7 +336,7 @@ const styles = StyleSheet.create({
   buttonGradient: {
     ...Platform.select({
       ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 3 },
-      android: { elevation: 2 },
+      android: { elevation: 0 },
       web: { boxShadow: '0px 2px 3px rgba(0,0,0,0.08)' },
     }),
   },

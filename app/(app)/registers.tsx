@@ -525,7 +525,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
-    elevation: 2,
+    elevation: 0,
   },
   activeTypeButton: {
     borderWidth: 1.5,
@@ -540,7 +540,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   transactionTypeText: {
-    fontSize: 14,
+    fontSize: 12,
     fontFamily: fontFallbacks.Poppins_500Medium,
     color: '#333333',
   },
@@ -668,7 +668,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.3,
     shadowRadius: 5,
-    elevation: 6,
+    elevation: 0,
     zIndex: 999,
   },
   pickerCalendarHeaderCell: {
@@ -853,7 +853,7 @@ const styles = StyleSheet.create({
         shadowRadius: 3,
       },
       android: {
-        elevation: 2,
+        elevation: 0,
       },
     }),
   },
@@ -3993,8 +3993,8 @@ export default function Registers() {
         visible={modalVisible}
         onRequestClose={closeModal}
       >
-        <Pressable style={styles.modalOverlay} onPress={closeAllDropdowns}>
-          <View style={styles.modalContent}>
+        <Pressable style={styles.modalOverlay} onPress={closeModal}>
+          <Pressable style={styles.modalContent} onPress={closeAllDropdowns}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Nova Transação</Text>
               <TouchableOpacity style={styles.closeButton} onPress={closeModal}>
@@ -4002,10 +4002,10 @@ export default function Registers() {
               </TouchableOpacity>
             </View>
             
-            <ScrollView
-              showsVerticalScrollIndicator={true}
-              contentContainerStyle={{ paddingBottom: 20 }}
-            >
+              <ScrollView
+                showsVerticalScrollIndicator={true}
+                contentContainerStyle={{ paddingBottom: 20 }}
+              >
 
             {/* Buttons for transaction type */}
             <View style={styles.transactionTypeContainer}>
@@ -4113,7 +4113,7 @@ export default function Registers() {
               </TouchableOpacity>
               
               {iconsVisible && (
-                <View style={styles.iconsDropdown}>
+                <Pressable style={styles.iconsDropdown} onPress={preventClose}>
                   <ScrollView style={styles.iconsScrollView} horizontal={false} showsVerticalScrollIndicator={true}>
                     <View style={styles.iconsGrid}>
                       {availableIcons.map((item, index) => (
@@ -4130,7 +4130,7 @@ export default function Registers() {
                       ))}
                     </View>
                   </ScrollView>
-                </View>
+                </Pressable>
               )}
             </View>
 
@@ -5129,9 +5129,9 @@ export default function Registers() {
               <Text style={styles.saveButtonText}>
                 {isSaving ? 'Salvando...' : 'Salvar Transação'}
               </Text>
-            </TouchableOpacity>
-            </ScrollView>
-          </View>
+                          </TouchableOpacity>
+              </ScrollView>
+          </Pressable>
         </Pressable>
       </Modal>
 

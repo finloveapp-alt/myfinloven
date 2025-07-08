@@ -495,7 +495,17 @@ export default function HistoricoReceitasScreen() {
           </View>
         ) : (
           Object.entries(groupedIncomes)
-            .sort(([a], [b]) => b.localeCompare(a)) // Ordenar por mês (mais recente primeiro)
+            .sort(([a], [b]) => {
+              // Extrair ano e mês das chaves (formato: "YYYY-M")
+              const [yearA, monthA] = a.split('-').map(Number);
+              const [yearB, monthB] = b.split('-').map(Number);
+              
+              // Ordenar cronologicamente (janeiro a dezembro)
+              if (yearA !== yearB) {
+                return yearA - yearB; // Ano crescente
+              }
+              return monthA - monthB; // Mês crescente (0=janeiro, 11=dezembro)
+            })
             .map((item) => (
               <View key={item[0]}>
                 {renderMonthGroup({ item })}

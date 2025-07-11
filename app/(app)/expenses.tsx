@@ -2673,7 +2673,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   headerContainer: {
-    paddingTop: Platform.OS === 'android' ? 25 : 40,
+    paddingTop: 50,
     paddingBottom: 4,
   },
   header: {

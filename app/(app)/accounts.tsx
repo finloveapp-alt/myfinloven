@@ -2476,7 +2476,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8f9fa',
   },
   unifiedHeader: {
-    paddingTop: Platform.OS === 'android' ? 50 : 60,
+    paddingTop: 50,
     paddingHorizontal: 20,
     paddingBottom: 30,
     shadowColor: '#000',
@@ -2534,7 +2534,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.05,
     shadowRadius: 6,
-    elevation: 2,
+    elevation: 0,
   },
   tabsScroll: {
     paddingHorizontal: 20,
@@ -2555,7 +2555,7 @@ const styles = StyleSheet.create({
         shadowRadius: 4,
       },
       android: {
-        elevation: 2,
+        elevation: 0,
       },
     }),
   },
@@ -2621,7 +2621,7 @@ const styles = StyleSheet.create({
         shadowRadius: 4,
       },
       android: {
-        elevation: 2,
+        elevation: 0,
       },
     }),
   },
@@ -2689,7 +2689,7 @@ const styles = StyleSheet.create({
         shadowRadius: 4,
       },
       android: {
-        elevation: 2,
+        elevation: 0,
       },
     }),
   },
@@ -2867,7 +2867,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: Platform.OS === 'android' ? 50 : 60,
+    paddingTop: 50,
     paddingHorizontal: 20,
     paddingBottom: 20,
     backgroundColor: '#ffffff',
@@ -2879,7 +2879,7 @@ const styles = StyleSheet.create({
         shadowRadius: 4,
       },
       android: {
-        elevation: 2,
+        elevation: 0,
       },
     }),
   },
@@ -2930,7 +2930,7 @@ const styles = StyleSheet.create({
         shadowRadius: 4,
       },
       android: {
-        elevation: 2,
+        elevation: 0,
       },
     }),
   },
@@ -2967,7 +2967,7 @@ const styles = StyleSheet.create({
         shadowRadius: 4,
       },
       android: {
-        elevation: 2,
+        elevation: 0,
       },
     }),
   },
@@ -3118,7 +3118,7 @@ const styles = StyleSheet.create({
         shadowRadius: 10,
       },
       android: {
-        elevation: 10,
+        elevation: 0,
       },
     }),
   },
@@ -3154,7 +3154,7 @@ const styles = StyleSheet.create({
         shadowRadius: 3,
       },
       android: {
-        elevation: 2,
+        elevation: 0,
       },
     }),
   },
@@ -3184,7 +3184,7 @@ const styles = StyleSheet.create({
         shadowRadius: 4,
       },
       android: {
-        elevation: 3,
+        elevation: 0,
       },
     }),
   },
@@ -3199,7 +3199,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: 'white',
     paddingVertical: 10,
-    paddingHorizontal: 15,
+    paddingHorizontal: 10,
     borderTopLeftRadius: 25,
     borderTopRightRadius: 25,
     position: 'absolute',
@@ -3213,17 +3213,14 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.1,
         shadowRadius: 4,
       },
-      android: {
-        elevation: 5,
-      },
     }),
   },
   navItem: {
     alignItems: 'center',
-    width: 60,
+    width: 70,
   },
   navText: {
-    fontSize: 12,
+    fontSize: 10,
     fontFamily: fontFallbacks.Poppins_400Regular,
     color: '#999',
     marginTop: 4,
@@ -3244,6 +3241,14 @@ const styles = StyleSheet.create({
     backgroundColor: themeDefault.primary,
     justifyContent: 'center',
     alignItems: 'center',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.2,
+        shadowRadius: 6,
+      },
+    }),
   },
   loadingContainer: {
     flex: 1,
@@ -3283,4 +3288,4 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 20,
   },
-}); 
+});

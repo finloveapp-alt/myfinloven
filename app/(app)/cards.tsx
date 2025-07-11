@@ -1214,6 +1214,17 @@ const styles = StyleSheet.create({
     backgroundColor: '#b687fe',
     justifyContent: 'center',
     alignItems: 'center',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.2,
+        shadowRadius: 6,
+      },
+      android: {
+        elevation: 0,
+      },
+    }),
   },
   addButtonText: {
     color: '#ffffff',
@@ -1269,7 +1280,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: 'white',
     paddingVertical: 10,
-    paddingHorizontal: 15,
+    paddingHorizontal: 10,
     borderTopLeftRadius: 25,
     borderTopRightRadius: 25,
     position: 'absolute',
@@ -1280,14 +1291,14 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
-    elevation: 5,
+    elevation: 0,
   },
   navItem: {
     alignItems: 'center',
-    width: 60,
+    width: 70,
   },
   navText: {
-    fontSize: 12,
+    fontSize: 10,
     fontFamily: fontFallbacks.Poppins_400Regular,
     color: '#999',
     marginTop: 4,
@@ -1307,7 +1318,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.1,
     shadowRadius: 10,
-    elevation: 10,
+    elevation: 0,
   },
   menuHeader: {
     flexDirection: 'row',
@@ -1345,7 +1356,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 3,
-    elevation: 2,
+    elevation: 0,
   },
   menuItemTitle: {
     fontSize: 14,
@@ -1369,7 +1380,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
-    elevation: 3,
+    elevation: 0,
   },
   closeFullButtonText: {
     color: '#ffffff',
@@ -1422,7 +1433,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 4,
-    elevation: 5,
+    elevation: 0,
   },
   colorCheckmark: {
     width: 14,
@@ -1449,7 +1460,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 8,
-    elevation: 6,
+    elevation: 0,
   },
   previewCardContent: {
     flex: 1,
@@ -1568,4 +1579,4 @@ const styles = StyleSheet.create({
   selectedCardBrandText: {
     color: '#ffffff',
   },
-}); 
+});

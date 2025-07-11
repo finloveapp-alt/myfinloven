@@ -4,7 +4,6 @@ import android.app.Application
 import android.content.res.Configuration
 
 import com.facebook.react.PackageList
-import com.myfinlove.BuildConfig
 import com.facebook.react.ReactApplication
 import com.facebook.react.ReactNativeHost
 import com.facebook.react.ReactPackage

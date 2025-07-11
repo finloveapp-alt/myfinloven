@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Dimensions, Platform, TextInput, Modal, Alert, SafeAreaView, KeyboardAvoidingView, AppState } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Dimensions, Platform, TextInput, Modal, Alert, KeyboardAvoidingView, AppState } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft, MoreVertical, Plus, BarChart2, Target, Repeat, DollarSign, User, Clock, X, Edit2, AlertCircle, BarChart, Menu, Receipt, CreditCard, PlusCircle, Home, Bell, Wallet, Info, ExternalLink, Calendar, ChevronDown, Check } from 'lucide-react-native';
 import { StatusBar } from 'expo-status-bar';
 import { router, useRouter } from 'expo-router';
@@ -1792,7 +1793,7 @@ export default function Planning() {
       backgroundColor: '#f9fafc',
     },
     header: {
-      paddingTop: Platform.OS === 'ios' ? 10 : 10,
+      paddingTop: 50,
       paddingBottom: 10,
       backgroundColor: '#fff',
       shadowColor: '#000',
@@ -2796,7 +2797,7 @@ export default function Planning() {
       alignItems: 'center',
       backgroundColor: 'white',
       paddingVertical: 10,
-      paddingHorizontal: 15,
+      paddingHorizontal: 10,
       borderTopLeftRadius: 25,
       borderTopRightRadius: 25,
       position: 'absolute',
@@ -2818,13 +2819,22 @@ export default function Planning() {
     },
     navItem: {
       alignItems: 'center',
-      width: 60,
+      width: 70,
     },
     navText: {
-      fontSize: 12,
+      fontSize: 10,
       fontFamily: fontFallbacks.Poppins_400Regular,
       color: '#999',
       marginTop: 4,
+    },
+    addButton: {
+      marginTop: -30,
+      backgroundColor: 'white',
+      width: 60,
+      height: 60,
+      borderRadius: 30,
+      justifyContent: 'center',
+      alignItems: 'center',
     },
     addButtonInner: {
       width: 50,

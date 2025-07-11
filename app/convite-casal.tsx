@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, ActivityIndicator, TouchableOpacity, Alert, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, Alert, ScrollView } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams, Link } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { fontFallbacks } from '@/utils/styles';
@@ -606,4 +607,4 @@ const styles = StyleSheet.create({
     color: '#555',
     whiteSpace: 'pre-wrap'
   }
-}); 
+});

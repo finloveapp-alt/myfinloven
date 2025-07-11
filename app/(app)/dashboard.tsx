@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, ScrollView, Platform, Pressable, SafeAreaView, Alert, Modal, TextInput, KeyboardAvoidingView, ActivityIndicator, useWindowDimensions, AppState } from 'react-native';
+import { View, Text, StyleSheet, Image, TouchableOpacity, ScrollView, Platform, Pressable, Alert, Modal, TextInput, KeyboardAvoidingView, ActivityIndicator, useWindowDimensions, AppState } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StatusBar } from 'expo-status-bar';
 import { BarChart, ArrowLeft, ArrowRight, LogOut, Calendar, DollarSign, Check, Clock, ArrowDownCircle, ArrowUpCircle, ChevronRight, Info, ChevronDown, BookUser, Users, X, FileText, Settings, CreditCard, BarChart3, Bell, Menu, PlusCircle, Wallet, ExternalLink, Target, Receipt, Camera, Upload, ImageIcon, Home, User, Diamond, Tag } from 'lucide-react-native';
@@ -2611,7 +2611,7 @@ export default function Dashboard() {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
       <StatusBar style="light" />
       <ScrollView>
         {/* Header Section */}
@@ -2619,7 +2619,7 @@ export default function Dashboard() {
           colors={[theme.primaryGradient[0], theme.primaryGradient[1]]}
           style={styles.headerContainer}
         >
-          <SafeAreaView style={styles.headerContent}>
+          <View style={styles.headerContent}>
             <View style={styles.profileSection}>
               <View style={styles.profileInfo}>
                 <TouchableOpacity onPress={() => setProfilePictureModalVisible(true)}>
@@ -2816,7 +2816,7 @@ export default function Dashboard() {
                 </TouchableOpacity>
               )}
             </View>
-          </SafeAreaView>
+          </View>
         </LinearGradient>
 
         {/* Financial Cards - Receitas, Despesas, Débitos e Créditos */}
@@ -3311,6 +3311,15 @@ export default function Dashboard() {
           </View>
           )}
         </View>
+
+        {/* Botão de Teste de Notificações */}
+        <TouchableOpacity 
+          style={styles.testNotificationsButton}
+          onPress={() => router.push('/(app)/test-notifications')}
+        >
+          <Bell size={20} color="#fff" />
+          <Text style={styles.testNotificationsButtonText}>🔔 Teste Notificações</Text>
+        </TouchableOpacity>
       </ScrollView>
 
       {/* Bottom Navigation */}
@@ -3865,7 +3874,7 @@ export default function Dashboard() {
           </View>
         </View>
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -3925,9 +3934,9 @@ const styles = StyleSheet.create({
     }),
   },
   headerContainer: {
-    paddingTop: Platform.OS === 'android' ? 50 : 40,
     paddingBottom: 10,
     paddingHorizontal: 16,
+    paddingTop: 50,
     borderBottomLeftRadius: 0,
     borderBottomRightRadius: 0,
   },
@@ -5377,5 +5386,38 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.7)',
     fontSize: 14,
     fontFamily: fontFallbacks.Poppins_400Regular,
+  },
+  // Estilos do botão de teste de notificações
+  testNotificationsButton: {
+    backgroundColor: '#ff6b6b',
+    borderRadius: 12,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginHorizontal: 20,
+    marginTop: 20,
+    marginBottom: 20,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: {
+          width: 0,
+          height: 2,
+        },
+        shadowOpacity: 0.1,
+        shadowRadius: 3.84,
+      },
+      android: {
+        elevation: 5,
+      },
+    }),
+  },
+  testNotificationsButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
+    fontFamily: fontFallbacks.Poppins_600SemiBold,
   },
 });

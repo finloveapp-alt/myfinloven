@@ -266,6 +266,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 16,
+    paddingTop: 50,
     backgroundColor: '#b687fe',
   },
   title: {
@@ -448,4 +449,4 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: fontFallbacks.Poppins_600SemiBold,
   },
-}); 
+});

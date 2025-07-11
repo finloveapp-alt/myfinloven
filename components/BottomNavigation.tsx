@@ -90,7 +90,7 @@ const styles = StyleSheet.create({
         shadowRadius: 4,
       },
       android: {
-        elevation: 5,
+        elevation: 0,
       },
     }),
   },
@@ -123,4 +123,4 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-}); 
+});

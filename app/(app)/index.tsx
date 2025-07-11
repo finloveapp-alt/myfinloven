@@ -1,7 +1,8 @@
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { User, Users, UserCircle } from 'lucide-react-native';
+import { User, Users, UserCircle, Bell } from 'lucide-react-native';
 import BottomNavigation from '@/components/BottomNavigation';
+import { router } from 'expo-router';
 
 const theme = {
   primary: '#b687fe',
@@ -42,6 +43,15 @@ export default function Home() {
         <View style={styles.header}>
           <Text style={styles.title}>Escolha seu modo</Text>
           <Text style={styles.subtitle}>Como você quer usar o MyFinlove?</Text>
+          
+          {/* Botão de teste de notificações */}
+          <TouchableOpacity 
+            style={styles.testButton}
+            onPress={() => router.push('/(app)/test-notifications')}
+          >
+            <Bell size={20} color="#fff" />
+            <Text style={styles.testButtonText}>🔔 Teste Notificações</Text>
+          </TouchableOpacity>
         </View>
 
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
@@ -79,7 +89,7 @@ const styles = StyleSheet.create({
   },
   header: {
     padding: 20,
-    paddingTop: 60,
+    paddingTop: 50,
   },
   title: {
     fontSize: 24,
@@ -157,5 +167,35 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 14,
     fontFamily: 'Poppins_500Medium',
+  },
+  testButton: {
+    backgroundColor: '#ff6b6b',
+    borderRadius: 12,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 20,
+    marginBottom: 20,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: {
+          width: 0,
+          height: 2,
+        },
+        shadowOpacity: 0.1,
+        shadowRadius: 3.84,
+      },
+      android: {
+        elevation: 0,
+      },
+    }),
+  },
+  testButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
   },
 });

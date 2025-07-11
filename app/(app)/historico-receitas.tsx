@@ -528,6 +528,7 @@ const createStyles = (theme: any) => StyleSheet.create({
     backgroundColor: theme.primary,
     paddingHorizontal: 20,
     paddingVertical: 16,
+    paddingTop: 50,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',

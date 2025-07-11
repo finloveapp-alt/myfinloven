@@ -24,10 +24,23 @@
       "package": "com.myfinlove.app",
       "runtimeVersion": {
         "policy": "appVersion"
-      }
+      },
+      "permissions": [
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.VIBRATE",
+        "android.permission.WAKE_LOCK"
+      ]
     },
     "plugins": [
-      "expo-router"
+      "expo-router",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#b687fe",
+          "sounds": []
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

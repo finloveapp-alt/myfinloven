@@ -34,7 +34,7 @@ export default function MenuModal({ visible, onClose, theme }: MenuModalProps) {
           shadowRadius: 10,
         },
         android: {
-          elevation: 10,
+          elevation: 0,
         },
       }),
     },
@@ -78,7 +78,7 @@ export default function MenuModal({ visible, onClose, theme }: MenuModalProps) {
           shadowRadius: 3,
         },
         android: {
-          elevation: 2,
+          elevation: 0,
         },
       }),
     },
@@ -108,7 +108,7 @@ export default function MenuModal({ visible, onClose, theme }: MenuModalProps) {
           shadowRadius: 4,
         },
         android: {
-          elevation: 3,
+          elevation: 0,
         },
       }),
     },
@@ -284,4 +284,4 @@ export default function MenuModal({ visible, onClose, theme }: MenuModalProps) {
       </View>
     </Modal>
   );
-} 
+}

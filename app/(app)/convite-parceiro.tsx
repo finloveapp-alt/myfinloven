@@ -259,6 +259,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 20,
+    paddingTop: 50,
   },
   backButton: {
     padding: 5,
@@ -338,4 +339,4 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: fontFallbacks.Poppins_600SemiBold,
   },
-}); 
+});

@@ -2440,7 +2440,7 @@ const createStyles = (theme: any) => StyleSheet.create({
     backgroundColor: '#f5f5f5',
   },
   headerContainer: {
-    paddingTop: Platform.OS === 'android' ? 25 : 40,
+    paddingTop: 50,
     paddingBottom: 4,
   },
   header: {

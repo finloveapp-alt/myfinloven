@@ -188,7 +188,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f5f7fa',
   },
   header: {
-    paddingTop: Platform.OS === 'android' ? 30 : 0,
+    paddingTop: 50,
     paddingBottom: 15,
   },
   headerContent: {
@@ -360,4 +360,4 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 24,
   },
-}); 
+});

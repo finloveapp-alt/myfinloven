@@ -214,7 +214,7 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   header: {
-    paddingTop: Platform.OS === 'ios' ? 50 : 30,
+    paddingTop: 50,
     paddingBottom: 20,
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
@@ -892,7 +892,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: 'white',
     paddingVertical: 10,
-    paddingHorizontal: 15,
+    paddingHorizontal: 10,
     borderTopLeftRadius: 25,
     borderTopRightRadius: 25,
     position: 'absolute',
@@ -913,10 +913,10 @@ const styles = StyleSheet.create({
   },
   navItem: {
     alignItems: 'center',
-    width: 60,
+    width: 70,
   },
   navText: {
-    fontSize: 12,
+    fontSize: 10,
     fontFamily: fontFallbacks.Poppins_400Regular,
     color: '#999',
     marginTop: 4,

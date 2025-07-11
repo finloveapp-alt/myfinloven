@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView, Platform, Image, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Platform, Image, Alert } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { fontFallbacks } from '@/utils/styles';
@@ -875,4 +876,4 @@ const styles = StyleSheet.create({
     fontFamily: fontFallbacks.Poppins_600SemiBold,
     fontSize: 15,
   },
-}); 
+});

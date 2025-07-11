@@ -444,6 +444,7 @@ const createStyles = (theme: any) => StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 16,
+    paddingTop: 50,
     backgroundColor: '#121212',
   },
   backButton: {

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image, SafeAreaView, Platform, Animated } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image, Platform, Animated } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import FinloveLogo from '@/components/FinloveLogo';
 import { Link, router } from 'expo-router';
 import { supabase } from '@/lib/supabase';

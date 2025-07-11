@@ -379,7 +379,7 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingTop: 60,
+    paddingTop: 50,
     paddingHorizontal: 20,
     paddingBottom: 20,
   },
@@ -539,4 +539,4 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     opacity: 0.7,
   },
-}); 
+});

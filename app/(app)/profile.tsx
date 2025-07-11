@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, SafeAreaView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { User, DollarSign, Shield, FileText, LogOut } from 'lucide-react-native';
 import { router } from 'expo-router';
@@ -221,7 +222,7 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: 'center',
-    paddingTop: 60,
+    paddingTop: 50,
     paddingBottom: 40,
     paddingHorizontal: 20,
   },
@@ -275,4 +276,4 @@ const styles = StyleSheet.create({
     color: '#333',
     flex: 1,
   },
-}); 
+});

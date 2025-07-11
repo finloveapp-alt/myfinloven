@@ -515,6 +515,7 @@ const createStyles = (theme: any) => StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingVertical: 15,
+    paddingTop: 50,
   },
   backButton: {
     padding: 5,
@@ -804,4 +805,4 @@ const createStyles = (theme: any) => StyleSheet.create({
     color: '#FFF',
     fontWeight: '600',
   },
-}); 
+});

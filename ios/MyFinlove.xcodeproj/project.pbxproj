@@ -14,7 +14,7 @@
 		96905EF65AED1B983A6B3ABC /* libPods-MyFinlove.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 58EEBF8E8E6FB1BC6CAF49B5 /* libPods-MyFinlove.a */; };
 		B18059E884C0ABDD17F3DC3D /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAC715A2D49A985799AEE119 /* ExpoModulesProvider.swift */; };
 		BB2F792D24A3F905000567C9 /* Expo.plist in Resources */ = {isa = PBXBuildFile; fileRef = BB2F792C24A3F905000567C9 /* Expo.plist */; };
-		B79C1C34B98247EC828DE522 /* noop-file.swift in Sources */ = {isa = PBXBuildFile; fileRef = C687DE605B804247BA7F4595 /* noop-file.swift */; };
+		1B52ACBCEC604BCBB2C23A89 /* noop-file.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6348B3FB1DCB4C7291AFDDCD /* noop-file.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -31,8 +31,8 @@
 		BB2F792C24A3F905000567C9 /* Expo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Expo.plist; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 		FAC715A2D49A985799AEE119 /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-MyFinlove/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
-		C687DE605B804247BA7F4595 /* noop-file.swift */ = {isa = PBXFileReference; name = "noop-file.swift"; path = "MyFinlove/noop-file.swift"; sourceTree = "<group>"; fileEncoding = 4; lastKnownFileType = sourcecode.swift; explicitFileType = undefined; includeInIndex = 0; };
-		CC1A0A5094A74C518198C0F6 /* MyFinlove-Bridging-Header.h */ = {isa = PBXFileReference; name = "MyFinlove-Bridging-Header.h"; path = "MyFinlove/MyFinlove-Bridging-Header.h"; sourceTree = "<group>"; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; explicitFileType = undefined; includeInIndex = 0; };
+		6348B3FB1DCB4C7291AFDDCD /* noop-file.swift */ = {isa = PBXFileReference; name = "noop-file.swift"; path = "MyFinlove/noop-file.swift"; sourceTree = "<group>"; fileEncoding = 4; lastKnownFileType = sourcecode.swift; explicitFileType = undefined; includeInIndex = 0; };
+		CE8BE34FD6FE4C409ED1B89C /* MyFinlove-Bridging-Header.h */ = {isa = PBXFileReference; name = "MyFinlove-Bridging-Header.h"; path = "MyFinlove/MyFinlove-Bridging-Header.h"; sourceTree = "<group>"; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; explicitFileType = undefined; includeInIndex = 0; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -57,8 +57,8 @@
 				13B07FB61A68108700A75B9A /* Info.plist */,
 				13B07FB71A68108700A75B9A /* main.m */,
 				AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */,
-				C687DE605B804247BA7F4595 /* noop-file.swift */,
-				CC1A0A5094A74C518198C0F6 /* MyFinlove-Bridging-Header.h */,
+				6348B3FB1DCB4C7291AFDDCD /* noop-file.swift */,
+				CE8BE34FD6FE4C409ED1B89C /* MyFinlove-Bridging-Header.h */,
 			);
 			name = MyFinlove;
 			sourceTree = "<group>";
@@ -198,7 +198,7 @@
 				BB2F792D24A3F905000567C9 /* Expo.plist in Resources */,
 				13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */,
 				3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */,
-				2A0D9216842949E1BF5364C8 /* MyFinlove-Bridging-Header.h in Resources */,
+				90D9AE83D94C46EE9537FFB9 /* MyFinlove-Bridging-Header.h in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -274,7 +274,7 @@
 				13B07FBC1A68108700A75B9A /* AppDelegate.mm in Sources */,
 				13B07FC11A68108700A75B9A /* main.m in Sources */,
 				B18059E884C0ABDD17F3DC3D /* ExpoModulesProvider.swift in Sources */,
-				B79C1C34B98247EC828DE522 /* noop-file.swift in Sources */,
+				1B52ACBCEC604BCBB2C23A89 /* noop-file.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -309,6 +309,7 @@
 				VERSIONING_SYSTEM = "apple-generic";
 				TARGETED_DEVICE_FAMILY = "1,2";
 				SWIFT_OBJC_BRIDGING_HEADER = MyFinlove/MyFinlove-Bridging-Header.h;
+				CODE_SIGN_ENTITLEMENTS = MyFinlove/MyFinlove.entitlements;
 			};
 			name = Debug;
 		};
@@ -334,6 +335,7 @@
 				VERSIONING_SYSTEM = "apple-generic";
 				TARGETED_DEVICE_FAMILY = "1,2";
 				SWIFT_OBJC_BRIDGING_HEADER = MyFinlove/MyFinlove-Bridging-Header.h;
+				CODE_SIGN_ENTITLEMENTS = MyFinlove/MyFinlove.entitlements;
 			};
 			name = Release;
 		};

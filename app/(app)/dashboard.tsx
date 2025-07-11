@@ -1210,91 +1210,121 @@ export default function Dashboard() {
       }
       
       const userId = session.user.id;
-      
-      // Buscar receitas não recebidas (contas a receber) - apenas do dia atual para trás
       const currentDate = new Date();
+      const receivableData: any[] = [];
+      
+      // Buscar receitas não recebidas da tabela 'incomes'
       const { data: unpaidIncomes, error: incomesError } = await supabase
         .from('incomes')
         .select('*')
         .eq('owner_id', userId)
         .eq('is_received', false)
         .lte('receipt_date', currentDate.toISOString())
-        .order('receipt_date', { ascending: false })
-        .limit(3);
+        .order('receipt_date', { ascending: false });
       
-      const receivableData: any[] = [];
+      // Buscar receitas não recebidas da tabela 'transactions' com transaction_type = 'income'
+      const { data: unpaidTransactions, error: transactionsError } = await supabase
+        .from('transactions')
+        .select('*')
+        .eq('owner_id', userId)
+        .eq('transaction_type', 'income')
+        .eq('is_received', false)
+        .lte('transaction_date', currentDate.toISOString())
+        .order('transaction_date', { ascending: false });
       
-      // Processar receitas não recebidas
+      // Função auxiliar para processar dados de receitas
+      const processReceivableItem = (item: any, dateField: string, source: string) => {
+        const receiptDate = new Date(item[dateField]);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        receiptDate.setHours(0, 0, 0, 0);
+        
+        const diffTime = receiptDate.getTime() - today.getTime();
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        
+        let dateText = '';
+        let backgroundColor = '#E8F9E8';
+        let iconColor = '#28A745';
+        
+        if (diffDays < 0) {
+          const overdueDays = Math.abs(diffDays);
+          if (overdueDays === 1) {
+            dateText = 'Ontem';
+          } else {
+            dateText = `Há ${overdueDays} dias`;
+          }
+          backgroundColor = '#FFF6E3';
+          iconColor = '#FFB627';
+        } else if (diffDays === 0) {
+          dateText = 'Hoje';
+          backgroundColor = '#E8F9E8';
+          iconColor = '#28A745';
+        }
+        
+        // Definir categoria baseada na descrição
+        let category = 'Receita';
+        const description = item.description?.toLowerCase() || '';
+        
+        if (description.includes('salário') || description.includes('salario')) {
+          category = 'Salário';
+        } else if (description.includes('freelance') || description.includes('freela')) {
+          category = 'Freelance';
+        } else if (description.includes('reembolso')) {
+          category = 'Reembolso';
+        } else if (description.includes('venda')) {
+          category = 'Venda';
+        } else if (description.includes('aluguel')) {
+          category = 'Aluguel';
+        }
+        
+        return {
+          id: `${source}_${item.id}`,
+          type: 'income',
+          title: item.description || 'Receita',
+          subtitle: dateText,
+          amount: item.amount,
+          backgroundColor,
+          iconColor,
+          icon: ArrowDownCircle,
+          receiptDate: item[dateField],
+          category,
+          isOverdue: diffDays < 0,
+          source // Para identificar a origem dos dados
+        };
+      };
+      
+      // Processar receitas da tabela 'incomes'
       if (unpaidIncomes && !incomesError) {
         unpaidIncomes.forEach(income => {
-          const receiptDate = new Date(income.receipt_date);
-          const today = new Date();
-          today.setHours(0, 0, 0, 0);
-          receiptDate.setHours(0, 0, 0, 0);
-          
-          const diffTime = receiptDate.getTime() - today.getTime();
-          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-          
-          let dateText = '';
-          let backgroundColor = '#E8F9E8';
-          let iconColor = '#28A745';
-          
-          if (diffDays < 0) {
-            const overdueDays = Math.abs(diffDays);
-            if (overdueDays === 1) {
-              dateText = 'Ontem';
-            } else {
-              dateText = `Há ${overdueDays} dias`;
-            }
-            backgroundColor = '#FFF6E3';
-            iconColor = '#FFB627';
-          } else if (diffDays === 0) {
-            dateText = 'Hoje';
-            backgroundColor = '#E8F9E8';
-            iconColor = '#28A745';
-          }
-          
-          // Definir categoria baseada na descrição
-          let category = 'Receita';
-          const description = income.description?.toLowerCase() || '';
-          
-          if (description.includes('salário') || description.includes('salario')) {
-            category = 'Salário';
-          } else if (description.includes('freelance') || description.includes('freela')) {
-            category = 'Freelance';
-          } else if (description.includes('reembolso')) {
-            category = 'Reembolso';
-          } else if (description.includes('venda')) {
-            category = 'Venda';
-          } else if (description.includes('aluguel')) {
-            category = 'Aluguel';
-          }
-          
-          receivableData.push({
-            id: income.id,
-            type: 'income',
-            title: income.description || 'Receita',
-            subtitle: dateText,
-            amount: income.amount,
-            backgroundColor,
-            iconColor,
-            icon: ArrowDownCircle,
-            receiptDate: income.receipt_date,
-            category,
-            isOverdue: diffDays < 0
-          });
+          receivableData.push(processReceivableItem(income, 'receipt_date', 'incomes'));
         });
       }
       
-      if (incomesError) {
-        console.error('Erro ao buscar receitas:', incomesError);
+      // Processar receitas da tabela 'transactions'
+      if (unpaidTransactions && !transactionsError) {
+        unpaidTransactions.forEach(transaction => {
+          receivableData.push(processReceivableItem(transaction, 'transaction_date', 'transactions'));
+        });
       }
       
-      console.log('Contas a receber encontradas:', unpaidIncomes?.length || 0);
-      console.log('Dados das receitas:', unpaidIncomes);
-      console.log('Dados processados para exibição:', receivableData);
+      // Ordenar por data de recebimento (mais recentes primeiro) e limitar a 3 itens
+      receivableData.sort((a, b) => new Date(b.receiptDate).getTime() - new Date(a.receiptDate).getTime());
+      const limitedReceivableData = receivableData.slice(0, 3);
       
-      setAccountsReceivable(receivableData);
+      if (incomesError) {
+        console.error('Erro ao buscar receitas da tabela incomes:', incomesError);
+      }
+      
+      if (transactionsError) {
+        console.error('Erro ao buscar receitas da tabela transactions:', transactionsError);
+      }
+      
+      console.log('Contas a receber encontradas (incomes):', unpaidIncomes?.length || 0);
+      console.log('Contas a receber encontradas (transactions):', unpaidTransactions?.length || 0);
+      console.log('Total de contas a receber processadas:', receivableData.length);
+      console.log('Dados processados para exibição:', limitedReceivableData);
+      
+      setAccountsReceivable(limitedReceivableData);
       
     } catch (error) {
       console.error('Erro ao buscar contas a receber:', error);
@@ -1952,13 +1982,25 @@ export default function Dashboard() {
   };
 
   const goToNextMonth = () => {
+    // Armazenar o saldo previsto antes de mudar o mês
+    const currentPredictedBalance = predictedBalance;
+    
     setCurrentMonth(prevMonth => {
       const newMonth = new Date(prevMonth);
       newMonth.setMonth(newMonth.getMonth() + 1);
+      
       // Recarregar gráfico quando mudar o mês
       fetchDailyTransactionsChart();
       return newMonth;
     });
+    
+    // Aguardar um pouco para que o useEffect do currentMonth execute primeiro
+    // e depois chamar fetchSummaryData com o saldo preservado
+    setTimeout(() => {
+      if (currentPredictedBalance !== null) {
+        fetchSummaryData(currentPredictedBalance);
+      }
+    }, 100);
   };
   
   // Formatar nome do mês atual
@@ -2470,7 +2512,7 @@ export default function Dashboard() {
   };
 
   // Função para buscar dados do resumo do mês
-  const fetchSummaryData = async () => {
+  const fetchSummaryData = async (preservedBalance?: number) => {
     try {
       setLoadingSummaryData(true);
       
@@ -2543,8 +2585,13 @@ export default function Dashboard() {
       const despesasMesTransactions = monthlyExpenseTransactions?.reduce((sum, expense) => sum + Math.abs(Number(expense.amount)), 0) || 0;
       const despesasMes = despesasMesExpenses + despesasMesTransactions;
       
-      // Calcular saldo como receitas - despesas
-      saldoTotal = receitasMes - despesasMes;
+      // Se temos um saldo preservado (vindo do saldo previsto), usar ele
+      // Caso contrário, calcular como receitas - despesas
+      if (preservedBalance !== undefined) {
+        saldoTotal = preservedBalance;
+      } else {
+        saldoTotal = receitasMes - despesasMes;
+      }
       
       // Atualizar estado
       setSummaryData({
@@ -2653,7 +2700,7 @@ export default function Dashboard() {
                     <Text style={styles.chartLoadingText}>Carregando gráfico...</Text>
                   </View>
                 ) : dailyTransactionsChart && dailyTransactionsChart.length > 0 ? (
-                  <View style={{ width: Dimensions.get('window').width - 80, height: 180 }}>
+                  <View style={{ width: Dimensions.get('window').width - 40, height: 180, marginLeft: -20 }}>
                     <LineChart
                       data={{
                         labels: dailyTransactionsChart.map(item => item.date),
@@ -2663,7 +2710,7 @@ export default function Dashboard() {
                           strokeWidth: 3
                         }]
                       }}
-                      width={Dimensions.get('window').width - 80}
+                      width={Dimensions.get('window').width - 40}
                       height={180}
                       chartConfig={{
                         backgroundColor: 'rgba(0,0,0,0)',
@@ -5307,7 +5354,7 @@ const styles = StyleSheet.create({
     marginTop: 0,
     paddingHorizontal: 20,
     alignItems: 'flex-start',
-    marginLeft: -10,
+    marginLeft: -20,
   },
   chartLoadingContainer: {
     flexDirection: 'row',
@@ -5331,4 +5378,4 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: fontFallbacks.Poppins_400Regular,
   },
-}); 
+});

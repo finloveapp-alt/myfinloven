@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Dimensions, Platform, Modal, TextInput, TouchableWithoutFeedback, Pressable } from 'react-native';
-import { ChevronLeft, ChevronRight, Search, ArrowLeft, Filter, Plus, PlusCircle, X, Calendar, ArrowRight, ArrowDown, DollarSign, CreditCard, RefreshCw, BarChart, Menu, Home, Bell, Receipt, Wallet, Info, ExternalLink, ArrowUp, ArrowUpCircle, User, Diamond, Tag } from 'lucide-react-native';
+import { ChevronLeft, ChevronRight, Search, ArrowLeft, Plus, PlusCircle, X, Calendar, ArrowRight, ArrowDown, DollarSign, CreditCard, RefreshCw, BarChart, Menu, Home, Bell, Receipt, Wallet, Info, ExternalLink, ArrowUp, ArrowUpCircle, User, Diamond, Tag } from 'lucide-react-native';
 import { StatusBar } from 'expo-status-bar';
 import BottomNavigation from '@/components/BottomNavigation';
 import { useRouter } from 'expo-router';
@@ -319,13 +319,6 @@ const styles = StyleSheet.create({
   dateText: {
     fontSize: 16,
     fontFamily: fontFallbacks.Poppins_500Medium,
-    color: '#333',
-  },
-  optionsButton: {
-    padding: 8,
-  },
-  optionsButtonText: {
-    fontSize: 20,
     color: '#333',
   },
   summaryContainer: {
@@ -3860,9 +3853,6 @@ export default function Registers() {
           <Text style={styles.dateText}>
             {formatDateHeader(selectedDay, currentMonth, currentYear)}
           </Text>
-          <TouchableOpacity style={styles.optionsButton}>
-            <Filter size={20} color="#333" />
-          </TouchableOpacity>
         </View>
 
         <View style={styles.summaryContainer}>
@@ -5342,4 +5332,4 @@ export default function Registers() {
       </View>
     </View>
   );
-} 
+}

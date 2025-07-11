@@ -28,7 +28,6 @@ import {
   Wallet,
   CheckCircle,
   Trash2,
-  Search,
   List,
   MoreVertical,
   ChevronLeft,
@@ -1433,9 +1432,7 @@ export default function ReceitasScreen() {
             >
               <Clock size={20} color="#fff" />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.iconButton}>
-              <Search size={20} color="#fff" />
-            </TouchableOpacity>
+
           </View>
         </View>
 

@@ -195,6 +195,8 @@ export default function Planning() {
   const [showEditGoalModal, setShowEditGoalModal] = useState(false);
 
   const [menuModalVisible, setMenuModalVisible] = useState(false); // Para o modal de menu
+  const [allTransactionsModalVisible, setAllTransactionsModalVisible] = useState(false); // Para o modal de todas as transações
+  const [allTransactions, setAllTransactions] = useState<any[]>([]); // Todas as transações com orçamento
   
   // Estados para edição
   const [currentBudget, setCurrentBudget] = useState<any>(null);
@@ -277,6 +279,60 @@ export default function Planning() {
     } catch (error) {
       console.error('Erro ao buscar transações do histórico:', error);
     }
+  };
+
+  // Função para buscar todas as transações com orçamento
+  const fetchAllTransactions = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: transactions, error } = await supabase
+        .from('transactions')
+        .select(`
+          *,
+          accounts!transactions_account_id_fkey(name),
+          profiles!transactions_owner_id_fkey(name),
+          budget_categories!transactions_budget_category_id_fkey(category, icon)
+        `)
+        .not('budget_category_id', 'is', null)
+        .or(`owner_id.eq.${user.id},partner_id.eq.${user.id}`)
+        .order('transaction_date', { ascending: false });
+
+      if (error) {
+        console.error('Erro ao buscar todas as transações:', error);
+        return;
+      }
+
+      const formattedTransactions = (transactions || []).map(transaction => ({
+        id: transaction.id,
+        description: transaction.description || 'Transação',
+        amount: Math.abs(parseFloat(transaction.amount)),
+        type: transaction.transaction_type,
+        date: new Date(transaction.transaction_date).toLocaleDateString('pt-BR', {
+          day: '2-digit',
+          month: 'short',
+          year: 'numeric'
+        }),
+        time: new Date(transaction.transaction_date).toLocaleTimeString('pt-BR', {
+          hour: '2-digit',
+          minute: '2-digit'
+        }),
+        user: transaction.profiles?.name || 'Usuário',
+        budgetCategory: transaction.budget_categories?.category || 'Orçamento',
+        budgetIcon: transaction.budget_categories?.icon || '📊'
+      }));
+
+      setAllTransactions(formattedTransactions);
+    } catch (error) {
+      console.error('Erro ao buscar todas as transações:', error);
+    }
+  };
+
+  // Handler para abrir o modal de todas as transações
+  const handleShowAllTransactions = async () => {
+    await fetchAllTransactions();
+    setAllTransactionsModalVisible(true);
   };
 
   // Função para buscar categorias de orçamento do usuário
@@ -3002,6 +3058,70 @@ export default function Planning() {
     modalScrollContent: {
       paddingBottom: 20,
     },
+    
+    // Estilos para o modal de todas as transações
+    transactionsModalList: {
+      maxHeight: height * 0.6,
+    },
+    emptyTransactions: {
+      alignItems: 'center',
+      paddingVertical: 40,
+    },
+    emptyTransactionsText: {
+      fontSize: 16,
+      color: '#666',
+      fontFamily: fontFallbacks.Poppins_400Regular,
+      textAlign: 'center',
+    },
+    transactionItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      backgroundColor: '#fff',
+      borderRadius: 12,
+      marginBottom: 8,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.05,
+      shadowRadius: 2,
+      elevation: 1,
+      borderWidth: 0.5,
+      borderColor: '#f0f0f0',
+    },
+    transactionIcon: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginRight: 12,
+    },
+    transactionInfo: {
+      flex: 1,
+    },
+    transactionTitle: {
+      fontSize: 16,
+      fontFamily: fontFallbacks.Poppins_500Medium,
+      color: '#333',
+      marginBottom: 2,
+    },
+    transactionTime: {
+      fontSize: 12,
+      fontFamily: fontFallbacks.Poppins_400Regular,
+      color: '#888',
+      marginBottom: 2,
+    },
+    transactionCategory: {
+      fontSize: 12,
+      fontFamily: fontFallbacks.Poppins_400Regular,
+      color: '#666',
+    },
+    transactionAmount: {
+      fontSize: 16,
+      fontFamily: fontFallbacks.Poppins_600SemiBold,
+      color: '#FF3B30',
+    },
   });
 
   return (
@@ -3096,10 +3216,11 @@ export default function Planning() {
 
               <View style={styles.sectionHeader}>
                 <Text style={styles.sectionTitle}>Histórico</Text>
-                <TouchableOpacity>
+                <TouchableOpacity onPress={handleShowAllTransactions}>
                   <Text style={styles.seeAllLink}>Ver Todos</Text>
                 </TouchableOpacity>
               </View>
+
 
               <View style={styles.transactionsList}>
                 {historyTransactions.length === 0 ? (
@@ -3962,11 +4083,55 @@ export default function Planning() {
                   </View>
                 </View>
               </Modal>
-              
 
             </View>
           )}
         </ScrollView>
+
+        {/* Modal para mostrar todas as transações com orçamento */}
+        <Modal
+          visible={allTransactionsModalVisible}
+          transparent={true}
+          animationType="slide"
+        >
+          <View style={styles.modalContainer}>
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Todas as Transações com Orçamento</Text>
+                <TouchableOpacity 
+                  style={styles.closeButton}
+                  onPress={() => setAllTransactionsModalVisible(false)}
+                >
+                  <X size={24} color="#333" />
+                </TouchableOpacity>
+              </View>
+              
+              <ScrollView style={styles.transactionsModalList}>
+                {allTransactions.length === 0 ? (
+                  <View style={styles.emptyTransactions}>
+                    <Text style={styles.emptyTransactionsText}>Nenhuma transação com orçamento encontrada.</Text>
+                  </View>
+                ) : (
+                  allTransactions.map((transaction, index) => (
+                    <View key={transaction.id} style={styles.transactionItem}>
+                      <View style={[styles.transactionIcon, { backgroundColor: 'rgba(255, 59, 48, 0.15)' }]}>
+                        <Text style={{ fontSize: 20 }}>{transaction.budgetIcon}</Text>
+                      </View>
+                      <View style={styles.transactionInfo}>
+                        <Text style={styles.transactionTitle}>{transaction.description}</Text>
+                        <Text style={styles.transactionTime}>{transaction.date} • {transaction.time} • {transaction.user}</Text>
+                        <Text style={styles.transactionCategory}>{transaction.budgetCategory}</Text>
+                      </View>
+                      <Text style={styles.transactionAmount}>
+                        -R$ {transaction.amount.toFixed(2).replace('.', ',')}
+                      </Text>
+                    </View>
+                  ))
+                )}
+              </ScrollView>
+            </View>
+          </View>
+        </Modal>
 
         {/* Menu Modal */}
         <MenuModal
@@ -4044,4 +4209,4 @@ export default function Planning() {
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
-} 
+}

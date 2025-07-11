@@ -66,6 +66,7 @@ interface IncomeTransaction {
   owner_id: string;
   partner_id: string | null;
   icon: string | null;
+  is_received: boolean;
   created_at: string;
   updated_at: string;
   // Dados da conta (join)
@@ -220,7 +221,7 @@ export default function HistoricoReceitasScreen() {
         description: transaction.description,
         amount: parseFloat(transaction.amount.toString()),
         date: transaction.transaction_date,
-        isReceived: true, // Transações são consideradas sempre recebidas
+        isReceived: transaction.is_received || false, // Usar o valor real da coluna is_received
         isRecurring: transaction.recurrence_type !== 'Não recorrente',
         category: transaction.category,
         account: transaction.accounts,

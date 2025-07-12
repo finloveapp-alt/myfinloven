@@ -1290,7 +1290,8 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 24,
     padding: 24,
     paddingBottom: Platform.OS === 'ios' ? 40 : 24,
-    maxHeight: '70%',
+    maxHeight: Platform.OS === 'ios' ? '70%' : '80%',
+    minHeight: Platform.OS === 'android' ? 400 : undefined,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -1314,6 +1315,7 @@ const styles = StyleSheet.create({
   modalScrollView: {
     flex: 1,
     marginBottom: 24,
+    maxHeight: Platform.OS === 'android' ? 350 : undefined,
   },
   input: {
     backgroundColor: '#f5f7fa',

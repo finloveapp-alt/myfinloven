@@ -110,6 +110,11 @@ const getInitialTheme = () => {
 export default function Cards() {
   const [theme, setTheme] = useState(getInitialTheme());
   const [isModalVisible, setIsModalVisible] = useState(false);
+  
+  // Debug: Log quando o estado do modal muda
+  useEffect(() => {
+    console.log('Estado do modal mudou para:', isModalVisible);
+  }, [isModalVisible]);
   const [menuModalVisible, setMenuModalVisible] = useState(false);
   const [cardName, setCardName] = useState('');
   const [bankName, setBankName] = useState('');
@@ -409,7 +414,10 @@ export default function Cards() {
         >
           <TouchableOpacity 
             style={styles.addCardButton}
-            onPress={() => setIsModalVisible(true)}
+            onPress={() => {
+              console.log('Botão adicionar cartão pressionado');
+              setIsModalVisible(true);
+            }}
           >
             <View style={styles.addCardContent}>
               <Plus size={20} color={theme.primary} />
@@ -693,11 +701,11 @@ export default function Cards() {
         animationType="slide"
         transparent={true}
         onRequestClose={() => setIsModalVisible(false)}
+        presentationStyle="overFullScreen"
+        onShow={() => console.log('Modal do cartão aberto')}
+        onDismiss={() => console.log('Modal do cartão fechado')}
       >
-        <KeyboardAvoidingView 
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          style={styles.modalContainer}
-        >
+        <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Adicionar Novo Cartão</Text>
@@ -713,6 +721,8 @@ export default function Cards() {
               style={styles.modalScrollView}
               showsVerticalScrollIndicator={false}
               bounces={false}
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={{ paddingBottom: 20 }}
             >
               <TextInput
                 style={styles.input}
@@ -985,8 +995,10 @@ export default function Cards() {
               )}
             </TouchableOpacity>
           </View>
-        </KeyboardAvoidingView>
+        </View>
       </Modal>
+
+
     </View>
   );
 }
@@ -1143,7 +1155,8 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 24,
     padding: 24,
     paddingBottom: Platform.OS === 'ios' ? 40 : 24,
-    maxHeight: '70%',
+    maxHeight: Platform.OS === 'ios' ? '70%' : '80%',
+    minHeight: Platform.OS === 'android' ? 400 : undefined,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -1508,6 +1521,7 @@ const styles = StyleSheet.create({
   modalScrollView: {
     flex: 1,
     marginBottom: 24,
+    maxHeight: Platform.OS === 'android' ? 350 : undefined,
   },
   detectedBrandContainer: {
     marginTop: 16,

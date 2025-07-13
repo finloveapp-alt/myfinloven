@@ -50,7 +50,7 @@ export default function TermosDeUso() {
             {'\n\n'}
             O MyFinlove oferece funcionalidades específicas para casais, incluindo convites por e-mail para conectar parceiros e compartilhamento de dados financeiros. Ambos os usuários são responsáveis pela segurança de suas respectivas contas.
             {'\n\n'}
-            Caso haja suspeita de uso indevido, entre em contato imediatamente com nosso suporte: suporte@myfinlove.com.
+                         Caso haja suspeita de uso indevido, entre em contato imediatamente com nosso suporte: dev@myfinlove.com.
           </Text>
         </View>
 
@@ -174,7 +174,7 @@ export default function TermosDeUso() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>13. CONTATO E SUPORTE</Text>
           <Text style={styles.sectionText}>
-            Em caso de dúvidas ou esclarecimentos, entre em contato conosco pelo e-mail: suporte@myfinlove.com.
+                         Em caso de dúvidas ou esclarecimentos, entre em contato conosco pelo e-mail: dev@myfinlove.com.
             {'\n\n'}
             Ao se cadastrar e utilizar o MyFinlove, você declara compreender e concordar integralmente com esses Termos.
           </Text>

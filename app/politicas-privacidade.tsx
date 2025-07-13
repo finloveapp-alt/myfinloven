@@ -117,7 +117,7 @@ export default function PoliticasPrivacidade() {
             {'\n'}
             • Metas e planejamentos financeiros
             {'\n\n'}
-            Para solicitar a exclusão, acesse o menu "Perfil" no aplicativo e selecione a opção "Excluir minha conta", ou envie um email para suporte@myfinlove.com com o assunto "Solicitação de exclusão de conta".
+            Para solicitar a exclusão, acesse o menu "Perfil" no aplicativo e selecione a opção "Excluir minha conta", ou envie um email para dev@myfinlove.com com o assunto "Solicitação de exclusão de conta".
           </Text>
         </View>
 
@@ -152,7 +152,7 @@ export default function PoliticasPrivacidade() {
             {'\n'}
             • Exclusão: Você pode solicitar a exclusão definitiva dos seus dados diretamente pelo aplicativo;
             {'\n'}
-            • Portabilidade: Caso precise, pode solicitar seus dados pessoais em formato acessível enviando um e-mail para suporte@myfinlove.com;
+            • Portabilidade: Caso precise, pode solicitar seus dados pessoais em formato acessível enviando um e-mail para dev@myfinlove.com;
             {'\n'}
             • Revogação do consentimento: Você pode revogar o consentimento fornecido anteriormente para o uso de seus dados, estando ciente das consequências dessa ação;
             {'\n'}
@@ -165,7 +165,7 @@ export default function PoliticasPrivacidade() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>12. Contato e suporte</Text>
           <Text style={styles.sectionText}>
-            Em caso de dúvidas, esclarecimentos ou solicitações relacionadas à sua privacidade, por favor entre em contato conosco pelo e-mail: suporte@myfinlove.com.
+            Em caso de dúvidas, esclarecimentos ou solicitações relacionadas à sua privacidade, por favor entre em contato conosco pelo e-mail: dev@myfinlove.com.
           </Text>
         </View>
 

@@ -22,9 +22,7 @@
     },
     "android": {
       "package": "com.myfinlove.app",
-      "runtimeVersion": {
-        "policy": "appVersion"
-      },
+      "runtimeVersion": "1.0.0",
       "permissions": [
         "android.permission.RECEIVE_BOOT_COMPLETED",
         "android.permission.VIBRATE",
@@ -50,12 +48,9 @@
         "origin": false
       },
       "eas": {
-        "projectId": "353a1b05-09b7-4634-9a5c-b6404ebcdd9d"
+        "projectId": "da53324c-3c8b-4b8c-ad27-cf6b4df808fe"
       }
     },
-    "owner": "myfinlove",
-    "updates": {
-      "url": "https://u.expo.dev/353a1b05-09b7-4634-9a5c-b6404ebcdd9d"
-    }
+    "owner": "joaofrancadantas"
   }
 }

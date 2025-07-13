@@ -1,0 +1,54 @@
+🎉 MYFINLOVE - TESTE FECHADO v1.0.0
+
+Primeiro app de finanças para casais! Gerencie suas finanças de forma colaborativa.
+
+✨ PRINCIPAIS FUNCIONALIDADES:
+
+💑 Sistema de Casais
+• Convite por email para conectar parceiros
+• Sincronização em tempo real
+• Transações compartilhadas
+
+💰 Gestão Financeira
+• Dashboard intuitivo
+• Contas e cartões
+• Receitas e despesas categorizadas
+• Histórico detalhado
+
+📊 Análises
+• Gráficos de gastos por categoria
+• Análise por pessoa
+• Projeções financeiras
+
+🎯 Planejamento
+• Orçamentos mensais
+• Metas financeiras colaborativas
+• Calendário com lembretes
+
+🔔 Notificações
+• Lembretes diários (09:00)
+• Alertas de vencimentos
+
+🎨 Interface
+• Temas personalizados (feminino/masculino)
+• Design responsivo Android
+• Navegação intuitiva
+
+🔒 Segurança
+• Autenticação segura
+• Dados criptografados
+
+📋 PARA TESTAR:
+1. Registro e login
+2. Convite entre casais
+3. Adição de contas/cartões
+4. Registro de transações
+5. Navegação
+6. Notificações
+
+💬 SEU FEEDBACK É ESSENCIAL!
+Reporte bugs, problemas de interface ou sugestões.
+
+React Native • Expo • Supabase • TypeScript
+
+Equipe MyFinlove - Transformando a gestão financeira de casais 💕 

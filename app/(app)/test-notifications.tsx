@@ -15,12 +15,14 @@ export default function TestNotifications() {
     notification,
     sendTestNotification,
     sendImmediateNotification,
+    scheduleDailyNotification,
+    cancelDailyNotifications,
   } = useNotifications();
 
   const handleTestNotification = async () => {
     try {
       await sendTestNotification();
-      Alert.alert('Sucesso!', 'Notificação de teste agendada para 2 segundos!');
+      Alert.alert('Sucesso!', 'Notificação de teste agendada para 30 segundos!');
     } catch (error) {
       Alert.alert('Erro', 'Falha ao enviar notificação de teste');
       console.error(error);
@@ -33,6 +35,26 @@ export default function TestNotifications() {
       Alert.alert('Sucesso!', 'Notificação imediata enviada!');
     } catch (error) {
       Alert.alert('Erro', 'Falha ao enviar notificação imediata');
+      console.error(error);
+    }
+  };
+
+  const handleDailyNotification = async () => {
+    try {
+      await scheduleDailyNotification();
+      Alert.alert('Sucesso!', 'Notificação diária agendada para 09:00!');
+    } catch (error) {
+      Alert.alert('Erro', 'Falha ao agendar notificação diária');
+      console.error(error);
+    }
+  };
+
+  const handleCancelDailyNotifications = async () => {
+    try {
+      await cancelDailyNotifications();
+      Alert.alert('Sucesso!', 'Todas as notificações diárias foram canceladas!');
+    } catch (error) {
+      Alert.alert('Erro', 'Falha ao cancelar notificações diárias');
       console.error(error);
     }
   };
@@ -61,7 +83,7 @@ export default function TestNotifications() {
           style={[styles.button, styles.primaryButton]}
           onPress={handleTestNotification}
         >
-          <Text style={styles.buttonText}>💕 Notificação de Teste (2s)</Text>
+          <Text style={styles.buttonText}>💕 Notificação de Teste (30s)</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -69,6 +91,20 @@ export default function TestNotifications() {
           onPress={handleImmediateNotification}
         >
           <Text style={styles.buttonText}>🍟 Notificação Imediata</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.button, styles.dailyButton]}
+          onPress={handleDailyNotification}
+        >
+          <Text style={styles.buttonText}>⏰ Notificação Diária (09:00)</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.button, styles.cancelButton]}
+          onPress={handleCancelDailyNotifications}
+        >
+          <Text style={styles.buttonText}>❌ Cancelar Notificações Diárias</Text>
         </TouchableOpacity>
       </View>
 
@@ -172,6 +208,12 @@ const styles = StyleSheet.create({
   },
   secondaryButton: {
     backgroundColor: '#e17055',
+  },
+  dailyButton: {
+    backgroundColor: '#6c5ce7',
+  },
+  cancelButton: {
+    backgroundColor: '#d63031',
   },
   buttonText: {
     color: '#fff',

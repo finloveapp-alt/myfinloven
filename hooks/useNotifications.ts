@@ -43,14 +43,22 @@ export function useNotifications() {
 
   // Função para enviar notificação local de teste
   const sendTestNotification = async () => {
-    await Notifications.scheduleNotificationAsync({
+    console.log('Agendando notificação para 30 segundos...');
+    
+    const notificationId = await Notifications.scheduleNotificationAsync({
       content: {
         title: "💕 Teste MyFinlove!",
         body: "Bom dia, casal! Bora começar no amor (e no controle)? ☀💑",
         data: { testData: 'Dados de teste' },
       },
-      trigger: { seconds: 2 }, // Enviar em 2 segundos
+      trigger: {
+        type: 'timeInterval',
+        seconds: 30,
+        repeats: false,
+      },
     });
+    
+    console.log('Notificação agendada com ID:', notificationId);
   };
 
   // Função para enviar notificação imediata
@@ -65,11 +73,73 @@ export function useNotifications() {
     });
   };
 
+  // Função para agendar notificação diária às 09:00
+  const scheduleDailyNotification = async () => {
+    console.log('Agendando notificação diária para 09:00...');
+    
+    // Primeiro, cancelar notificações diárias existentes
+    await Notifications.cancelAllScheduledNotificationsAsync();
+    
+    // Criar a data para hoje às 09:00
+    const now = new Date();
+    const scheduledDate = new Date();
+    scheduledDate.setHours(9, 0, 0, 0);
+    
+    // Se já passou das 09:00 hoje, agendar para amanhã
+    if (now > scheduledDate) {
+      scheduledDate.setDate(scheduledDate.getDate() + 1);
+    }
+    
+    const notificationId = await Notifications.scheduleNotificationAsync({
+      content: {
+        title: "💕 Hora do FinLove!",
+        body: "Que tal revisar os gastos de hoje com seu amor? 💑💰",
+        data: { type: 'daily_reminder' },
+      },
+      trigger: {
+        type: 'timeInterval',
+        seconds: Math.floor((scheduledDate.getTime() - now.getTime()) / 1000),
+        repeats: false,
+      },
+    });
+    
+    // Agendar as próximas notificações (para os próximos 30 dias)
+    for (let i = 1; i <= 30; i++) {
+      const futureDate = new Date(scheduledDate);
+      futureDate.setDate(futureDate.getDate() + i);
+      
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: "💕 Hora do FinLove!",
+          body: "Que tal revisar os gastos de hoje com seu amor? 💑💰",
+          data: { type: 'daily_reminder' },
+        },
+        trigger: {
+          type: 'timeInterval',
+          seconds: Math.floor((futureDate.getTime() - now.getTime()) / 1000),
+          repeats: false,
+        },
+      });
+    }
+    
+    console.log('Notificação diária agendada com ID:', notificationId);
+    console.log('Próxima notificação será em:', scheduledDate.toLocaleString());
+    return notificationId;
+  };
+
+  // Função para cancelar todas as notificações diárias
+  const cancelDailyNotifications = async () => {
+    await Notifications.cancelAllScheduledNotificationsAsync();
+    console.log('Todas as notificações diárias foram canceladas');
+  };
+
   return {
     expoPushToken,
     notification,
     sendTestNotification,
     sendImmediateNotification,
+    scheduleDailyNotification,
+    cancelDailyNotifications,
   };
 }
 

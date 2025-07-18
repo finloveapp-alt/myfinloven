@@ -11,6 +11,7 @@ import { supabase } from '@/lib/supabase';
 import themes from '@/constants/themes';
 import { fontFallbacks } from '@/utils/styles';
 import { getBudgetValueById, FeasibilityResults } from '@/utils/budgetCalculator';
+import { useNotifications } from '../../hooks/useNotifications';
 
 // Declarar a variável global para TypeScript
 declare global {
@@ -45,6 +46,9 @@ interface UserProfile {
 export default function Dashboard() {
   const router = useRouter();
   const [theme, setTheme] = useState(getInitialTheme());
+  
+  // Hook para notificações - agenda automaticamente quando o usuário entra no app
+  const { scheduleAllNotifications } = useNotifications();
   const [currentTransactionIndex, setCurrentTransactionIndex] = useState(0);
   const [menuModalVisible, setMenuModalVisible] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -155,6 +159,27 @@ export default function Dashboard() {
       subscription.remove();
     };
   }, [theme]);
+  
+  // Agendar todas as notificações quando o usuário entrar no app (apenas uma vez)
+  useEffect(() => {
+    const checkAndScheduleNotifications = async () => {
+      try {
+        const notificationsScheduled = await AsyncStorage.getItem('@MyFinlove:notificationsScheduled');
+        if (!notificationsScheduled) {
+          console.log('Agendando notificações pela primeira vez...');
+          await scheduleAllNotifications();
+          await AsyncStorage.setItem('@MyFinlove:notificationsScheduled', 'true');
+          console.log('Notificações agendadas e marcadas como configuradas.');
+        } else {
+          console.log('Notificações já foram agendadas anteriormente.');
+        }
+      } catch (error) {
+        console.error('Erro ao verificar/agendar notificações:', error);
+      }
+    };
+    
+    checkAndScheduleNotifications();
+  }, []);
   
   useEffect(() => {
     // Buscar informações do usuário atual e seus parceiros
@@ -3312,14 +3337,7 @@ export default function Dashboard() {
           )}
         </View>
 
-        {/* Botão de Teste de Notificações */}
-        <TouchableOpacity 
-          style={styles.testNotificationsButton}
-          onPress={() => router.push('/(app)/test-notifications')}
-        >
-          <Bell size={20} color="#fff" />
-          <Text style={styles.testNotificationsButtonText}>🔔 Teste Notificações</Text>
-        </TouchableOpacity>
+
       </ScrollView>
 
       {/* Bottom Navigation */}
@@ -5387,37 +5405,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: fontFallbacks.Poppins_400Regular,
   },
-  // Estilos do botão de teste de notificações
-  testNotificationsButton: {
-    backgroundColor: '#ff6b6b',
-    borderRadius: 12,
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginHorizontal: 20,
-    marginTop: 20,
-    marginBottom: 20,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: {
-          width: 0,
-          height: 2,
-        },
-        shadowOpacity: 0.1,
-        shadowRadius: 3.84,
-      },
-      android: {
-        elevation: 5,
-      },
-    }),
-  },
-  testNotificationsButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-    marginLeft: 8,
-    fontFamily: fontFallbacks.Poppins_600SemiBold,
-  },
+
 });

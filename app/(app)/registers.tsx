@@ -8,6 +8,137 @@ import { fontFallbacks } from '@/utils/styles';
 import { supabase } from '@/lib/supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { cardsService, Card } from '@/lib/services/cardsService';
+import { useNotifications } from '@/hooks/useNotifications';
+import GoalReachedModal from '@/components/GoalReachedModal';
+
+// Importar função saveGoalDeposit do planning.tsx
+const saveGoalDeposit = async (goalId: string, amount: number, userName: string, notifyGoalReachedFn: (title: string, targetAmount: number) => Promise<void>) => {
+  try {
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    if (sessionError || !session?.user) {
+      console.error('Erro de autenticação:', sessionError);
+      return false;
+    }
+
+    const user = session.user;
+
+    // O depósito já foi inserido na tabela transactions pelo sistema principal
+    console.log('🎯 Processando depósito para meta:', goalId, 'Valor:', amount, 'Usuário:', userName);
+
+    // Buscar todas as transações da meta para recalcular o total
+    const { data: allDeposits, error: depositsError } = await supabase
+      .from('transactions')
+      .select('amount')
+      .eq('goal_id', goalId)
+      .eq('transaction_type', 'income');
+
+    if (depositsError) {
+      console.error('Erro ao buscar transações da meta:', depositsError);
+      return false;
+    }
+
+    // Calcular novo total
+    const newCurrentAmount = allDeposits.reduce((sum, transaction) => sum + parseFloat(transaction.amount), 0);
+
+    // Buscar a meta para obter o valor alvo e dados atuais
+    const { data: goalData, error: goalError } = await supabase
+      .from('financial_goals')
+      .select('target_amount, current_amount, title')
+      .eq('id', goalId)
+      .single();
+
+    if (goalError) {
+      console.error('Erro ao buscar meta:', goalError);
+      return false;
+    }
+
+    // Calcular nova porcentagem (limitada a 100%)
+    const calculatedPercentage = (newCurrentAmount / goalData.target_amount) * 100;
+    const newPercentage = parseFloat(Math.min(calculatedPercentage, 100).toFixed(1));
+
+    // Atualizar a meta com os novos valores
+    const { error: updateError } = await supabase
+      .from('financial_goals')
+      .update({
+        current_amount: newCurrentAmount,
+        percentage: newPercentage
+      })
+      .eq('id', goalId);
+
+    if (updateError) {
+      console.error('Erro ao atualizar meta:', updateError);
+      return false;
+    }
+
+    console.log('🎯 Meta atualizada:', {
+      goalId,
+      newCurrentAmount,
+      newPercentage,
+      targetAmount: goalData.target_amount
+    });
+
+    // Verificar se a meta foi atingida
+    const wasGoalReached = newPercentage >= 100;
+    const wasAlreadyReached = (goalData.current_amount / goalData.target_amount) * 100 >= 100;
+
+    console.log('🎯 Verificação de meta atingida:', {
+      wasGoalReached,
+      wasAlreadyReached,
+      newPercentage,
+      previousPercentage: (goalData.current_amount / goalData.target_amount) * 100
+    });
+
+    if (wasGoalReached) {
+      console.log('🎯 ✅ Meta atingida! Mostrando modal (meta em 100%)...');
+      
+      // Usar a função de notificação passada como parâmetro
+      await notifyGoalReachedFn(goalData.title, goalData.target_amount);
+    } else {
+      console.log('🎯 ❌ Meta não está em 100%');
+    }
+
+    // Buscar transações com informações do usuário para recalcular contribuições da equipe
+    const { data: allTransactionsWithUser, error: transactionsError } = await supabase
+      .from('transactions')
+      .select('amount, description')
+      .eq('goal_id', goalId)
+      .eq('transaction_type', 'income');
+
+    if (!transactionsError && allTransactionsWithUser) {
+      // Recalcular contribuições da equipe baseado nas transações
+      const teamContributions = allTransactionsWithUser.reduce((acc: any, transaction) => {
+        // Usar a descrição ou um nome padrão para identificar o usuário
+        const userName = transaction.description?.includes('Maria') ? 'Maria' : 'João';
+        if (!acc[userName]) {
+          acc[userName] = 0;
+        }
+        acc[userName] += parseFloat(transaction.amount);
+        return acc;
+      }, {});
+
+      // Atualizar contribuições da equipe
+      for (const [name, totalAmount] of Object.entries(teamContributions)) {
+        const percentage = parseFloat(((totalAmount as number / newCurrentAmount) * 100).toFixed(1));
+        
+        await supabase
+          .from('goal_team_contributions')
+          .upsert({
+            goal_id: goalId,
+            user_name: name,
+            total_amount: totalAmount,
+            percentage: percentage
+          }, {
+            onConflict: 'goal_id,user_name'
+          });
+      }
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Erro ao salvar depósito:', error);
+    return false;
+  }
+};
 
 const { width } = Dimensions.get('window');
 
@@ -1577,6 +1708,7 @@ export default function Registers() {
   const router = useRouter();
   const currentDate = new Date();
   const [theme, setTheme] = useState(getInitialTheme()); // Usar a função para inicializar o tema
+  const { notifyGoalReached, goalReachedModal, closeGoalReachedModal } = useNotifications(); // Hook para notificações
   const [currentMonth, setCurrentMonth] = useState(currentDate.getMonth()); // Mês atual (0-indexed)
   const [currentYear, setCurrentYear] = useState(currentDate.getFullYear()); // Ano atual
   const [selectedDay, setSelectedDay] = useState(currentDate.getDate()); // Dia atual
@@ -2714,6 +2846,12 @@ export default function Registers() {
       }
       
       console.log('Transação salva com sucesso:', data);
+      
+      // Chamar saveGoalDeposit se a transação for para uma meta
+      if (data && data[0] && allocationType === 'goal' && selectedGoalId && transactionType === 'income') {
+        console.log('🎯 Chamando saveGoalDeposit para meta:', selectedGoalId);
+        await saveGoalDeposit(selectedGoalId, Math.abs(transactionAmount), description, notifyGoalReached);
+      }
       
       // Vincular transação ao orçamento se selecionado (apenas para despesas)
       if (transactionType === 'expense' && data && data[0] && allocationType === 'budget' && selectedBudgetId) {
@@ -5330,6 +5468,16 @@ export default function Registers() {
           <Text style={styles.navText}>Cartões</Text>
         </TouchableOpacity>
       </View>
+
+      {/* Modal de Meta Atingida */}
+      {goalReachedModal.visible && (
+        <GoalReachedModal
+          visible={goalReachedModal.visible}
+          goalTitle={goalReachedModal.goalTitle}
+          goalAmount={goalReachedModal.goalAmount}
+          onClose={closeGoalReachedModal}
+        />
+      )}
     </View>
   );
 }

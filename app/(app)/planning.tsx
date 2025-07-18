@@ -11,6 +11,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '@/lib/supabase';
 import themes from '@/constants/themes';
 import MenuModal from '@/components/MenuModal';
+import { useNotifications } from '../../hooks/useNotifications';
+import GoalReachedModal from '@/components/GoalReachedModal';
 
 const { width, height } = Dimensions.get('window');
 
@@ -174,6 +176,7 @@ const goals = [
 
 export default function Planning() {
   const router = useRouter();
+  const { notifyGoalReached, goalReachedModal, closeGoalReachedModal } = useNotifications();
   const [theme, setTheme] = useState(getInitialTheme());
   const [activeTab, setActiveTab] = useState('budget'); // 'budget' ou 'goals'
   const [expandedBudget, setExpandedBudget] = useState<string | null>(null);
@@ -802,7 +805,7 @@ export default function Planning() {
   };
 
   // Função para salvar depósito em meta financeira
-  const saveGoalDeposit = async (goalId: string, amount: number, userName: string) => {
+  const saveGoalDeposit = async (goalId: string, amount: number, userName: string, notifyGoalReachedFn: (title: string, targetAmount: number) => Promise<void>) => {
     try {
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
       if (sessionError || !session?.user) {
@@ -812,41 +815,28 @@ export default function Planning() {
 
       const user = session.user;
 
-      // Inserir o depósito
-      const { data: depositData, error: depositError } = await supabase
-        .from('goal_deposits')
-        .insert([{
-          goal_id: goalId,
-          user_id: user.id,
-          amount: amount,
-          user_name: userName
-        }])
-        .select()
-        .single();
+      // O depósito já foi inserido na tabela transactions pelo sistema principal
+      console.log('🎯 Processando depósito para meta:', goalId, 'Valor:', amount, 'Usuário:', userName);
 
-      if (depositError) {
-        console.error('Erro ao inserir depósito:', depositError);
-        return false;
-      }
-
-      // Buscar todos os depósitos da meta para recalcular o total
+      // Buscar todas as transações da meta para recalcular o total
       const { data: allDeposits, error: depositsError } = await supabase
-        .from('goal_deposits')
-        .select('amount, user_name')
-        .eq('goal_id', goalId);
+        .from('transactions')
+        .select('amount')
+        .eq('goal_id', goalId)
+        .eq('transaction_type', 'income');
 
       if (depositsError) {
-        console.error('Erro ao buscar depósitos:', depositsError);
+        console.error('Erro ao buscar transações da meta:', depositsError);
         return false;
       }
 
       // Calcular novo total
-      const newCurrentAmount = allDeposits.reduce((sum, deposit) => sum + parseFloat(deposit.amount), 0);
+      const newCurrentAmount = allDeposits.reduce((sum, transaction) => sum + parseFloat(transaction.amount), 0);
 
-      // Buscar a meta para obter o valor alvo
+      // Buscar a meta para obter o valor alvo e dados atuais
       const { data: goalData, error: goalError } = await supabase
         .from('financial_goals')
-        .select('target_amount')
+        .select('target_amount, current_amount, title')
         .eq('id', goalId)
         .single();
 
@@ -855,7 +845,24 @@ export default function Planning() {
         return false;
       }
 
-      const newPercentage = parseFloat(((newCurrentAmount / goalData.target_amount) * 100).toFixed(1));
+      // Calcular nova porcentagem (limitada a 100%)
+      const calculatedPercentage = (newCurrentAmount / goalData.target_amount) * 100;
+      const newPercentage = parseFloat(Math.min(calculatedPercentage, 100).toFixed(1));
+      
+      // ✨ NOVA LÓGICA: Verificar se a meta foi atingida
+      const wasGoalReached = newPercentage >= 100;
+      const previousAmount = goalData.current_amount || 0;
+      const wasAlreadyReached = (previousAmount / goalData.target_amount) * 100 >= 100;
+      
+      console.log('🎯 === VERIFICAÇÃO DE META ATINGIDA ===');
+      console.log('🎯 Meta:', goalData.title);
+      console.log('🎯 Valor anterior:', previousAmount);
+      console.log('🎯 Novo valor:', newCurrentAmount);
+      console.log('🎯 Valor alvo:', goalData.target_amount);
+      console.log('🎯 Nova porcentagem:', newPercentage);
+      console.log('🎯 Meta foi atingida agora?', wasGoalReached);
+      console.log('🎯 Meta já estava atingida?', wasAlreadyReached);
+      console.log('🎯 Deve enviar notificação?', wasGoalReached && !wasAlreadyReached);
 
       // Atualizar a meta com os novos valores
       const { error: updateError } = await supabase
@@ -870,31 +877,49 @@ export default function Planning() {
         console.error('Erro ao atualizar meta:', updateError);
         return false;
       }
+      
+      // ✨ NOVA LÓGICA: Mostrar modal sempre que a meta estiver em 100%
+      if (wasGoalReached) {
+        console.log('🎯 ✅ Chamando notifyGoalReached (meta em 100%)...');
+        await notifyGoalReachedFn(goalData.title, goalData.target_amount);
+      } else {
+        console.log('🎯 ❌ Meta não está em 100%');
+      }
 
-      // Recalcular contribuições da equipe
-      const teamContributions = allDeposits.reduce((acc: any, deposit) => {
-        const userName = deposit.user_name;
-        if (!acc[userName]) {
-          acc[userName] = 0;
+      // Buscar transações com informações do usuário para recalcular contribuições da equipe
+      const { data: allTransactionsWithUser, error: transactionsError } = await supabase
+        .from('transactions')
+        .select('amount, description')
+        .eq('goal_id', goalId)
+        .eq('transaction_type', 'income');
+
+      if (!transactionsError && allTransactionsWithUser) {
+        // Recalcular contribuições da equipe baseado nas transações
+        const teamContributions = allTransactionsWithUser.reduce((acc: any, transaction) => {
+          // Usar a descrição ou um nome padrão para identificar o usuário
+          const userName = transaction.description?.includes('Maria') ? 'Maria' : 'João';
+          if (!acc[userName]) {
+            acc[userName] = 0;
+          }
+          acc[userName] += parseFloat(transaction.amount);
+          return acc;
+        }, {});
+
+        // Atualizar contribuições da equipe
+        for (const [name, totalAmount] of Object.entries(teamContributions)) {
+          const percentage = parseFloat(((totalAmount as number / newCurrentAmount) * 100).toFixed(1));
+          
+          await supabase
+            .from('goal_team_contributions')
+            .upsert({
+              goal_id: goalId,
+              user_name: name,
+              total_amount: totalAmount,
+              percentage: percentage
+            }, {
+              onConflict: 'goal_id,user_name'
+            });
         }
-        acc[userName] += parseFloat(deposit.amount);
-        return acc;
-      }, {});
-
-      // Atualizar contribuições da equipe
-      for (const [name, totalAmount] of Object.entries(teamContributions)) {
-        const percentage = parseFloat(((totalAmount as number / newCurrentAmount) * 100).toFixed(1));
-        
-        await supabase
-          .from('goal_team_contributions')
-          .upsert({
-            goal_id: goalId,
-            user_name: name,
-            total_amount: totalAmount,
-            percentage: percentage
-          }, {
-            onConflict: 'goal_id,user_name'
-          });
       }
 
       return true;
@@ -1381,6 +1406,23 @@ export default function Planning() {
       if (sessionError || !session?.user) {
         Alert.alert('Erro', 'Usuário não autenticado');
         return;
+      }
+
+      // Buscar dados atuais da meta antes da atualização
+      const { data: currentGoalData, error: currentGoalError } = await supabase
+        .from('financial_goals')
+        .select('current_amount, target_amount')
+        .eq('id', goalId)
+        .single();
+      
+      if (!currentGoalError && currentGoalData) {
+        const currentPercentage = (currentGoalData.current_amount / currentGoalData.target_amount) * 100;
+        const newPercentage = (currentGoalData.current_amount / targetAmount) * 100;
+        
+        // Se a meta não estava atingida antes mas agora está (devido à mudança no valor alvo)
+        if (currentPercentage < 100 && newPercentage >= 100) {
+          await notifyGoalReached(title, targetAmount);
+        }
       }
 
       // Atualizar a meta no banco de dados
@@ -2415,6 +2457,11 @@ export default function Planning() {
       borderTopRightRadius: 24,
       padding: 24,
       maxHeight: height * 0.8, // Use percentage of screen height
+      ...Platform.select({
+        android: {
+          height: height * 0.75, // Altura específica para Android
+        },
+      }),
     },
     modalHeader: {
       flexDirection: 'row',
@@ -4216,6 +4263,16 @@ export default function Planning() {
             <Text style={styles.navText}>Cartões</Text>
           </TouchableOpacity>
         </View>
+
+        {/* Modal de Meta Atingida */}
+        {goalReachedModal.visible && (
+          <GoalReachedModal
+            visible={goalReachedModal.visible}
+            goalTitle={goalReachedModal.goalTitle}
+            goalAmount={goalReachedModal.goalAmount}
+            onClose={closeGoalReachedModal}
+          />
+        )}
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

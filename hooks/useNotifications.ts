@@ -631,6 +631,82 @@ export function useNotifications() {
       goalAmount
     });
     
+    // Tentar salvar no histórico de notificações (sem bloquear o modal)
+    setTimeout(async () => {
+      try {
+        console.log('🔍 [Android] Iniciando salvamento assíncrono da notificação...');
+        
+        // Importar supabase diretamente como nos outros arquivos
+        const { supabase } = await import('@/lib/supabase');
+        console.log('🔍 [Android] Supabase importado com sucesso');
+        
+        // Tentar obter a sessão múltiplas vezes se necessário
+        let session = null;
+        let attempts = 0;
+        const maxAttempts = 3;
+        
+        while (!session && attempts < maxAttempts) {
+          attempts++;
+          console.log(`🔍 [Android] Tentativa ${attempts} de obter sessão...`);
+          
+          const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession();
+          
+          if (sessionError) {
+            console.error(`❌ [Android] Erro ao obter sessão (tentativa ${attempts}):`, sessionError);
+            if (attempts < maxAttempts) {
+              await new Promise(resolve => setTimeout(resolve, 500)); // Aguardar 500ms antes da próxima tentativa
+              continue;
+            }
+            return;
+          }
+          
+          session = currentSession;
+          
+          if (!session?.user && attempts < maxAttempts) {
+            console.log(`⚠️ [Android] Sessão não encontrada (tentativa ${attempts}), tentando novamente...`);
+            await new Promise(resolve => setTimeout(resolve, 500)); // Aguardar 500ms antes da próxima tentativa
+          }
+        }
+        
+        console.log('🔍 [Android] Resultado final da sessão:', { session: !!session, user: !!session?.user, attempts });
+        
+        if (!session?.user) {
+          console.log('⚠️ [Android] Usuário não autenticado após todas as tentativas - notificação não será salva');
+          console.log('🔍 [Android] Session data:', session);
+          return;
+        }
+        
+        const userId = session.user.id;
+        console.log('✅ [Android] Usuário autenticado:', userId);
+        
+        console.log('✅ [Android] Preparando para salvar notificação individual...');
+        
+        // Inserir notificação
+        const { error } = await supabase
+          .from('notification_history')
+          .insert({
+            user_id: userId,
+            notification_type: 'goal_reached',
+            title: "Você atingiu sua meta! 🏆💕",
+            message: `Meta ${goalTitle} concluída! Agora é planejar a próxima conquista ✈️💕`,
+            data: {
+              goalTitle,
+              goalAmount,
+              formattedAmount: `R$ ${goalAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+            }
+          });
+        
+        if (error) {
+          console.error('❌ [Android] Erro ao salvar notificação:', error);
+        } else {
+          console.log('✅ [Android] Notificação salva com sucesso!');
+        }
+        
+      } catch (error) {
+        console.error('❌ [Android] Erro geral:', error);
+      }
+    }, 100); // Executar após 100ms para não bloquear o modal
+    
     console.log('🎯 ✅ Modal de meta atingida exibido');
     console.log('🎯 === FIM notifyGoalReached ===');
   };

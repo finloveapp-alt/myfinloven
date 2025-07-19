@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Modal, Platform, AppState } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Modal, Platform, AppState, ActivityIndicator } from 'react-native';
 import { Search, BarChart, Menu, PlusCircle, Receipt, CreditCard, Home, Bell, Info, ExternalLink, Wallet, User, Diamond, Tag } from 'lucide-react-native';
 import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
 import { fontFallbacks } from '@/utils/styles';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import themes from '@/constants/themes';
+import { supabase } from '@/lib/supabase';
+import { useNotifications } from '../../hooks/useNotifications';
+import GoalReachedModal from '../../components/GoalReachedModal';
 
 // Declarar a variável global para TypeScript
 declare global {
@@ -25,9 +28,22 @@ const getInitialTheme = () => {
   return themes.feminine; // Tema padrão
 };
 
+interface NotificationHistoryItem {
+  id: string;
+  notification_type: string;
+  title: string;
+  message: string;
+  data: any;
+  created_at: string;
+  read_at: string | null;
+}
+
 export default function Notifications() {
   const [theme, setTheme] = useState(getInitialTheme());
   const [menuModalVisible, setMenuModalVisible] = useState(false);
+  const [notificationHistory, setNotificationHistory] = useState<NotificationHistoryItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { goalReachedModal, closeGoalReachedModal } = useNotifications();
   
   // Salvar o tema no AsyncStorage quando ele for alterado
   const saveThemeToStorage = async (themeValue: string) => {
@@ -52,6 +68,89 @@ export default function Notifications() {
     }
   };
   
+  // Função para buscar histórico de notificações
+  const fetchNotificationHistory = async () => {
+    try {
+      setLoading(true);
+      
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError) {
+        console.error('Erro ao obter sessão:', sessionError);
+        setNotificationHistory([]);
+        return;
+      }
+      
+      if (!session || !session.user) {
+        console.log('Nenhuma sessão de usuário encontrada');
+        setNotificationHistory([]);
+        return;
+      }
+      
+      const userId = session.user.id;
+      
+      const { data: notifications, error } = await supabase
+        .from('notification_history')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+      
+      if (error) {
+        console.error('Erro ao buscar notificações:', error);
+        setNotificationHistory([]);
+      } else {
+        setNotificationHistory(notifications || []);
+      }
+    } catch (error) {
+      console.error('Erro ao buscar notificações:', error);
+      setNotificationHistory([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Carregar histórico de notificações quando a tela for montada
+  useEffect(() => {
+    fetchNotificationHistory();
+  }, []);
+
+  // Recarregar histórico quando o modal de meta atingida for fechado
+  useEffect(() => {
+    if (!goalReachedModal.visible) {
+      // Aguardar um pouco para garantir que a notificação foi salva no banco
+      const timer = setTimeout(() => {
+        fetchNotificationHistory();
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [goalReachedModal.visible]);
+
+  // Função para formatar data
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
+    
+    if (diffInHours < 1) {
+      return 'Agora há pouco';
+    } else if (diffInHours < 24) {
+      return `${diffInHours}h atrás`;
+    } else {
+      const diffInDays = Math.floor(diffInHours / 24);
+      if (diffInDays === 1) {
+        return 'Ontem';
+      } else if (diffInDays < 7) {
+        return `${diffInDays} dias atrás`;
+      } else {
+        return date.toLocaleDateString('pt-BR', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric'
+        });
+      }
+    }
+  };
+
   // Carregar tema do AsyncStorage no início
   useEffect(() => {
     const loadThemeFromStorage = async () => {
@@ -92,18 +191,37 @@ export default function Notifications() {
           </TouchableOpacity>
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Novas</Text>
-          <NotificationItem name="Ana" />
-          <NotificationItem name="Achmad Fiqrih" />
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Anterior</Text>
-          <NotificationItem name="Achmad Fiqrih" />
-          <NotificationItem name="Achmad Fiqrih" />
-          <NotificationItem name="Achmad Fiqrih" />
-        </View>
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={theme.primary} />
+            <Text style={[styles.loadingText, { color: theme.textSecondary }]}>
+              Carregando notificações...
+            </Text>
+          </View>
+        ) : notificationHistory.length === 0 ? (
+          <View style={styles.notificationContainer}>
+            <Text style={[styles.notificationTitle, { color: theme.text }]}>
+              Nenhuma notificação ainda
+            </Text>
+            <Text style={[styles.notificationSubtitle, { color: theme.textSecondary }]}>
+              Suas notificações internas aparecerão aqui quando você atingir metas ou receber lembretes
+            </Text>
+          </View>
+        ) : (
+          <View style={styles.historyContainer}>
+            <Text style={[styles.historyTitle, { color: theme.text }]}>
+              Histórico de Notificações
+            </Text>
+            {notificationHistory.map((notification) => (
+              <NotificationHistoryItem
+                key={notification.id}
+                notification={notification}
+                theme={theme}
+                formatDate={formatDate}
+              />
+            ))}
+          </View>
+        )}
       </ScrollView>
       
       {/* Bottom Navigation */}
@@ -303,22 +421,63 @@ export default function Notifications() {
           </View>
         </View>
       </Modal>
+
+      {/* Modal de Meta Atingida */}
+      <GoalReachedModal
+        visible={goalReachedModal.visible}
+        goalTitle={goalReachedModal.goalTitle}
+        goalAmount={goalReachedModal.goalAmount}
+        onClose={closeGoalReachedModal}
+      />
     </View>
   );
 }
 
-function NotificationItem({ name }: { name: string }) {
+// Componente para item de notificação do histórico
+const NotificationHistoryItem = ({ 
+  notification, 
+  theme, 
+  formatDate 
+}: { 
+  notification: NotificationHistoryItem;
+  theme: any;
+  formatDate: (date: string) => string;
+}) => {
+  const getNotificationIcon = (type: string) => {
+    switch (type) {
+      case 'goal_reached':
+        return '🏆';
+      default:
+        return '🔔';
+    }
+  };
+
   return (
-    <TouchableOpacity style={styles.notification}>
-      <View style={styles.icon} />
-      <View style={styles.textContainer}>
-        <Text style={styles.name}>{name}</Text>
-        <Text style={styles.message}>Sua transferência para 4140581094 foi bem-sucedida.</Text>
-        <Text style={styles.time}>16:48 Ter 2021</Text>
+    <View style={[styles.notificationItem, { backgroundColor: theme.cardBackground }]}>
+      <View style={styles.iconContainer}>
+        <Text style={styles.notificationEmoji}>
+          {getNotificationIcon(notification.notification_type)}
+        </Text>
       </View>
-    </TouchableOpacity>
+      <View style={styles.textContainer}>
+        <Text style={[styles.notificationItemTitle, { color: theme.text }]}>
+          {notification.title}
+        </Text>
+        <Text style={[styles.notificationItemMessage, { color: theme.textSecondary }]}>
+          {notification.message}
+        </Text>
+        {notification.data?.formattedAmount && (
+          <Text style={[styles.notificationAmount, { color: theme.primary }]}>
+            {notification.data.formattedAmount}
+          </Text>
+        )}
+      </View>
+      <Text style={[styles.notificationTime, { color: theme.textSecondary }]}>
+        {formatDate(notification.created_at)}
+      </Text>
+    </View>
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -359,7 +518,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
-    elevation: 2,
+    elevation: 0,
   },
   icon: {
     width: 40,
@@ -406,7 +565,7 @@ const styles = StyleSheet.create({
         shadowRadius: 4,
       },
       android: {
-        elevation: 5,
+        elevation: 0,
       },
     }),
   },
@@ -447,7 +606,7 @@ const styles = StyleSheet.create({
         shadowRadius: 6,
       },
       android: {
-        elevation: 5,
+        elevation: 0,
       },
       web: {
         shadowColor: '#000',
@@ -551,11 +710,98 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
-    elevation: 3,
+    elevation: 0,
   },
   closeFullButtonText: {
     color: '#ffffff',
     fontSize: 16,
     fontFamily: fontFallbacks.Poppins_600SemiBold,
+  },
+  // Notification History Styles
+  notificationContainer: {
+    padding: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 200,
+  },
+  notificationTitle: {
+    fontSize: 18,
+    fontFamily: fontFallbacks.Poppins_600SemiBold,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  notificationSubtitle: {
+    fontSize: 14,
+    fontFamily: fontFallbacks.Poppins_400Regular,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  loadingContainer: {
+    padding: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    fontSize: 16,
+    fontFamily: fontFallbacks.Poppins_400Regular,
+    marginTop: 16,
+  },
+  historyContainer: {
+    padding: 16,
+  },
+  historyTitle: {
+    fontSize: 20,
+    fontFamily: fontFallbacks.Poppins_600SemiBold,
+    marginBottom: 16,
+  },
+  notificationItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    marginBottom: 12,
+    borderRadius: 12,
+    backgroundColor: '#f8f9fa',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 0,
+  },
+  iconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 0,
+  },
+  notificationEmoji: {
+    fontSize: 24,
+  },
+  notificationItemTitle: {
+    fontSize: 16,
+    fontFamily: fontFallbacks.Poppins_600SemiBold,
+    marginBottom: 4,
+  },
+  notificationItemMessage: {
+    fontSize: 14,
+    fontFamily: fontFallbacks.Poppins_400Regular,
+    lineHeight: 18,
+  },
+  notificationAmount: {
+    fontSize: 14,
+    fontFamily: fontFallbacks.Poppins_600SemiBold,
+    marginTop: 4,
+  },
+  notificationTime: {
+    fontSize: 12,
+    fontFamily: fontFallbacks.Poppins_400Regular,
+    marginLeft: 'auto',
   },
 });

@@ -15,11 +15,7 @@
     "assetBundlePatterns": [
       "**/*"
     ],
-    "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.myfinlove.app",
-      "runtimeVersion": "1.0.0"
-    },
+
     "android": {
       "package": "com.myfinlove.app",
       "runtimeVersion": "1.0.0",

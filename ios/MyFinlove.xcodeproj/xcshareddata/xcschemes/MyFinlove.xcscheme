@@ -15,9 +15,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "13B07F861A680F5B00A75B9A"
-               BuildableName = "MyFinlove.app"
-               BlueprintName = "MyFinlove"
-               ReferencedContainer = "container:MyFinlove.xcodeproj">
+               BuildableName = "Myfinlove.app"
+               BlueprintName = "Myfinlove"
+               ReferencedContainer = "container:Myfinlove.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -33,9 +33,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "00E356ED1AD99517003FC87E"
-               BuildableName = "MyFinloveTests.xctest"
-               BlueprintName = "MyFinloveTests"
-               ReferencedContainer = "container:MyFinlove.xcodeproj">
+               BuildableName = "MyfinloveTests.xctest"
+               BlueprintName = "MyfinloveTests"
+               ReferencedContainer = "container:Myfinlove.xcodeproj">
             </BuildableReference>
          </TestableReference>
       </Testables>
@@ -55,9 +55,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "13B07F861A680F5B00A75B9A"
-            BuildableName = "MyFinlove.app"
-            BlueprintName = "MyFinlove"
-            ReferencedContainer = "container:MyFinlove.xcodeproj">
+            BuildableName = "Myfinlove.app"
+            BlueprintName = "Myfinlove"
+            ReferencedContainer = "container:Myfinlove.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </LaunchAction>
@@ -72,9 +72,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "13B07F861A680F5B00A75B9A"
-            BuildableName = "MyFinlove.app"
-            BlueprintName = "MyFinlove"
-            ReferencedContainer = "container:MyFinlove.xcodeproj">
+            BuildableName = "Myfinlove.app"
+            BlueprintName = "Myfinlove"
+            ReferencedContainer = "container:Myfinlove.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </ProfileAction>

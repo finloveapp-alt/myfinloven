@@ -26,7 +26,8 @@
       "permissions": [
         "android.permission.RECEIVE_BOOT_COMPLETED",
         "android.permission.VIBRATE",
-        "android.permission.WAKE_LOCK"
+        "android.permission.WAKE_LOCK",
+        "com.android.vending.BILLING"
       ]
     },
     "plugins": [

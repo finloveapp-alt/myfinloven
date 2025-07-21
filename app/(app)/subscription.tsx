@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Diamond, Crown, Check, X } from 'lucide-react-native';
 import { router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Purchases, { PurchasesOffering, PurchasesPackage, LOG_LEVEL } from 'react-native-purchases';
 import themes from '@/constants/themes';
 import { fontFallbacks } from '@/utils/styles';
 import BottomNavigation from '@/components/BottomNavigation';
@@ -12,6 +13,56 @@ import BottomNavigation from '@/components/BottomNavigation';
 export default function Subscription() {
   const [theme, setTheme] = useState(themes.feminine);
   const [selectedPlan, setSelectedPlan] = useState<'free' | 'monthly' | 'annual'>('free');
+  const [offerings, setOfferings] = useState<PurchasesOffering | null>(null);
+  const [isPurchasing, setIsPurchasing] = useState(false);
+  const [isRestoring, setIsRestoring] = useState(false);
+
+  // Inicializar RevenueCat
+  useEffect(() => {
+    const initRevenueCat = async () => {
+      try {
+        // Verificar se Purchases está disponível e se tem os métodos necessários
+        if (!Purchases || typeof Purchases.configure !== 'function') {
+          console.warn('RevenueCat não está disponível neste ambiente - usando modo simulado');
+          return;
+        }
+
+        // Verificar se setLogLevel está disponível antes de usar
+        if (typeof Purchases.setLogLevel === 'function') {
+          Purchases.setLogLevel(LOG_LEVEL.VERBOSE);
+        }
+        
+        console.log('Iniciando configuração do RevenueCat...');
+        
+        // Configurar RevenueCat baseado na plataforma
+        if (Platform.OS === 'ios') {
+          await Purchases.configure({
+            apiKey: 'appl_your_ios_api_key_here', // Substitua pela chave iOS
+          });
+        } else if (Platform.OS === 'android') {
+          await Purchases.configure({
+            apiKey: 'goog_DBbaqJRWLlHiVzmqtsAGnTcYkqS',
+          });
+        }
+        
+        console.log('RevenueCat configurado com sucesso');
+        
+        // Buscar ofertas disponíveis
+        const offerings = await Purchases.getOfferings();
+        if (offerings.current) {
+          setOfferings(offerings.current);
+          console.log('Ofertas carregadas:', offerings.current);
+        }
+      } catch (error) {
+        console.error('Erro ao inicializar RevenueCat:', error);
+        console.warn('Continuando sem RevenueCat - funcionalidades de compra serão simuladas');
+      }
+    };
+    
+    // Aguardar um pouco antes de inicializar para garantir que os módulos nativos estejam carregados
+    const timer = setTimeout(initRevenueCat, 1000);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Carregar tema do AsyncStorage
   useEffect(() => {
@@ -31,6 +82,86 @@ export default function Subscription() {
     loadTheme();
   }, []);
 
+  // Função para realizar compra
+  const handlePurchase = async (productId: string) => {
+    if (isPurchasing) return;
+    
+    // Verificar se RevenueCat está disponível
+    if (!Purchases || typeof Purchases.purchaseProduct !== 'function') {
+      Alert.alert(
+        'Modo de demonstração',
+        'Esta é uma demonstração. Em um ambiente de produção, a compra seria processada aqui.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+    
+    setIsPurchasing(true);
+    try {
+      const purchaserInfo = await Purchases.purchaseProduct(productId);
+      
+      if (purchaserInfo.customerInfo.entitlements.active['premium']) {
+        Alert.alert(
+          'Compra realizada!',
+          'Sua assinatura premium foi ativada com sucesso.',
+          [{ text: 'OK' }]
+        );
+      }
+    } catch (error: any) {
+      if (!error.userCancelled) {
+        Alert.alert(
+          'Erro na compra',
+          'Não foi possível processar sua compra. Tente novamente.',
+          [{ text: 'OK' }]
+        );
+      }
+    } finally {
+      setIsPurchasing(false);
+    }
+  };
+
+  // Função para restaurar compras
+  const handleRestorePurchases = async () => {
+    if (isRestoring) return;
+    
+    // Verificar se RevenueCat está disponível
+    if (!Purchases || typeof Purchases.restorePurchases !== 'function') {
+      Alert.alert(
+        'Modo de demonstração',
+        'Esta é uma demonstração. Em um ambiente de produção, as compras seriam restauradas aqui.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+    
+    setIsRestoring(true);
+    try {
+      const purchaserInfo = await Purchases.restorePurchases();
+      
+      if (purchaserInfo.entitlements.active['premium']) {
+        Alert.alert(
+          'Compras restauradas!',
+          'Sua assinatura premium foi restaurada com sucesso.',
+          [{ text: 'OK' }]
+        );
+      } else {
+        Alert.alert(
+          'Nenhuma compra encontrada',
+          'Não foram encontradas compras anteriores para restaurar.',
+          [{ text: 'OK' }]
+        );
+      }
+    } catch (error) {
+      Alert.alert(
+        'Erro ao restaurar',
+        'Não foi possível restaurar suas compras. Tente novamente.',
+        [{ text: 'OK' }]
+      );
+    } finally {
+      setIsRestoring(false);
+    }
+  };
+
   const PlanCard = ({ 
     type, 
     title, 
@@ -47,47 +178,60 @@ export default function Subscription() {
     isSelected: boolean;
     onPress: () => void;
     isPremium?: boolean;
-  }) => (
-    <TouchableOpacity 
-      style={[
-        styles.planCard, 
-        isSelected && styles.selectedPlanCard,
-        type === 'free' && styles.freePlanCard,
-        type === 'monthly' && styles.monthlyPlanCard,
-        type === 'annual' && styles.annualPlanCard
-      ]} 
-      onPress={onPress}
-    >
-      <View style={styles.planCardContent}>
-        <View style={styles.planIcon}>
-          {type === 'free' ? (
-            <Diamond size={24} color="#ffffff" />
-          ) : (
-            <Crown size={24} color="#ffffff" />
+  }) => {
+    const handleCardPress = () => {
+      if (type === 'monthly') {
+        handlePurchase('premium_monthly:plano-mensal');
+      } else if (type === 'annual') {
+        handlePurchase('premium_annual:premium-anual');
+      } else {
+        onPress();
+      }
+    };
+
+    return (
+      <TouchableOpacity 
+        style={[
+          styles.planCard, 
+          isSelected && styles.selectedPlanCard,
+          type === 'free' && styles.freePlanCard,
+          type === 'monthly' && styles.monthlyPlanCard,
+          type === 'annual' && styles.annualPlanCard
+        ]} 
+        onPress={handleCardPress}
+        disabled={isPurchasing && (type === 'monthly' || type === 'annual')}
+      >
+        <View style={styles.planCardContent}>
+          <View style={styles.planIcon}>
+            {type === 'free' ? (
+              <Diamond size={24} color="#ffffff" />
+            ) : (
+              <Crown size={24} color="#ffffff" />
+            )}
+          </View>
+          <View style={styles.planInfo}>
+            <Text style={[
+              styles.planTitle,
+              (type === 'free' || isPremium) && { color: '#ffffff' }
+            ]}>
+              {title}
+            </Text>
+            <Text style={[
+              styles.planSubtitle,
+              (type === 'free' || isPremium) && { color: '#ffffff', opacity: 0.8 }
+            ]}>
+              {subtitle}
+            </Text>
+          </View>
+          {price && (
+            <Text style={[styles.planPrice, { color: '#ffffff' }]}>
+              {isPurchasing && (type === 'monthly' || type === 'annual') ? 'Processando...' : price}
+            </Text>
           )}
         </View>
-        <View style={styles.planInfo}>
-          <Text style={[
-            styles.planTitle,
-            (type === 'free' || isPremium) && { color: '#ffffff' }
-          ]}>
-            {title}
-          </Text>
-          <Text style={[
-            styles.planSubtitle,
-            (type === 'free' || isPremium) && { color: '#ffffff', opacity: 0.8 }
-          ]}>
-            {subtitle}
-          </Text>
-        </View>
-        {price && (
-          <Text style={[styles.planPrice, { color: '#ffffff' }]}>
-            {price}
-          </Text>
-        )}
-      </View>
-    </TouchableOpacity>
-  );
+      </TouchableOpacity>
+    );
+  };
 
   const ResourceRow = ({ 
     title, 
@@ -242,6 +386,19 @@ export default function Subscription() {
               premiumValue="ilimitados"
             />
           </View>
+        </View>
+
+        {/* Botão Restaurar Compras */}
+        <View style={styles.restoreContainer}>
+          <TouchableOpacity 
+            style={styles.restoreButton}
+            onPress={handleRestorePurchases}
+            disabled={isRestoring}
+          >
+            <Text style={styles.restoreButtonText}>
+              {isRestoring ? 'Restaurando...' : 'Restaurar Compras'}
+            </Text>
+          </TouchableOpacity>
         </View>
 
         {/* Garantia */}
@@ -426,6 +583,24 @@ const styles = StyleSheet.create({
     fontFamily: fontFallbacks.Poppins_500Medium,
     color: '#666',
     textAlign: 'center',
+  },
+  restoreContainer: {
+    paddingHorizontal: 20,
+    marginBottom: 20,
+  },
+  restoreButton: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: '#666',
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+  },
+  restoreButtonText: {
+    fontSize: 14,
+    fontFamily: fontFallbacks.Poppins_500Medium,
+    color: '#666',
   },
   guaranteeContainer: {
     flexDirection: 'row',

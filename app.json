@@ -35,6 +35,13 @@
           "color": "#b687fe",
           "sounds": []
         }
+      ],
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "androidClientId": "319741722569-hhsml6dlap3b8bu98fhkvu175ei40moi.apps.googleusercontent.com",
+          "iosUrlScheme": "com.googleusercontent.apps.319741722569-3m0tb6r9gc31efgqebvhjvp00eim7nvk"
+        }
       ]
     ],
     "experiments": {

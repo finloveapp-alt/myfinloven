@@ -7,6 +7,7 @@ import { fontFallbacks } from '@/utils/styles';
 import { Eye, EyeOff } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { updateAuthUserData } from '@/app/supabase/couples-invite-helper';
+import { configureGoogleSignIn, signInWithGoogle } from '@/lib/google-config';
 
 export default function LoginForm() {
   const [email, setEmail] = useState('');
@@ -16,6 +17,9 @@ export default function LoginForm() {
   const [mounted, setMounted] = useState(true);
 
   useEffect(() => {
+    // Configurar Google Sign-In
+    configureGoogleSignIn();
+    
     return () => setMounted(false);
   }, []);
 
@@ -259,14 +263,14 @@ export default function LoginForm() {
               console.log('Atualizando metadados do usuário com nome do perfil:', profileData.name);
               
               // Atualizar os metadados do usuário com o nome do perfil
-              const { success: updateSuccess, metadataSuccess } = await updateAuthUserData(data.user.id, {
+              const updateResult = await updateAuthUserData(data.user.id, {
                 name: profileData.name,
                 email: data.user.email,
                 gender: profileData.gender,
                 accountType: profileData.account_type
               });
               
-              console.log('Resultado da atualização de metadados:', { updateSuccess, metadataSuccess });
+              console.log('Resultado da atualização de metadados:', updateResult);
             }
           } catch (profileError) {
             console.error('Exceção ao processar perfil para metadados:', profileError);
@@ -531,20 +535,117 @@ export default function LoginForm() {
   }
 
   async function signInWithProvider(provider: 'google') {
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider,
-      });
+    if (provider !== 'google') {
+      Alert.alert('Erro', 'Provedor não suportado');
+      return;
+    }
 
-      if (error) {
-        alert(`Erro ao fazer login com Google: ${error.message}`);
+    setLoading(true);
+    try {
+      console.log('### INICIANDO LOGIN COM GOOGLE');
+      
+      // Fazer login com Google usando o SDK nativo
+      const googleResult = await signInWithGoogle();
+      
+      if (!googleResult.success) {
+        console.error('### ERRO NO GOOGLE SIGN-IN:', googleResult.error);
+        Alert.alert('Erro', googleResult.error || 'Erro ao fazer login com Google');
+        return;
       }
       
-      // Não precisamos fazer nada aqui para verificar o gênero
-      // O Supabase redirecionará para a página após login bem-sucedido
-      // e o hook de sessão tratará de verificar o gênero e definir o tema
-    } catch (error) {
-      alert('Erro ao conectar com provedor externo');
+      console.log('### GOOGLE SIGN-IN BEM SUCEDIDO:', googleResult.user?.user?.email);
+      
+      // Autenticar com Supabase usando o ID token do Google
+      const { data, error } = await supabase.auth.signInWithIdToken({
+        provider: 'google',
+        token: googleResult.idToken!,
+      });
+      
+      if (error) {
+        console.error('### ERRO NA AUTENTICAÇÃO SUPABASE:', error);
+        Alert.alert('Erro', `Erro ao autenticar com Supabase: ${error.message}`);
+        return;
+      }
+      
+      if (data && data.user) {
+        console.log('### LOGIN SUPABASE BEM SUCEDIDO:', data.user.email);
+        console.log('### METADADOS DO USUÁRIO:', data.user.user_metadata);
+        
+        console.log('### LOGIN COM GOOGLE - PROCESSANDO USUÁRIO');
+        
+        // Obter informações do usuário do Google
+        const googleUserInfo = googleResult.user?.user;
+        const userName = googleUserInfo?.name || googleUserInfo?.givenName || data.user.email?.split('@')[0] || 'Usuário';
+        
+        console.log('### DADOS DO GOOGLE:', {
+          name: userName,
+          email: data.user.email,
+          userId: data.user.id
+        });
+        
+        try {
+          // Sempre garantir que o perfil tenha os dados corretos para usuários do Google
+          const profileData = {
+            id: data.user.id,
+            name: userName,
+            email: data.user.email,
+            gender: 'homem', // Sempre definido como homem para login com Google
+            account_type: 'individual', // Sempre individual para login com Google
+            updated_at: new Date().toISOString()
+          };
+          
+          console.log('### DADOS DO PERFIL A SEREM INSERIDOS/ATUALIZADOS:', profileData);
+          
+          const { error: profileError } = await supabase
+            .from('profiles')
+            .upsert(profileData, { 
+              onConflict: 'id',
+              ignoreDuplicates: false // Força a atualização mesmo se o registro já existir
+            });
+            
+          if (profileError) {
+            console.error('### ERRO AO CRIAR/ATUALIZAR PERFIL:', profileError);
+          } else {
+            console.log('### PERFIL CRIADO/ATUALIZADO COM SUCESSO PARA USUÁRIO DO GOOGLE');
+            
+            // Atualizar metadados do usuário
+            const { error: updateError } = await supabase.auth.updateUser({
+              data: {
+                display_name: userName,
+                name: userName,
+                full_name: userName,
+                gender: 'homem',
+                account_type: 'individual'
+              }
+            });
+            
+            if (updateError) {
+              console.error('### ERRO AO ATUALIZAR METADADOS:', updateError);
+            } else {
+              console.log('### METADADOS ATUALIZADOS COM SUCESSO');
+            }
+          }
+          
+          // Definir tema masculino já que o gênero é sempre "homem"
+          global.dashboardTheme = 'masculine';
+          console.log('### TEMA DEFINIDO: Masculino (Azul) - Gênero definido como homem');
+          
+          // Redirecionar para o dashboard
+          router.replace('/(app)/dashboard');
+          
+        } catch (profileCreationError) {
+          console.error('### ERRO AO PROCESSAR PERFIL DO GOOGLE:', profileCreationError);
+          // Em caso de erro, redirecionar para o registro manual
+          router.replace('/(auth)/register?fromGoogle=true');
+        }
+      }
+    } catch (error: any) {
+      console.error('### ERRO GERAL NO LOGIN COM GOOGLE:', error);
+      Alert.alert('Erro', 'Erro inesperado ao fazer login com Google. Tente novamente.');
+    } finally {
+      if (mounted) {
+        setLoading(false);
+      }
     }
   }
 

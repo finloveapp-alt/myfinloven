@@ -1,0 +1,55 @@
+{
+  "project_info": {
+    "project_number": "319741722569",
+    "project_id": "my-finlove",
+    "storage_bucket": "my-finlove.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:319741722569:android:2e8b75298be7d229b5f218",
+        "android_client_info": {
+          "package_name": "com.myfinlove.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "319741722569-29f0hih55o5os5sjodb130d5bjfdjrrd.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.myfinlove.app",
+            "certificate_hash": "664dd953405c06686933904c1586f8d5ad189b71"
+          }
+        },
+        {
+          "client_id": "319741722569-hhsml6dlap3b8bu98fhkvu175ei40moi.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.myfinlove.app",
+            "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
+          }
+        },
+        {
+          "client_id": "319741722569-3m0tb6r9gc31efgqebvhjvp00eim7nvk.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDNq9sJnuI0QQTHCdeOTeSyL8UUFUb6xhs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "319741722569-3m0tb6r9gc31efgqebvhjvp00eim7nvk.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

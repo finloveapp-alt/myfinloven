@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Platform, Alert, Modal } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Platform, Alert, Modal, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { supabase } from '@/lib/supabase';
@@ -505,24 +505,29 @@ export default function Register() {
       style={styles.container}
     >
       <SafeAreaView style={styles.safeArea}>
-        <LinearGradient
-          colors={['#ffffff','rgba(182,135,254,0.2)']}
-          start={{ x: 0.5, y: 0.5 }}
-          end={{ x: 0.5, y: 1 }}
-          style={styles.cardContainer}
+        <ScrollView 
+          contentContainerStyle={styles.scrollContainer}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         >
-          <View style={styles.header}>
-            <Text style={styles.title}>
-              {fromCoupleInvitation ? 'Aceitar Convite' : 'Criar Conta'}
-            </Text>
-            <Text style={styles.subtitle}>
-              {fromCoupleInvitation 
-                ? 'Complete seu cadastro para aceitar o convite de casal' 
-                : 'Comece sua jornada financeira a dois'}
-            </Text>
-          </View>
+          <LinearGradient
+            colors={['#ffffff','rgba(182,135,254,0.2)']}
+            start={{ x: 0.5, y: 0.5 }}
+            end={{ x: 0.5, y: 1 }}
+            style={styles.cardContainer}
+          >
+            <View style={styles.header}>
+              <Text style={styles.title}>
+                {fromCoupleInvitation ? 'Aceitar Convite' : 'Criar Conta'}
+              </Text>
+              <Text style={styles.subtitle}>
+                {fromCoupleInvitation 
+                  ? 'Complete seu cadastro para aceitar o convite de casal' 
+                  : 'Comece sua jornada financeira a dois'}
+              </Text>
+            </View>
 
-          <View style={styles.form}>
+            <View style={styles.form}>
             <View style={styles.inputContainer}>
               <TextInput
                 placeholder="Nome completo"
@@ -679,6 +684,7 @@ export default function Register() {
             </View>
           </View>
         </LinearGradient>
+        </ScrollView>
       </SafeAreaView>
 
       <Modal
@@ -775,6 +781,9 @@ const styles = StyleSheet.create({
   },
   safeArea: {
     flex: 1,
+  },
+  scrollContainer: {
+    flexGrow: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,

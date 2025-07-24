@@ -9,6 +9,7 @@ import Purchases, { PurchasesOffering, PurchasesPackage, LOG_LEVEL } from 'react
 import themes from '@/constants/themes';
 import { fontFallbacks } from '@/utils/styles';
 import BottomNavigation from '@/components/BottomNavigation';
+import { supabase } from '@/lib/supabase';
 
 export default function Subscription() {
   const [theme, setTheme] = useState(themes.feminine);
@@ -34,18 +35,31 @@ export default function Subscription() {
         
         console.log('Iniciando configuração do RevenueCat...');
         
+        // Obter o usuário atual do Supabase
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        
+        if (userError) {
+          console.error('Erro ao obter usuário do Supabase:', userError);
+          console.warn('Continuando sem user_id - RevenueCat usará ID anônimo');
+        }
+        
+        const userId = user?.id;
+        console.log('User ID do Supabase para RevenueCat:', userId);
+        
         // Configurar RevenueCat baseado na plataforma
         if (Platform.OS === 'ios') {
           await Purchases.configure({
             apiKey: 'appl_your_ios_api_key_here', // Substitua pela chave iOS
+            appUserID: userId, // Usar o ID do usuário do Supabase
           });
         } else if (Platform.OS === 'android') {
           await Purchases.configure({
             apiKey: 'goog_DBbaqJRWLlHiVzmqtsAGnTcYkqS',
+            appUserID: userId, // Usar o ID do usuário do Supabase
           });
         }
         
-        console.log('RevenueCat configurado com sucesso');
+        console.log('RevenueCat configurado com sucesso com user_id:', userId);
         
         // Buscar ofertas disponíveis
         const offerings = await Purchases.getOfferings();

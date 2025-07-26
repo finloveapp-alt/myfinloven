@@ -1159,7 +1159,7 @@ const styles = StyleSheet.create({
     borderColor: '#e0e0e0',
     borderRadius: 8,
     marginTop: 4,
-    maxHeight: 200,
+    maxHeight: Platform.OS === 'android' ? 400 : 200,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
@@ -1168,7 +1168,7 @@ const styles = StyleSheet.create({
     zIndex: 9999,
   },
   iconsScrollView: {
-    maxHeight: 200,
+    maxHeight: Platform.OS === 'android' ? 400 : 200,
   },
   iconsGrid: {
     flexDirection: 'row',
@@ -1482,21 +1482,23 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
   },
   addCategorySubmitButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: 0,
+    paddingVertical: Platform.OS === 'android' ? 8 : 12,
     alignItems: 'center',
     justifyContent: 'center',
-    minWidth: 80,
+    minWidth: Platform.OS === 'android' ? 100 : 80,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 2,
-    elevation: 1,
+    elevation: 0,
   },
   addCategorySubmitText: {
     fontSize: 14,
-    lineHeight: 20,
+    lineHeight: Platform.OS === 'android' ? 22 : 20,
     fontFamily: fontFallbacks.Poppins_600SemiBold,
+    textAlign: 'center',
+    includeFontPadding: Platform.OS === 'android' ? false : undefined,
   },
   closeCategoryFormButton: {
     width: 40,
@@ -2723,11 +2725,82 @@ export default function Registers() {
     return rows;
   };
 
+  // Função para verificar limite de transações para usuários do plano gratuito
+  const checkTransactionLimitForFreeUsers = async (userId: string) => {
+    try {
+      // Verificar o plano do usuário
+      const { data: userPlan, error: planError } = await supabase
+        .from('user_plans')
+        .select('plan_template_id')
+        .eq('user_id', userId)
+        .single();
+
+      if (planError) {
+        console.error('Erro ao verificar plano do usuário:', planError);
+        return true; // Em caso de erro, permitir a criação
+      }
+
+      // Verificar se é plano gratuito
+      const isFreeUser = userPlan?.plan_template_id === 'f87bcbd5-7ab6-4657-bafd-f611d4b5a101';
+      
+      if (!isFreeUser) {
+        return true; // Usuário premium, sem limitações
+      }
+
+      // Para usuários do plano gratuito, verificar quantas transações foram criadas no mês atual
+      const now = new Date();
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+
+      const { data: monthlyTransactions, error: transactionsError } = await supabase
+        .from('transactions')
+        .select('id')
+        .eq('owner_id', userId)
+        .gte('transaction_date', startOfMonth.toISOString())
+        .lte('transaction_date', endOfMonth.toISOString());
+
+      if (transactionsError) {
+        console.error('Erro ao verificar transações mensais:', transactionsError);
+        return true; // Em caso de erro, permitir a criação
+      }
+
+      const transactionCount = monthlyTransactions?.length || 0;
+      
+      // Limite de 15 transações mensais para usuários do plano gratuito
+      if (transactionCount >= 15) {
+        setErrorMessage('Limite de transações mensais atingido! Usuários do plano gratuito podem criar até 15 transações por mês. Faça upgrade para o plano premium para transações ilimitadas.');
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Erro ao verificar limite de transações:', error);
+      return true; // Em caso de erro, permitir a criação
+    }
+  };
+
   // Função para salvar a nova transação
   const saveTransaction = async () => {
     try {
       setErrorMessage('');
       setIsSaving(true);
+      
+      // Obter a sessão atual para o ID do usuário (movido para cima para usar na verificação de limite)
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) {
+        setErrorMessage('Usuário não autenticado.');
+        setIsSaving(false);
+        return;
+      }
+      
+      const userId = session.user.id;
+      
+      // Verificar limite de transações para usuários do plano gratuito
+      const canCreateTransaction = await checkTransactionLimitForFreeUsers(userId);
+      if (!canCreateTransaction) {
+        setIsSaving(false);
+        return;
+      }
       
       // Validações básicas
       if (!description.trim()) {
@@ -2765,15 +2838,7 @@ export default function Registers() {
         return;
       }
       
-      // Obter a sessão atual para o ID do usuário
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user) {
-        setErrorMessage('Usuário não autenticado.');
-        setIsSaving(false);
-        return;
-      }
-      
-      const userId = session.user.id;
+      // Sessão e userId já foram obtidos acima
       
       // Preparar o valor conforme o tipo de transação
       let transactionAmount = numericAmount;
@@ -4109,10 +4174,7 @@ export default function Registers() {
         </View>
       </ScrollView>
 
-      {/* Botão flutuante fixo para adicionar transação */}
-      <TouchableOpacity style={styles.floatingAddButton} onPress={openAddTransactionModal}>
-        <PlusCircle size={30} color="#FFF" />
-      </TouchableOpacity>
+
 
       {/* Modal de Nova Transação */}
       <Modal

@@ -437,7 +437,7 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
-    paddingBottom: 100, // Espaço para o bottom navigation
+    paddingBottom: Platform.OS === 'android' ? 180 : 100, // Espaço extra para Android para evitar corte da seção de garantia
   },
   header: {
     alignItems: 'center',
@@ -624,7 +624,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff5f5',
     marginHorizontal: 20,
     borderRadius: 12,
-    marginBottom: 20,
+    marginBottom: Platform.OS === 'android' ? 100 : 20,
   },
   guaranteeIcon: {
     marginRight: 12,

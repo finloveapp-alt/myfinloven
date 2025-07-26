@@ -744,6 +744,55 @@ export default function Planning() {
   };
 
   // Função para salvar nova meta financeira
+  // Função para verificar limitação de metas para usuários do plano gratuito
+  const checkGoalLimitForFreeUsers = async (userId: string): Promise<boolean> => {
+    try {
+      // Verificar o plano do usuário
+      const { data: userPlan, error: planError } = await supabase
+        .from('user_plans')
+        .select('plan_template_id')
+        .eq('user_id', userId)
+        .single();
+
+      if (planError) {
+        console.error('Erro ao verificar plano do usuário:', planError);
+        return true; // Em caso de erro, permitir criação
+      }
+
+      // Se não é plano gratuito, permitir criação
+      if (userPlan?.plan_template_id !== 'f87bcbd5-7ab6-4657-bafd-f611d4b5a101') {
+        return true;
+      }
+
+      // Contar metas existentes do usuário
+      const { data: existingGoals, error: goalsError } = await supabase
+        .from('financial_goals')
+        .select('id')
+        .eq('user_id', userId);
+
+      if (goalsError) {
+        console.error('Erro ao contar metas existentes:', goalsError);
+        return true; // Em caso de erro, permitir criação
+      }
+
+      const currentGoalsCount = existingGoals?.length || 0;
+      
+      if (currentGoalsCount >= 2) {
+        Alert.alert(
+          'Limite atingido',
+          'Usuários do plano gratuito podem criar no máximo 2 metas financeiras. Faça upgrade do seu plano para criar mais metas.',
+          [{ text: 'OK' }]
+        );
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Erro ao verificar limitação de metas:', error);
+      return true; // Em caso de erro, permitir criação
+    }
+  };
+
   const saveFinancialGoal = async (title: string, targetAmount: number, deadline: string, icon: string) => {
     try {
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
@@ -758,6 +807,12 @@ export default function Planning() {
       }
 
       const user = session.user;
+      
+      // Verificar limitação do plano gratuito
+      const canCreateGoal = await checkGoalLimitForFreeUsers(user.id);
+      if (!canCreateGoal) {
+        return false;
+      }
       const randomColor = '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6, '0');
 
       const insertData = {
@@ -929,6 +984,55 @@ export default function Planning() {
     }
   };
 
+  // Função para verificar limitação de orçamentos para usuários do plano gratuito
+  const checkBudgetLimitForFreeUsers = async (userId: string): Promise<boolean> => {
+    try {
+      // Verificar o plano do usuário
+      const { data: userPlan, error: planError } = await supabase
+        .from('user_plans')
+        .select('plan_template_id')
+        .eq('user_id', userId)
+        .single();
+
+      if (planError) {
+        console.error('Erro ao verificar plano do usuário:', planError);
+        return true; // Em caso de erro, permitir criação
+      }
+
+      // Se não é plano gratuito, permitir criação
+      if (userPlan?.plan_template_id !== 'f87bcbd5-7ab6-4657-bafd-f611d4b5a101') {
+        return true;
+      }
+
+      // Contar orçamentos existentes do usuário
+      const { data: existingBudgets, error: budgetsError } = await supabase
+        .from('budget_categories')
+        .select('id')
+        .eq('user_id', userId);
+
+      if (budgetsError) {
+        console.error('Erro ao contar orçamentos existentes:', budgetsError);
+        return true; // Em caso de erro, permitir criação
+      }
+
+      const currentBudgetsCount = existingBudgets?.length || 0;
+      
+      if (currentBudgetsCount >= 2) {
+        Alert.alert(
+          'Limite atingido',
+          'Usuários do plano gratuito podem criar no máximo 2 orçamentos. Faça upgrade do seu plano para criar mais orçamentos.',
+          [{ text: 'OK' }]
+        );
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Erro ao verificar limitação de orçamentos:', error);
+      return true; // Em caso de erro, permitir criação
+    }
+  };
+
   // Função para salvar nova categoria de orçamento
   const saveBudgetCategory = async (category: string, allocated: number) => {
     try {
@@ -950,6 +1054,12 @@ export default function Planning() {
 
       const user = session.user;
       console.log('Usuário autenticado:', user.id);
+      
+      // Verificar limitação do plano gratuito
+      const canCreateBudget = await checkBudgetLimitForFreeUsers(user.id);
+      if (!canCreateBudget) {
+        return false;
+      }
 
       const currentDate = new Date();
       const currentMonth = currentDate.getMonth() + 1;
@@ -2019,6 +2129,13 @@ export default function Planning() {
       color: '#333',
       fontFamily: fontFallbacks.Poppins_500Medium,
       flex: 1,
+      ...Platform.select({
+        android: {
+          flexWrap: 'nowrap',
+          numberOfLines: 1,
+          ellipsizeMode: 'tail',
+        },
+      }),
     },
     legendPercentValue: {
       fontSize: 14,
@@ -3640,7 +3757,9 @@ export default function Planning() {
             <View style={styles.goalsContent}>
               <View style={styles.donutChartContainer}>
                 <View style={styles.chartHeader}>
-                  <Text style={styles.chartTitle}>Progresso das Metas</Text>
+                  <Text style={styles.chartTitle}>
+                    {Platform.OS === 'android' ? 'Progresso\ndas Metas' : 'Progresso das Metas'}
+                  </Text>
                   <View style={styles.chartTotalValue}>
                     <Text style={styles.chartTotalLabel}>Total acumulado</Text>
                     <Text style={styles.chartTotalAmount}>
@@ -4244,6 +4363,7 @@ export default function Planning() {
           
           <TouchableOpacity 
             style={styles.navItem}
+            onPress={() => router.push('/(app)/notifications')}
           >
             <Svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#999" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <Path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1-2-1Z" stroke="#999" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
@@ -4255,6 +4375,7 @@ export default function Planning() {
           
           <TouchableOpacity 
             style={styles.navItem}
+            onPress={() => router.push('/(app)/cards')}
           >
             <Svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#999" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <Rect width="20" height="14" x="2" y="5" rx="2" stroke="#999" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />

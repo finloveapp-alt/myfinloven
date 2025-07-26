@@ -842,10 +842,73 @@ export default function Accounts() {
   };
 
   // Função para criar uma nova conta
+  // Função para verificar limite de contas para usuários do plano gratuito
+  const checkAccountLimitForFreeUsers = async () => {
+    try {
+      // Obter sessão atual
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user?.id) {
+        throw new Error('Usuário não autenticado');
+      }
+
+      // Verificar o plano do usuário
+      const { data: userPlan, error: planError } = await supabase
+        .from('user_plans')
+        .select('plan_template_id')
+        .eq('user_id', session.user.id)
+        .single();
+
+      if (planError) {
+        console.error('Erro ao verificar plano do usuário:', planError);
+        return true; // Em caso de erro, permitir criação
+      }
+
+      // Verificar se é usuário do plano gratuito
+      const isFreeUser = userPlan?.plan_template_id === 'f87bcbd5-7ab6-4657-bafd-f611d4b5a101';
+      
+      if (!isFreeUser) {
+        return true; // Usuário premium, sem limitações
+      }
+
+      // Contar contas existentes do usuário
+      const { data: existingAccounts, error: accountsError } = await supabase
+        .from('accounts')
+        .select('id')
+        .eq('owner_id', session.user.id);
+
+      if (accountsError) {
+        console.error('Erro ao contar contas existentes:', accountsError);
+        return true; // Em caso de erro, permitir criação
+      }
+
+      const accountCount = existingAccounts?.length || 0;
+      
+      if (accountCount >= 2) {
+        Alert.alert(
+          'Limite Atingido',
+          'Usuários do plano gratuito podem criar no máximo 2 contas bancárias. Faça upgrade para o plano premium para criar contas ilimitadas.',
+          [{ text: 'OK' }]
+        );
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Erro ao verificar limite de contas:', error);
+      return true; // Em caso de erro, permitir criação
+    }
+  };
+
   const handleAddNewAccount = async () => {
     // Validação básica
     if (!newAccountName || !newAccountType) {
       Alert.alert('Erro', 'Por favor preencha pelo menos o nome e o tipo da conta.');
+      return;
+    }
+
+    // Verificar limite de contas para usuários do plano gratuito
+    const canCreateAccount = await checkAccountLimitForFreeUsers();
+    if (!canCreateAccount) {
       return;
     }
     
@@ -1723,104 +1786,209 @@ export default function Accounts() {
               </TouchableOpacity>
             </View>
 
-            <TextInput
-              style={styles.input}
-              placeholder="Nome da Conta"
-              value={newAccountName}
-              onChangeText={setNewAccountName}
-              placeholderTextColor="#999"
-            />
+            {Platform.OS === 'android' ? (
+              <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Nome da Conta"
+                  value={newAccountName}
+                  onChangeText={setNewAccountName}
+                  placeholderTextColor="#999"
+                />
 
-            <View style={styles.pickerContainer}>
-              <Text style={styles.pickerLabel}>Tipo de Conta</Text>
-              <View style={styles.pickerOptions}>
-                {['Conta Corrente', 'Poupança', 'Investimento', 'Dinheiro Físico'].map((type) => (
-                  <TouchableOpacity 
-                    key={type}
-                    style={[
-                      styles.pickerOption,
-                      newAccountType === type && [
-                        styles.pickerOptionSelected,
-                        { backgroundColor: `rgba(${parseInt(theme.primary.slice(1, 3), 16)}, ${parseInt(theme.primary.slice(3, 5), 16)}, ${parseInt(theme.primary.slice(5, 7), 16)}, 0.2)` }
-                      ]
-                    ]}
-                    onPress={() => setNewAccountType(type)}
-                  >
-                    <Text 
-                      style={[
-                        styles.pickerOptionText,
-                        newAccountType === type && [
-                          styles.pickerOptionTextSelected,
-                          { color: theme.primary }
-                        ]
-                      ]}
-                    >
-                      {type}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
+                <View style={styles.pickerContainer}>
+                  <Text style={styles.pickerLabel}>Tipo de Conta</Text>
+                  <View style={styles.pickerOptions}>
+                    {['Conta Corrente', 'Poupança', 'Investimento', 'Dinheiro Físico'].map((type) => (
+                      <TouchableOpacity 
+                        key={type}
+                        style={[
+                          styles.pickerOption,
+                          newAccountType === type && [
+                            styles.pickerOptionSelected,
+                            { backgroundColor: `rgba(${parseInt(theme.primary.slice(1, 3), 16)}, ${parseInt(theme.primary.slice(3, 5), 16)}, ${parseInt(theme.primary.slice(5, 7), 16)}, 0.2)` }
+                          ]
+                        ]}
+                        onPress={() => setNewAccountType(type)}
+                      >
+                        <Text 
+                          style={[
+                            styles.pickerOptionText,
+                            newAccountType === type && [
+                              styles.pickerOptionTextSelected,
+                              { color: theme.primary }
+                            ]
+                          ]}
+                        >
+                          {type}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
 
-            <TextInput
-              style={styles.input}
-              placeholder="Banco (opcional)"
-              value={newAccountBank}
-              onChangeText={setNewAccountBank}
-              placeholderTextColor="#999"
-            />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Banco (opcional)"
+                  value={newAccountBank}
+                  onChangeText={setNewAccountBank}
+                  placeholderTextColor="#999"
+                />
 
-            <TextInput
-              style={styles.input}
-              placeholder="Saldo Inicial (R$)"
-              value={newAccountInitialBalance}
-              onChangeText={handleInitialBalanceChange}
-              keyboardType="numeric"
-              placeholderTextColor="#999"
-            />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Saldo Inicial (R$)"
+                  value={newAccountInitialBalance}
+                  onChangeText={handleInitialBalanceChange}
+                  keyboardType="numeric"
+                  placeholderTextColor="#999"
+                />
 
-            <View style={styles.pickerContainer}>
-              <Text style={styles.pickerLabel}>Proprietário</Text>
-              <View style={styles.pickerOptions}>
-                {[
-                  'Pessoal', 
-                  'Compartilhadas', 
-                  ...(users.length > 0 ? users.map(user => user.name || 'Avatar') : [currentUser?.name || 'Avatar']),
-                  ...avatars.map(avatar => avatar.avatar_name)
-                ].map((owner) => (
-                  <TouchableOpacity 
-                    key={owner}
-                    style={[
-                      styles.pickerOption,
-                      activeTab === owner && [
-                        styles.pickerOptionSelected,
-                        { backgroundColor: `rgba(${parseInt(theme.primary.slice(1, 3), 16)}, ${parseInt(theme.primary.slice(3, 5), 16)}, ${parseInt(theme.primary.slice(5, 7), 16)}, 0.2)` }
-                      ]
-                    ]}
-                    onPress={() => setActiveTab(owner)}
-                  >
-                    <Text 
-                      style={[
-                        styles.pickerOptionText,
-                        activeTab === owner && [
-                          styles.pickerOptionTextSelected,
-                          { color: theme.primary }
-                        ]
-                      ]}
-                    >
-                      {owner}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
+                <View style={styles.pickerContainer}>
+                  <Text style={styles.pickerLabel}>Proprietário</Text>
+                  <View style={styles.pickerOptions}>
+                    {[
+                      'Pessoal', 
+                      'Compartilhadas', 
+                      ...(users.length > 0 ? users.map(user => user.name || 'Avatar') : [currentUser?.name || 'Avatar']),
+                      ...avatars.map(avatar => avatar.avatar_name)
+                    ].map((owner) => (
+                      <TouchableOpacity 
+                        key={owner}
+                        style={[
+                          styles.pickerOption,
+                          activeTab === owner && [
+                            styles.pickerOptionSelected,
+                            { backgroundColor: `rgba(${parseInt(theme.primary.slice(1, 3), 16)}, ${parseInt(theme.primary.slice(3, 5), 16)}, ${parseInt(theme.primary.slice(5, 7), 16)}, 0.2)` }
+                          ]
+                        ]}
+                        onPress={() => setActiveTab(owner)}
+                      >
+                        <Text 
+                          style={[
+                            styles.pickerOptionText,
+                            activeTab === owner && [
+                              styles.pickerOptionTextSelected,
+                              { color: theme.primary }
+                            ]
+                          ]}
+                        >
+                          {owner}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
 
-            <TouchableOpacity 
-              style={[styles.modalButton, {backgroundColor: theme.primary}]}
-              onPress={handleAddNewAccount}
-            >
-              <Text style={styles.modalButtonText}>Criar Conta</Text>
-            </TouchableOpacity>
+                <TouchableOpacity 
+                  style={[styles.modalButton, {backgroundColor: theme.primary}]}
+                  onPress={handleAddNewAccount}
+                >
+                  <Text style={styles.modalButtonText}>Criar Conta</Text>
+                </TouchableOpacity>
+              </ScrollView>
+            ) : (
+              <>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Nome da Conta"
+                  value={newAccountName}
+                  onChangeText={setNewAccountName}
+                  placeholderTextColor="#999"
+                />
+
+                <View style={styles.pickerContainer}>
+                  <Text style={styles.pickerLabel}>Tipo de Conta</Text>
+                  <View style={styles.pickerOptions}>
+                    {['Conta Corrente', 'Poupança', 'Investimento', 'Dinheiro Físico'].map((type) => (
+                      <TouchableOpacity 
+                        key={type}
+                        style={[
+                          styles.pickerOption,
+                          newAccountType === type && [
+                            styles.pickerOptionSelected,
+                            { backgroundColor: `rgba(${parseInt(theme.primary.slice(1, 3), 16)}, ${parseInt(theme.primary.slice(3, 5), 16)}, ${parseInt(theme.primary.slice(5, 7), 16)}, 0.2)` }
+                          ]
+                        ]}
+                        onPress={() => setNewAccountType(type)}
+                      >
+                        <Text 
+                          style={[
+                            styles.pickerOptionText,
+                            newAccountType === type && [
+                              styles.pickerOptionTextSelected,
+                              { color: theme.primary }
+                            ]
+                          ]}
+                        >
+                          {type}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+
+                <TextInput
+                  style={styles.input}
+                  placeholder="Banco (opcional)"
+                  value={newAccountBank}
+                  onChangeText={setNewAccountBank}
+                  placeholderTextColor="#999"
+                />
+
+                <TextInput
+                  style={styles.input}
+                  placeholder="Saldo Inicial (R$)"
+                  value={newAccountInitialBalance}
+                  onChangeText={handleInitialBalanceChange}
+                  keyboardType="numeric"
+                  placeholderTextColor="#999"
+                />
+
+                <View style={styles.pickerContainer}>
+                  <Text style={styles.pickerLabel}>Proprietário</Text>
+                  <View style={styles.pickerOptions}>
+                    {[
+                      'Pessoal', 
+                      'Compartilhadas', 
+                      ...(users.length > 0 ? users.map(user => user.name || 'Avatar') : [currentUser?.name || 'Avatar']),
+                      ...avatars.map(avatar => avatar.avatar_name)
+                    ].map((owner) => (
+                      <TouchableOpacity 
+                        key={owner}
+                        style={[
+                          styles.pickerOption,
+                          activeTab === owner && [
+                            styles.pickerOptionSelected,
+                            { backgroundColor: `rgba(${parseInt(theme.primary.slice(1, 3), 16)}, ${parseInt(theme.primary.slice(3, 5), 16)}, ${parseInt(theme.primary.slice(5, 7), 16)}, 0.2)` }
+                          ]
+                        ]}
+                        onPress={() => setActiveTab(owner)}
+                      >
+                        <Text 
+                          style={[
+                            styles.pickerOptionText,
+                            activeTab === owner && [
+                              styles.pickerOptionTextSelected,
+                              { color: theme.primary }
+                            ]
+                          ]}
+                        >
+                          {owner}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+
+                <TouchableOpacity 
+                  style={[styles.modalButton, {backgroundColor: theme.primary}]}
+                  onPress={handleAddNewAccount}
+                >
+                  <Text style={styles.modalButtonText}>Criar Conta</Text>
+                </TouchableOpacity>
+              </>
+            )}
           </View>
         </View>
       </Modal>
@@ -2717,6 +2885,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 25,
     padding: 24,
     maxHeight: '80%',
+    height: '70%',
   },
   modalHeader: {
     flexDirection: 'row',

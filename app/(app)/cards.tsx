@@ -353,7 +353,6 @@ export default function Cards() {
         name: `Cartão ${cardBrand.toUpperCase()}`,
         card_holder_name: cardName,
         bank_name: bankName,
-        card_limit: cardLimit,
         card_type: cardBrand,
         is_credit: cardType === 'credit',
         credit_limit: parseFloat(cardLimit.replace(/[^\d,]/g, '').replace(',', '.')) || 0,
@@ -368,7 +367,29 @@ export default function Cards() {
       loadUserCards(); // Recarregar lista
     } catch (error) {
       console.error('Erro ao adicionar cartão:', error);
-      Alert.alert('Erro', 'Não foi possível adicionar o cartão');
+      
+      // Verificar se é erro de limite do plano gratuito
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+      
+      if (errorMessage.includes('Limite de cartões atingido')) {
+        Alert.alert(
+          'Limite Atingido', 
+          errorMessage,
+          [
+            { text: 'Entendi', style: 'default' },
+            { 
+              text: 'Ver Planos', 
+              style: 'default',
+              onPress: () => {
+                setIsModalVisible(false);
+                router.push('/(app)/subscription');
+              }
+            }
+          ]
+        );
+      } else {
+        Alert.alert('Erro', 'Não foi possível adicionar o cartão');
+      }
     } finally {
       setAddingCard(false);
     }
@@ -1045,7 +1066,6 @@ const styles = StyleSheet.create({
   },
   card: {
     width: cardWidth,
-    height: cardHeight,
     borderRadius: 16,
     padding: 16,
     marginRight: 16,

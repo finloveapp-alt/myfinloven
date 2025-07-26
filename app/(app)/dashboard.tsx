@@ -3093,7 +3093,12 @@ export default function Dashboard() {
                       }} 
                       style={styles.personAvatar}
                     />
-                    <Text style={styles.personName}>{expensesByPerson.currentUser.name}</Text>
+                    <Text style={styles.personName}>
+                          {Platform.OS === 'android' && expensesByPerson.currentUser.name.length > 15
+                            ? `${expensesByPerson.currentUser.name.substring(0, 15)}...`
+                            : expensesByPerson.currentUser.name
+                          }
+                        </Text>
                   </View>
                   <Text style={styles.personAmount}>{formatCurrency(expensesByPerson.currentUser.amount)}</Text>
                 </View>
@@ -3120,7 +3125,12 @@ export default function Dashboard() {
                           }} 
                           style={styles.personAvatar}
                         />
-                        <Text style={styles.personName}>{partner.name}</Text>
+                        <Text style={styles.personName}>
+                          {Platform.OS === 'android' && partner.name.length > 15
+                            ? `${partner.name.substring(0, 15)}...`
+                            : partner.name
+                          }
+                        </Text>
                       </View>
                       <Text style={styles.personAmount}>{formatCurrency(partner.amount)}</Text>
                     </View>
@@ -4166,7 +4176,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   balanceAmountLarge: {
-    fontSize: 22,
+    fontSize: Platform.OS === 'android' ? 16 : 22,
     fontFamily: fontFallbacks.Poppins_600SemiBold,
     color: 'white',
     textAlign: 'center',

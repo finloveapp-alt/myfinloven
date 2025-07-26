@@ -168,10 +168,75 @@ export default function CategoriesScreen() {
     setIconDropdownVisible(false);
   };
 
+  // Função para verificar limite de categorias para usuários do plano gratuito
+  const checkCategoryLimitForFreeUsers = async () => {
+    try {
+      // Obter sessão atual
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user?.id) {
+        throw new Error('Usuário não autenticado');
+      }
+
+      // Verificar o plano do usuário
+      const { data: userPlan, error: planError } = await supabase
+        .from('user_plans')
+        .select('plan_template_id')
+        .eq('user_id', session.user.id)
+        .single();
+
+      if (planError) {
+        console.error('Erro ao verificar plano do usuário:', planError);
+        return true; // Em caso de erro, permitir criação
+      }
+
+      // Verificar se é usuário do plano gratuito
+      const isFreeUser = userPlan?.plan_template_id === 'f87bcbd5-7ab6-4657-bafd-f611d4b5a101';
+      
+      if (!isFreeUser) {
+        return true; // Usuário premium, sem limitações
+      }
+
+      // Contar categorias existentes do usuário
+      const { data: existingCategories, error: categoriesError } = await supabase
+        .from('categories')
+        .select('id')
+        .eq('user_id', session.user.id);
+
+      if (categoriesError) {
+        console.error('Erro ao contar categorias existentes:', categoriesError);
+        return true; // Em caso de erro, permitir criação
+      }
+
+      const categoryCount = existingCategories?.length || 0;
+      
+      if (categoryCount >= 8) {
+        Alert.alert(
+          'Limite Atingido',
+          'Usuários do plano gratuito podem criar no máximo 8 categorias. Faça upgrade para o plano premium para criar categorias ilimitadas.',
+          [{ text: 'OK' }]
+        );
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Erro ao verificar limite de categorias:', error);
+      return true; // Em caso de erro, permitir criação
+    }
+  };
+
   const saveCategory = async () => {
     if (!newCategoryName.trim()) {
       Alert.alert('Erro', 'Por favor, informe o nome da categoria.');
       return;
+    }
+
+    // Se não está editando uma categoria existente, verificar limite para usuários do plano gratuito
+    if (!editingCategory) {
+      const canCreateCategory = await checkCategoryLimitForFreeUsers();
+      if (!canCreateCategory) {
+        return;
+      }
     }
 
     try {

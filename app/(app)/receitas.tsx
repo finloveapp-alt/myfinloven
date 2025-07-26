@@ -1121,6 +1121,25 @@ export default function ReceitasScreen() {
 
   // Função para abrir o modal
   const openModal = () => {
+    // Verificar se o usuário possui contas cadastradas
+    if (!userAccounts || userAccounts.length === 0 || (userAccounts.length === 1 && userAccounts[0].id === 'default')) {
+      Alert.alert(
+        'Conta necessária',
+        'Você precisa ter pelo menos uma conta cadastrada para criar uma receita. Deseja criar uma conta agora?',
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          { 
+            text: 'Criar Conta', 
+            onPress: () => {
+              // Navegar para a tela de contas
+              router.push('/accounts');
+            }
+          }
+        ]
+      );
+      return;
+    }
+    
     resetModalStates();
     setModalVisible(true);
   };

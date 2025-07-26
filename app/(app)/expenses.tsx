@@ -36,7 +36,7 @@ export default function Expenses() {
   const router = useRouter();
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
-  const [userBalance, setUserBalance] = useState(5000); // Saldo inicial do usuário (como exemplo)
+  const [userBalance, setUserBalance] = useState(0); // Saldo inicial do usuário (como exemplo)
   const [confirmModalVisible, setConfirmModalVisible] = useState(false);
   const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
   const [fees, setFees] = useState('0,00');
@@ -1076,6 +1076,30 @@ export default function Expenses() {
     setPartialPaymentModalVisible(true);
   };
   
+  // Função para formatar valor como moeda
+  const formatCurrency = (value: string) => {
+    // Remove tudo que não é dígito
+    const onlyNumbers = value.replace(/\D/g, '');
+    
+    // Se vazio, retorna vazio
+    if (onlyNumbers === '') return '';
+    
+    // Converte para número e divide por 100 para ter centavos
+    const numberValue = parseInt(onlyNumbers) / 100;
+    
+    // Formata como moeda brasileira
+    return numberValue.toLocaleString('pt-BR', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    });
+  };
+
+  // Função para tratar mudança no valor
+  const handleAmountChange = (text: string) => {
+    const formattedValue = formatCurrency(text);
+    setNewAmount(formattedValue);
+  };
+
   // Calcular valor restante
   const calculateRemaining = (value: string) => {
     if (!activeExpense) return;
@@ -1974,10 +1998,6 @@ export default function Expenses() {
               <Text style={styles.optionText}>Duplicar</Text>
             </TouchableOpacity>
             
-            <TouchableOpacity style={styles.optionItem} onPress={markAsCardExpense}>
-              <Text style={styles.optionText}>Despesa cartão</Text>
-            </TouchableOpacity>
-            
             {!activeExpense?.isPaid && (
               <TouchableOpacity 
                 style={[styles.optionItem, styles.confirmOptionItem, {backgroundColor: `${theme.positive}15`}]} 
@@ -2237,10 +2257,10 @@ export default function Expenses() {
               </Modal>
               
               <TouchableOpacity 
-                style={[styles.addButton, {backgroundColor: theme.primary}]}
+                style={[styles.saveButton, {backgroundColor: theme.primary}]}
                 onPress={saveEdit}
               >
-                <Text style={styles.addButtonText}>Salvar Alterações</Text>
+                <Text style={styles.saveButtonText}>Salvar Alterações</Text>
               </TouchableOpacity>
             </ScrollView>
           </View>
@@ -2277,7 +2297,7 @@ export default function Expenses() {
                 <TextInput 
                   style={styles.valueInput}
                   value={newAmount}
-                  onChangeText={setNewAmount}
+                  onChangeText={handleAmountChange}
                   keyboardType="numeric"
                   placeholder="0,00"
                   placeholderTextColor="#999"
@@ -3099,7 +3119,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     width: 60,
     height: 60,
-    borderRadius: 30,
+    borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -3399,13 +3419,15 @@ const styles = StyleSheet.create({
   },
   navItem: {
     alignItems: 'center',
-    width: 60,
+    width: 70,
+    flex: 1,
   },
   navText: {
-    fontSize: 12,
+    fontSize: Platform.OS === 'android' ? 10 : 12,
     fontFamily: fontFallbacks.Poppins_400Regular,
     color: '#999',
     marginTop: 4,
+    textAlign: 'center',
   },
   addButtonInner: {
     width: 50,
@@ -3438,14 +3460,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: 'white',
     paddingVertical: 10,
-    paddingHorizontal: 15,
+    paddingHorizontal: 10,
     borderTopLeftRadius: 25,
     borderTopRightRadius: 25,
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    zIndex: 1,
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -3477,7 +3498,7 @@ const styles = StyleSheet.create({
         shadowRadius: 10,
       },
       android: {
-        elevation: 10,
+        elevation: 0,
       },
     }),
   },
@@ -3521,7 +3542,7 @@ const styles = StyleSheet.create({
         shadowRadius: 3,
       },
       android: {
-        elevation: 2,
+        elevation: 0,
       },
     }),
   },

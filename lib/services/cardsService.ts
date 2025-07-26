@@ -82,6 +82,9 @@ class CardsService {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('Usuário não autenticado');
 
+    // Verificar limitações do plano gratuito
+    await this.checkCardLimitForFreeUsers(user.id);
+
     const { data, error } = await supabase
       .from('cards')
       .insert({
@@ -175,6 +178,48 @@ class CardsService {
     if (error) throw error;
   }
 
+  // Verificar limitações do plano gratuito para cartões
+  private async checkCardLimitForFreeUsers(userId: string): Promise<void> {
+    // Verificar se o usuário tem plano gratuito
+    const { data: userPlan, error: planError } = await supabase
+      .from('user_plans')
+      .select('plan_template_id')
+      .eq('user_id', userId)
+      .eq('is_active', true)
+      .single();
+
+    if (planError) {
+      console.error('Erro ao verificar plano do usuário:', planError);
+      // Se não conseguir verificar o plano, permitir a criação (fail-safe)
+      return;
+    }
+
+    // ID do plano gratuito conforme especificado
+    const FREE_PLAN_ID = 'f87bcbd5-7ab6-4657-bafd-f611d4b5a101';
+    
+    // Se o usuário tem plano gratuito, verificar limite de cartões
+    if (userPlan && userPlan.plan_template_id === FREE_PLAN_ID) {
+      // Contar quantos cartões ativos o usuário já possui
+      const { data: existingCards, error: cardsError } = await supabase
+        .from('cards')
+        .select('id')
+        .eq('owner_id', userId)
+        .eq('is_active', true);
+
+      if (cardsError) {
+        console.error('Erro ao contar cartões existentes:', cardsError);
+        throw new Error('Erro ao verificar cartões existentes');
+      }
+
+      const cardCount = existingCards?.length || 0;
+      const MAX_CARDS_FREE_PLAN = 2;
+
+      if (cardCount >= MAX_CARDS_FREE_PLAN) {
+        throw new Error(`Limite de cartões atingido! O plano gratuito permite no máximo ${MAX_CARDS_FREE_PLAN} cartões. Faça upgrade para o plano premium para adicionar mais cartões.`);
+      }
+    }
+  }
+
   // Atualizar saldo do cartão (deduzir do limite disponível)
   async updateCardBalance(cardId: string, expenseAmount: number, userId?: string): Promise<void> {
     console.log(`[updateCardBalance] Iniciando atualização - CardID: ${cardId}, Valor: ${expenseAmount}, UserID: ${userId}`);
@@ -245,4 +290,4 @@ class CardsService {
 
 }
 
-export const cardsService = new CardsService(); 
+export const cardsService = new CardsService();

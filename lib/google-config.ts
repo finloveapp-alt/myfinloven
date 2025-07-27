@@ -1,8 +1,10 @@
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import { Platform } from 'react-native';
 
 // Configuração do Google Sign-In
 export const configureGoogleSignIn = () => {
   GoogleSignin.configure({
+    // Use o webClientId para Android e iOS
     webClientId: '319741722569-3m0tb6r9gc31efgqebvhjvp00eim7nvk.apps.googleusercontent.com', // Web client ID do Firebase
     offlineAccess: true, // Para obter refresh token
     forceCodeForRefreshToken: true, // Para forçar o código de autorização
@@ -14,7 +16,10 @@ export const configureGoogleSignIn = () => {
 export const signInWithGoogle = async () => {
   try {
     // Verificar se o Google Play Services está disponível
-    await GoogleSignin.hasPlayServices();
+    await GoogleSignin.hasPlayServices({
+      // Mostrar um diálogo se o Google Play Services não estiver disponível
+      showPlayServicesUpdateDialog: true,
+    });
     
     // Fazer login
     const userInfo = await GoogleSignin.signIn();

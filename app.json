@@ -19,6 +19,7 @@
     "android": {
       "package": "com.myfinlove.app",
       "runtimeVersion": "1.0.0",
+      "googleServicesFile": "./android/app/google-services.json",
       "permissions": [
         "android.permission.RECEIVE_BOOT_COMPLETED",
         "android.permission.VIBRATE",
@@ -39,7 +40,7 @@
       [
         "@react-native-google-signin/google-signin",
         {
-          "androidClientId": "319741722569-hhsml6dlap3b8bu98fhkvu175ei40moi.apps.googleusercontent.com",
+          "webClientId": "319741722569-3m0tb6r9gc31efgqebvhjvp00eim7nvk.apps.googleusercontent.com",
           "iosUrlScheme": "com.googleusercontent.apps.319741722569-3m0tb6r9gc31efgqebvhjvp00eim7nvk"
         }
       ]

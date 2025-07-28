@@ -2706,11 +2706,7 @@ export default function Dashboard() {
                   <Text style={styles.balanceAmountSmall}>{formatCurrency(initialBalance)}</Text>
                 </View>
                 <View style={[styles.balanceValueItem, styles.balanceValueCenterItem]}>
-                  <Text style={[
-                    styles.balanceAmountLarge,
-                    summaryData.saldoTotal < 0 && Math.abs(summaryData.saldoTotal) >= 1000 && { fontSize: 20 },
-                    summaryData.saldoTotal < 0 && Math.abs(summaryData.saldoTotal) < 1000 && { fontSize: 24 }
-                  ]}>{formatCurrency(summaryData.saldoTotal)}</Text>
+                  <Text style={styles.balanceAmountLarge}>{formatCurrency(summaryData.saldoTotal)}</Text>
                 </View>
                 <View style={styles.balanceValueItem}>
                   <Text style={styles.balanceAmountSmall}>{formatCurrency(predictedBalance)}</Text>
@@ -4170,13 +4166,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   balanceAmountSmall: {
-    fontSize: 16,
+    fontSize: 12,
     fontFamily: fontFallbacks.Poppins_400Regular,
     color: 'white',
     textAlign: 'center',
   },
   balanceAmountLarge: {
-    fontSize: Platform.OS === 'android' ? 16 : 22,
+    fontSize: Platform.OS === 'android' ? 12 : 22,
     fontFamily: fontFallbacks.Poppins_600SemiBold,
     color: 'white',
     textAlign: 'center',

@@ -1191,7 +1191,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-end',
-    height: 160,
+    height: 200,
     paddingTop: 10,
     paddingBottom: 10,
     position: 'relative',
@@ -1216,7 +1216,7 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   barContainer: {
-    height: 130,
+    height: 170,
     justifyContent: 'flex-end',
     alignItems: 'center',
     width: '100%',

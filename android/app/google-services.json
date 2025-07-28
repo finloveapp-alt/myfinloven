@@ -46,6 +46,14 @@
           }
         },
         {
+          "client_id": "319741722569-pr3hikloq0mjgql4c4moairv42i9fh5t.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.myfinlove.app",
+            "certificate_hash": "80dd0e60766110c9c280bf646e758e75fa6a2e87"
+          }
+        },
+        {
           "client_id": "319741722569-3m0tb6r9gc31efgqebvhjvp00eim7nvk.apps.googleusercontent.com",
           "client_type": 3
         }

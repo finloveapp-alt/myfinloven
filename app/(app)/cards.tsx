@@ -489,12 +489,6 @@ export default function Cards() {
         <View style={styles.transactionSection}>
           <View style={styles.transactionHeader}>
             <Text style={styles.transactionTitle}>Histórico de Transações</Text>
-            <TouchableOpacity style={styles.filterButton}>
-              <View style={styles.filterDots}>
-                <View style={styles.filterDot} />
-                <View style={styles.filterDot} />
-              </View>
-            </TouchableOpacity>
           </View>
 
           {cardTransactions.map((transaction) => (

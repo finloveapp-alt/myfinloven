@@ -1701,11 +1701,6 @@ export default function ReceitasScreen() {
               <Text style={styles.optionText}>Duplicar</Text>
             </TouchableOpacity>
             
-            <TouchableOpacity style={styles.optionItem} onPress={openCardIncomeModal}>
-              <CreditCard size={20} color="#333" />
-              <Text style={styles.optionText}>Receita cartão</Text>
-            </TouchableOpacity>
-            
             <TouchableOpacity style={styles.optionItem} onPress={openPartialReceiveModal}>
               <DollarSign size={20} color="#4caf50" />
               <Text style={[styles.optionText, {color: '#4caf50'}]}>Receber parcial</Text>
@@ -2833,7 +2828,8 @@ const createStyles = (theme: any) => StyleSheet.create({
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   modalContent: {
     backgroundColor: '#fff',

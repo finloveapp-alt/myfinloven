@@ -2075,6 +2075,11 @@ export default function Planning() {
       justifyContent: 'space-between',
       flexWrap: width < 360 ? 'wrap' : 'nowrap', // Allow wrapping on small screens
     },
+    chartColumn: {
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
     donutChart: {
       width: width < 360 ? 140 : 160, // Responsive size
       height: width < 360 ? 140 : 160, // Responsive size
@@ -2109,8 +2114,9 @@ export default function Planning() {
       elevation: 1,
     },
     legendContainer: {
-      flex: 1,
-      paddingLeft: 20,
+      width: '100%',
+      paddingTop: 20,
+      paddingHorizontal: 20,
     },
     legendItem: {
       flexDirection: 'row',
@@ -2865,13 +2871,12 @@ export default function Planning() {
       marginBottom: 20,
     },
     goalsMetricsSummary: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
+      flexDirection: 'column',
       alignItems: 'center',
     },
     goalMetricItem: {
-      flex: 1,
       alignItems: 'center',
+      marginBottom: 15,
     },
     goalDivider: {
       width: 1,
@@ -3363,7 +3368,7 @@ export default function Planning() {
             // Conteúdo da aba Orçamentos
             <View style={styles.budgetContent}>
               <View style={styles.donutChartContainer}>
-                <View style={styles.chartRow}>
+                <View style={styles.chartColumn}>
                   {renderDonutChart()}
                   
                   <View style={styles.legendContainer}>
@@ -3796,7 +3801,6 @@ export default function Planning() {
                       <Text style={styles.goalMetricValue}>{goalsData.length}</Text>
                       <Text style={styles.goalMetricLabel}>Total Metas</Text>
                     </View>
-                    <View style={styles.goalDivider} />
                     <View style={styles.goalMetricItem}>
                       <Text style={styles.goalMetricValue}>
                         R$ {goalsData.length > 0 
@@ -3810,7 +3814,6 @@ export default function Planning() {
                       </Text>
                       <Text style={styles.goalMetricLabel}>Valor Restante</Text>
                     </View>
-                    <View style={styles.goalDivider} />
                     <View style={styles.goalMetricItem}>
                       <Text style={styles.goalMetricValue}>
                         {goalsData.length > 0 && goalsData.filter(goal => goal && goal.deadline).length > 0

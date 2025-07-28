@@ -7,11 +7,7 @@
     "icon": "./assets/icon.png",
     "scheme": "myfinlove",
     "userInterfaceStyle": "automatic",
-    "splash": {
-      "image": "./assets/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#b687fe"
-    },
+
     "assetBundlePatterns": [
       "**/*"
     ],

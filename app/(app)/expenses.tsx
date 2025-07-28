@@ -924,6 +924,11 @@ export default function Expenses() {
     }
     
     try {
+      // Extrair o UUID original removendo o prefixo "transaction_" se existir
+      const originalId = activeExpense.id.startsWith('transaction_') 
+        ? activeExpense.id.replace('transaction_', '') 
+        : activeExpense.id;
+      
       // Atualizar despesa no Supabase
       const { error } = await supabase
         .from('expenses')
@@ -933,7 +938,7 @@ export default function Expenses() {
           account: editingExpense.account,
           due_date: editingExpense.dueDate.toISOString(),
         })
-        .eq('id', activeExpense.id);
+        .eq('id', originalId);
       
       if (error) {
         console.error('Erro ao atualizar despesa:', error);
@@ -986,14 +991,39 @@ export default function Expenses() {
     }
     
     try {
-      // Atualizar valor no Supabase
-      const { error } = await supabase
-        .from('expenses')
-        .update({ amount: amount })
-        .eq('id', activeExpense.id);
+      let updateError = null;
       
-      if (error) {
-        console.error('Erro ao atualizar valor:', error);
+      // Verificar o tipo de ID e atualizar na tabela correta
+      if (activeExpense.id.startsWith('card_')) {
+        // Atualizar cartão de crédito
+        const cardId = activeExpense.id.replace('card_', '');
+        const { error } = await supabase
+          .from('cards')
+          .update({ current_balance: amount })
+          .eq('id', cardId);
+        updateError = error;
+      } else if (activeExpense.id.startsWith('transaction_')) {
+        // Atualizar transação
+        const transactionId = activeExpense.id.replace('transaction_', '');
+        const { error } = await supabase
+          .from('transactions')
+          .update({ amount: -Math.abs(amount) }) // Manter como valor negativo para despesas
+          .eq('id', transactionId);
+        updateError = error;
+      } else {
+        // Atualizar despesa normal
+        const originalId = activeExpense.id.startsWith('transaction_') 
+          ? activeExpense.id.replace('transaction_', '') 
+          : activeExpense.id;
+        const { error } = await supabase
+          .from('expenses')
+          .update({ amount: amount })
+          .eq('id', originalId);
+        updateError = error;
+      }
+      
+      if (updateError) {
+        console.error('Erro ao atualizar valor:', updateError);
         Alert.alert('Erro', 'Erro ao atualizar valor no banco de dados');
         return;
       }
@@ -1216,11 +1246,16 @@ export default function Expenses() {
     if (!activeExpense) return;
     
     try {
+      // Remover prefixo 'transaction_' se presente
+      const originalId = activeExpense.id.startsWith('transaction_') 
+        ? activeExpense.id.replace('transaction_', '') 
+        : activeExpense.id;
+      
       // Excluir despesa do Supabase
       const { error } = await supabase
         .from('expenses')
         .delete()
-        .eq('id', activeExpense.id);
+        .eq('id', originalId);
       
       if (error) {
         console.error('Erro ao excluir despesa:', error);
@@ -1245,11 +1280,16 @@ export default function Expenses() {
     if (!activeExpense) return;
     
     try {
+      // Extrair o UUID original removendo o prefixo "transaction_" se existir
+      const originalId = activeExpense.id.startsWith('transaction_') 
+        ? activeExpense.id.replace('transaction_', '') 
+        : activeExpense.id;
+      
       // Excluir despesa do Supabase
       const { error } = await supabase
         .from('expenses')
         .delete()
-        .eq('id', activeExpense.id);
+        .eq('id', originalId);
       
       if (error) {
         console.error('Erro ao excluir despesa:', error);
@@ -1274,11 +1314,16 @@ export default function Expenses() {
     if (!activeExpense) return;
     
     try {
+      // Extrair o UUID original removendo o prefixo "transaction_" se existir
+      const originalId = activeExpense.id.startsWith('transaction_') 
+        ? activeExpense.id.replace('transaction_', '') 
+        : activeExpense.id;
+      
       // Excluir despesa do Supabase
       const { error } = await supabase
         .from('expenses')
         .delete()
-        .eq('id', activeExpense.id);
+        .eq('id', originalId);
       
       if (error) {
         console.error('Erro ao excluir despesa:', error);
@@ -1392,10 +1437,15 @@ export default function Expenses() {
         }
       } else {
         // Para despesas normais, atualizar status na tabela expenses
+        // Remover prefixo 'transaction_' se presente
+        const originalId = activeExpense.id.startsWith('transaction_') 
+          ? activeExpense.id.replace('transaction_', '') 
+          : activeExpense.id;
+        
         const { error } = await supabase
           .from('expenses')
           .update({ is_paid: true })
-          .eq('id', activeExpense.id);
+          .eq('id', originalId);
         
         if (error) {
           console.error('Erro ao marcar como pago:', error);
@@ -2192,21 +2242,21 @@ export default function Expenses() {
                       </TouchableOpacity>
                     </View>
                     <ScrollView>
-                      {categoryOptions.map((category) => (
+                      {userCategories.map((category) => (
                         <TouchableOpacity 
-                          key={category}
-                          style={[styles.pickerOption, editingExpense.category === category && styles.pickerOptionSelected]}
+                          key={category.id}
+                          style={[styles.pickerOption, editingExpense.category === category.name && styles.pickerOptionSelected]}
                           onPress={() => {
-                            setEditingExpense({...editingExpense, category});
+                            setEditingExpense({...editingExpense, category: category.name});
                             setCategoryPickerVisible(false);
                           }}
                         >
                           <Text 
-                            style={[styles.pickerOptionText, editingExpense.category === category && styles.pickerOptionTextSelected]}
+                            style={[styles.pickerOptionText, editingExpense.category === category.name && styles.pickerOptionTextSelected]}
                           >
-                            {category}
+                            {category.name}
                           </Text>
-                          {editingExpense.category === category && (
+                          {editingExpense.category === category.name && (
                             <Check size={20} color={theme.primary} />
                           )}
                         </TouchableOpacity>
@@ -2232,21 +2282,21 @@ export default function Expenses() {
                       </TouchableOpacity>
                     </View>
                     <ScrollView>
-                      {accountOptions.map((account) => (
+                      {userAccounts.map((account) => (
                         <TouchableOpacity 
-                          key={account}
-                          style={[styles.pickerOption, editingExpense.account === account && styles.pickerOptionSelected]}
+                          key={account.id}
+                          style={[styles.pickerOption, editingExpense.account === account.name && styles.pickerOptionSelected]}
                           onPress={() => {
-                            setEditingExpense({...editingExpense, account});
+                            setEditingExpense({...editingExpense, account: account.name});
                             setAccountPickerVisible(false);
                           }}
                         >
                           <Text 
-                            style={[styles.pickerOptionText, editingExpense.account === account && styles.pickerOptionTextSelected]}
+                            style={[styles.pickerOptionText, editingExpense.account === account.name && styles.pickerOptionTextSelected]}
                           >
-                            {account}
+                            {account.name}
                           </Text>
-                          {editingExpense.account === account && (
+                          {editingExpense.account === account.name && (
                             <Check size={20} color={theme.primary} />
                           )}
                         </TouchableOpacity>

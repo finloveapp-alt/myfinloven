@@ -92,8 +92,8 @@ android {
         applicationId 'com.myfinlove.app'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 18
-        versionName "2.7"
+        versionCode 23
+        versionName "3.2"
     }
     signingConfigs {
         debug {
@@ -104,9 +104,9 @@ android {
         }
         release {
             storeFile file('release.keystore')
-            storePassword 'myfinlove2024'
-            keyAlias 'myfinlove'
-            keyPassword 'myfinlove2024'
+            storePassword '926ddda012db965698d55b541d35f78c'
+            keyAlias '4c0ee698074e925f49f7408526361f67'
+            keyPassword 'f7ab194216f81fbecc8b06d0e80981c8'
         }
     }
     buildTypes {

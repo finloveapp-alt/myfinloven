@@ -90,12 +90,8 @@ export default function Expenses() {
     category: string;
     account: string;
     dueDate: Date;
-  }>({
-    title: '',
-    category: 'Outros',
-    account: 'Nubank',
-    dueDate: new Date(),
-  });
+    amount: number;
+  }>({    title: '',    category: 'Outros',    account: 'Nubank',    dueDate: new Date(),    amount: 0,  });
   
   // Estados para os seletores de categoria e conta
   const [categoryPickerVisible, setCategoryPickerVisible] = useState(false);
@@ -896,15 +892,85 @@ export default function Expenses() {
   };
   
   // Abrir modal de edição
-  const openEditModal = () => {
+  const openEditModal = async () => {
     if (!activeExpense) return;
     
-    setEditingExpense({
-      title: activeExpense.title,
-      category: activeExpense.category,
-      account: activeExpense.account,
-      dueDate: new Date(activeExpense.dueDate),
-    });
+    try {
+      // Extrair o UUID original removendo o prefixo "transaction_" se existir
+      const originalId = activeExpense.id.startsWith('transaction_') 
+        ? activeExpense.id.replace('transaction_', '') 
+        : activeExpense.id;
+      
+      // Buscar dados atuais da transação no banco de dados
+      // Primeiro tentar na tabela expenses, depois na transactions
+      let transactionData = null;
+      let foundData = false;
+      
+      // Tentar buscar na tabela expenses primeiro
+      const { data: expenseData, error: expenseError } = await supabase
+        .from('expenses')
+        .select(`
+          *,
+          accounts!expenses_account_id_fkey(name),
+          budget_categories(category)
+        `)
+        .eq('id', originalId);
+      
+      if (expenseData && expenseData.length > 0) {
+        transactionData = expenseData[0];
+        foundData = true;
+      } else {
+        // Se não encontrou na expenses, tentar na transactions
+        const { data: transData, error: transError } = await supabase
+          .from('transactions')
+          .select(`
+            *,
+            accounts!transactions_account_id_fkey(name),
+            budget_categories(category)
+          `)
+          .eq('id', originalId);
+        
+        if (transData && transData.length > 0) {
+          transactionData = transData[0];
+          foundData = true;
+        }
+      }
+      
+      if (!foundData || !transactionData) {
+        console.log('Nenhum dado encontrado no banco, usando dados locais');
+        // Se não encontrou dados, usar os dados locais como fallback
+        setEditingExpense({
+          title: activeExpense.title,
+          category: activeExpense.category,
+          account: activeExpense.account,
+          dueDate: new Date(activeExpense.dueDate),
+          amount: activeExpense.amount,
+        });
+      } else {
+        // Usar dados atuais do banco de dados
+        // Mapear campos dependendo da tabela de origem
+        const title = transactionData.description || transactionData.title || activeExpense.title;
+        const dueDate = transactionData.due_date || transactionData.dueDate || activeExpense.dueDate;
+        
+        setEditingExpense({
+          title: title,
+          category: transactionData.budget_categories?.category || activeExpense.category,
+          account: transactionData.accounts?.name || activeExpense.account,
+          dueDate: new Date(dueDate),
+          amount: Math.abs(transactionData.amount) || activeExpense.amount,
+        });
+      }
+    } catch (error) {
+      console.error('Erro ao buscar dados da transação:', error);
+      // Se houver erro, usar os dados locais como fallback
+      setEditingExpense({
+        title: activeExpense.title,
+        category: activeExpense.category,
+        account: activeExpense.account,
+        dueDate: new Date(activeExpense.dueDate),
+        amount: activeExpense.amount,
+      });
+    }
     
     setOptionsMenuVisible(false);
     setEditModalVisible(true);
@@ -917,34 +983,86 @@ export default function Expenses() {
   
   // Salvar edições
   const saveEdit = async () => {
-    if (!activeExpense) return;
+    console.log('=== INICIANDO SAVE EDIT ===');
+    console.log('activeExpense:', activeExpense);
+    console.log('editingExpense:', editingExpense);
+    
+    if (!activeExpense) {
+      console.log('ERRO: activeExpense é null');
+      return;
+    }
     if (!editingExpense.title) {
       Alert.alert('Erro', 'O título não pode estar vazio.');
       return;
     }
     
     try {
-      // Extrair o UUID original removendo o prefixo "transaction_" se existir
-      const originalId = activeExpense.id.startsWith('transaction_') 
+      // Determinar se é uma transação ou despesa baseado no prefixo do ID
+      const isTransaction = activeExpense.id.startsWith('transaction_');
+      const originalId = isTransaction 
         ? activeExpense.id.replace('transaction_', '') 
         : activeExpense.id;
       
-      // Atualizar despesa no Supabase
-      const { error } = await supabase
-        .from('expenses')
-        .update({
-          title: editingExpense.title,
-          category: editingExpense.category,
-          account: editingExpense.account,
-          due_date: editingExpense.dueDate.toISOString(),
-        })
-        .eq('id', originalId);
+      console.log('activeExpense.id:', activeExpense.id);
+      console.log('originalId para update:', originalId);
+      console.log('isTransaction:', isTransaction);
+      
+      let data, error;
+      
+      if (isTransaction) {
+        // Buscar o account_id baseado no nome da conta
+        const { data: accountData, error: accountError } = await supabase
+          .from('accounts')
+          .select('id')
+          .eq('name', editingExpense.account)
+          .single();
+        
+        if (accountError) {
+          console.error('Erro ao buscar conta:', accountError);
+          Alert.alert('Erro', 'Conta não encontrada');
+          return;
+        }
+        
+        // Atualizar na tabela transactions
+        const result = await supabase
+          .from('transactions')
+          .update({
+            description: editingExpense.title,
+            amount: -Math.abs(parseFloat(editingExpense.amount || '0')), // Garantir valor negativo para despesas
+            transaction_date: editingExpense.dueDate.toISOString(),
+            account_id: accountData.id,
+          })
+          .eq('id', originalId)
+          .select();
+        
+        data = result.data;
+        error = result.error;
+      } else {
+        // Atualizar na tabela expenses
+        const result = await supabase
+          .from('expenses')
+          .update({
+            title: editingExpense.title,
+            category: editingExpense.category,
+            account: editingExpense.account,
+            due_date: editingExpense.dueDate.toISOString(),
+          })
+          .eq('id', originalId)
+          .select();
+        
+        data = result.data;
+        error = result.error;
+      }
+      
+      console.log('Resultado do update:', { data, error });
       
       if (error) {
-        console.error('Erro ao atualizar despesa:', error);
-        Alert.alert('Erro', 'Erro ao atualizar despesa no banco de dados');
+        console.error('Erro ao atualizar:', error);
+        Alert.alert('Erro', 'Erro ao atualizar no banco de dados');
         return;
       }
+      
+      console.log('Update realizado com sucesso, atualizando estado local...');
       
       // Atualizar estado local
       const updatedExpenses = expenses.map(expense => {
@@ -959,6 +1077,8 @@ export default function Expenses() {
         }
         return expense;
       });
+      
+      console.log('Estado local atualizado');
       
       setExpenses(updatedExpenses);
       setEditModalVisible(false);
@@ -1089,7 +1209,6 @@ export default function Expenses() {
     });
     
     setExpenses(updatedExpenses);
-    saveExpenses(updatedExpenses);
     setCardExpenseModalVisible(false);
     setActiveExpense(null);
     
@@ -1157,7 +1276,6 @@ export default function Expenses() {
     // Atualizar saldo
     const newBalance = userBalance - partial;
     setUserBalance(newBalance);
-    saveBalance(newBalance);
     
     // Se pagou tudo, marcar como pago
     if (partial >= activeExpense.amount) {
@@ -1172,7 +1290,6 @@ export default function Expenses() {
       });
       
       setExpenses(updatedExpenses);
-      saveExpenses(updatedExpenses);
       setPartialPaymentModalVisible(false);
       setActiveExpense(null);
       
@@ -1204,7 +1321,6 @@ export default function Expenses() {
     // Adicionar a nova despesa com o valor restante
     const finalExpenses = [...updatedExpenses, remainingExpense];
     setExpenses(finalExpenses);
-    saveExpenses(finalExpenses);
     
     setPartialPaymentModalVisible(false);
     setActiveExpense(null);
@@ -1285,15 +1401,39 @@ export default function Expenses() {
         ? activeExpense.id.replace('transaction_', '') 
         : activeExpense.id;
       
-      // Excluir despesa do Supabase
-      const { error } = await supabase
-        .from('expenses')
-        .delete()
-        .eq('id', originalId);
+      let deleteResult = null;
+      let tableName = '';
       
-      if (error) {
-        console.error('Erro ao excluir despesa:', error);
-        Alert.alert('Erro', 'Erro ao excluir despesa do banco de dados');
+      // Primeiro, tentar excluir da tabela 'transactions'
+      const transactionResult = await supabase
+        .from('transactions')
+        .delete()
+        .eq('id', originalId)
+        .select();
+      
+      if (transactionResult.data && transactionResult.data.length > 0) {
+        deleteResult = transactionResult;
+        tableName = 'transactions';
+      } else {
+        // Se não encontrou na tabela transactions, tentar na tabela 'expenses'
+        const expenseResult = await supabase
+          .from('expenses')
+          .delete()
+          .eq('id', originalId)
+          .select();
+        
+        if (expenseResult.data && expenseResult.data.length > 0) {
+          deleteResult = expenseResult;
+          tableName = 'expenses';
+        } else {
+          Alert.alert('Erro', 'Transação não encontrada no banco de dados');
+          return;
+        }
+      }
+      
+      if (deleteResult.error) {
+        console.error('Erro ao excluir transação:', deleteResult.error);
+        Alert.alert('Erro', 'Erro ao excluir transação do banco de dados');
         return;
       }
       
@@ -1302,16 +1442,22 @@ export default function Expenses() {
       setExpenses(updatedExpenses);
       
       closeDeleteOptions();
-      Alert.alert('Sucesso', 'Despesa excluída a partir deste mês.');
+      Alert.alert('Sucesso', `Transação excluída a partir deste mês da tabela ${tableName}.`);
     } catch (error) {
-      console.error('Erro ao excluir despesa:', error);
-      Alert.alert('Erro', 'Erro inesperado ao excluir despesa');
+      console.error('Erro ao excluir transação:', error);
+      Alert.alert('Erro', 'Erro inesperado ao excluir transação');
     }
   };
   
   // Excluir definitivamente
   const deleteDefinitively = async () => {
-    if (!activeExpense) return;
+    console.log('=== INICIANDO DELETE DEFINITIVELY ===');
+    console.log('activeExpense:', activeExpense);
+    
+    if (!activeExpense) {
+      console.log('ERRO: activeExpense é null');
+      return;
+    }
     
     try {
       // Extrair o UUID original removendo o prefixo "transaction_" se existir
@@ -1319,27 +1465,65 @@ export default function Expenses() {
         ? activeExpense.id.replace('transaction_', '') 
         : activeExpense.id;
       
-      // Excluir despesa do Supabase
-      const { error } = await supabase
-        .from('expenses')
-        .delete()
-        .eq('id', originalId);
+      console.log('activeExpense.id:', activeExpense.id);
+      console.log('originalId para delete:', originalId);
       
-      if (error) {
-        console.error('Erro ao excluir despesa:', error);
-        Alert.alert('Erro', 'Erro ao excluir despesa do banco de dados');
+      let deleteResult = null;
+      let tableName = '';
+      
+      // Primeiro, tentar excluir da tabela 'transactions'
+      console.log('Tentando excluir da tabela transactions...');
+      const transactionResult = await supabase
+        .from('transactions')
+        .delete()
+        .eq('id', originalId)
+        .select();
+      
+      if (transactionResult.data && transactionResult.data.length > 0) {
+        deleteResult = transactionResult;
+        tableName = 'transactions';
+        console.log('Transação encontrada e excluída da tabela transactions');
+      } else {
+        // Se não encontrou na tabela transactions, tentar na tabela 'expenses'
+        console.log('Não encontrado em transactions, tentando na tabela expenses...');
+        const expenseResult = await supabase
+          .from('expenses')
+          .delete()
+          .eq('id', originalId)
+          .select();
+        
+        if (expenseResult.data && expenseResult.data.length > 0) {
+          deleteResult = expenseResult;
+          tableName = 'expenses';
+          console.log('Transação encontrada e excluída da tabela expenses');
+        } else {
+          console.log('Transação não encontrada em nenhuma tabela');
+          Alert.alert('Erro', 'Transação não encontrada no banco de dados');
+          return;
+        }
+      }
+      
+      console.log(`Resultado do delete da tabela ${tableName}:`, deleteResult);
+      
+      if (deleteResult.error) {
+        console.error('Erro ao excluir transação:', deleteResult.error);
+        Alert.alert('Erro', 'Erro ao excluir transação do banco de dados');
         return;
       }
+      
+      console.log('Delete realizado com sucesso, atualizando estado local...');
       
       // Atualizar estado local
       const updatedExpenses = expenses.filter(expense => expense.id !== activeExpense.id);
       setExpenses(updatedExpenses);
       
+      console.log('Estado local atualizado');
+      
       closeDeleteOptions();
-      Alert.alert('Sucesso', 'Despesa excluída definitivamente!');
+      Alert.alert('Sucesso', `Transação excluída definitivamente da tabela ${tableName}!`);
     } catch (error) {
-      console.error('Erro ao excluir despesa:', error);
-      Alert.alert('Erro', 'Erro inesperado ao excluir despesa');
+      console.error('Erro ao excluir transação:', error);
+      Alert.alert('Erro', 'Erro inesperado ao excluir transação');
     }
   };
   

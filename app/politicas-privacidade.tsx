@@ -1,9 +1,23 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, SafeAreaView } from 'react-native';
+import React, { useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, SafeAreaView, Platform, BackHandler } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { fontFallbacks } from '@/utils/styles';
+import { useRouter } from 'expo-router';
 
 export default function PoliticasPrivacidade() {
+  const router = useRouter();
+
+  useEffect(() => {
+    const backAction = () => {
+      router.push('/profile');
+      return true;
+    };
+
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
+
+    return () => backHandler.remove();
+  }, [router]);
+
   return (
     <SafeAreaView style={styles.container}>
       <LinearGradient
@@ -194,6 +208,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8f9fa',
+    paddingTop: Platform.OS === 'android' ? 16 : 0,
   },
   header: {
     paddingVertical: 40,
@@ -264,4 +279,4 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontFamily: fontFallbacks.regular,
   },
-}); 
+});

@@ -168,7 +168,7 @@ export default function Profile() {
             icon={<DollarSign size={24} color="#666" />}
             title="Planos e Preços"
             onPress={() => {
-              // Navegar para planos
+              router.push('/subscription');
             }}
           />
           
@@ -176,7 +176,7 @@ export default function Profile() {
             icon={<Shield size={24} color="#666" />}
             title="Políticas de privacidade"
             onPress={() => {
-              // Navegar para políticas
+              router.push('/politicas-privacidade');
             }}
           />
           
@@ -184,7 +184,7 @@ export default function Profile() {
             icon={<FileText size={24} color="#666" />}
             title="Termos de uso"
             onPress={() => {
-              // Navegar para termos
+              router.push('/termos-de-uso');
             }}
           />
           

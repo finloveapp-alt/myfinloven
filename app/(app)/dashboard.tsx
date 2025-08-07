@@ -2239,19 +2239,33 @@ export default function Dashboard() {
         throw new Error('Falha ao obter sessão do usuário');
       }
 
-      // Converter imagem para blob
-      const response = await fetch(uri);
-      const blob = await response.blob();
-      
       // Gerar nome de arquivo único
       const fileExt = uri.split('.').pop() || 'jpg';
       const fileName = `${session.user.id}_${Date.now()}.${fileExt}`;
       const filePath = `profile_pictures/${fileName}`;
 
+      let fileData;
+      
+      if (Platform.OS === 'android' || Platform.OS === 'ios') {
+        // Para React Native, usar FormData
+        const formData = new FormData();
+        formData.append('file', {
+          uri: uri,
+          type: `image/${fileExt}`,
+          name: fileName,
+        } as any);
+        fileData = formData;
+      } else {
+        // Para web, usar blob
+        const response = await fetch(uri);
+        const blob = await response.blob();
+        fileData = blob;
+      }
+
       // Upload para o storage
       const { error: uploadError } = await supabase.storage
         .from('user_uploads')
-        .upload(filePath, blob);
+        .upload(filePath, fileData);
 
       if (uploadError) {
         throw uploadError;
@@ -2301,19 +2315,33 @@ export default function Dashboard() {
         throw new Error('Falha ao obter sessão do usuário');
       }
 
-      // Converter imagem para blob
-      const response = await fetch(uri);
-      const blob = await response.blob();
-      
       // Gerar nome de arquivo único para avatar
       const fileExt = uri.split('.').pop() || 'jpg';
       const fileName = `avatar_${session.user.id}_${Date.now()}.${fileExt}`;
       const filePath = `avatar_pictures/${fileName}`;
 
+      let fileData;
+      
+      if (Platform.OS === 'android' || Platform.OS === 'ios') {
+        // Para React Native, usar FormData
+        const formData = new FormData();
+        formData.append('file', {
+          uri: uri,
+          type: `image/${fileExt}`,
+          name: fileName,
+        } as any);
+        fileData = formData;
+      } else {
+        // Para web, usar blob
+        const response = await fetch(uri);
+        const blob = await response.blob();
+        fileData = blob;
+      }
+
       // Upload para o storage
       const { error: uploadError } = await supabase.storage
         .from('user_uploads')
-        .upload(filePath, blob);
+        .upload(filePath, fileData);
 
       if (uploadError) {
         throw uploadError;
